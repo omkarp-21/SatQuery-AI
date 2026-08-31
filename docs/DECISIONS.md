@@ -5,6 +5,31 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-003 — `chatgpt.context.md` as persistent strategic memory; `docs/PROJECT_STATUS.md` as living status
+
+- **Date:** 2026-08-31
+- **Status:** Accepted
+- **Context:** Strategy, SIH evaluation criteria, the winning objective, model
+  candidates, experiment plan, red-team questions and jury lenses were living in
+  chat history and would be lost between sessions. Claude needs a fixed place to
+  read strategic intent and a fixed place to record honest project state.
+- **Alternatives considered:** (a) keep it only in `CLAUDE.md` — too long, mixes
+  operating rules with strategy; (b) split across the numbered docs — dilutes the
+  "read this first" signal; (c) a Claude-memory file only — not visible to the
+  team or in the repo.
+- **Decision:** Commit `chatgpt.context.md` at the repo root as canonical,
+  non-disposable strategic memory (synced with reality, esp. §33). Add
+  `docs/PROJECT_STATUS.md` as the living status file (DONE / IN PROGRESS / BLOCKED
+  / MISSING / RESEARCH NEEDED / METRICS / RISKS / NEXT 3 ACTIONS / WIN SCORECARD),
+  updated every significant session. Wire both into `CLAUDE.md` "Read first",
+  `docs/21`, and the `documentation` rule.
+- **Trade-off:** Two more files to keep current; drift is a real risk if sessions
+  skip the end-of-session update.
+- **Consequence:** `chatgpt.context.md` §11 experiments are the seed for
+  `docs/19_EXPERIMENT_REGISTRY.md`; §21 structure matches ADR-001; §24 defines the
+  status schema now implemented. The three-numbers rule (doc 18) is echoed in
+  context §10/§16.
+
 ## ADR-002 — Research repos isolated in `external/research/`, never merged
 
 - **Date:** 2026-08-31

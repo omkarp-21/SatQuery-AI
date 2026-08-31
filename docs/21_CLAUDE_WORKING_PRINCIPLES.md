@@ -34,7 +34,9 @@ Run this loop repeatedly. Small increments, each measured.
 
 ## Before implementing a major feature
 
-1. **Read the relevant docs** (`docs/NN_*.md`, especially 02, 03, 05, 06, 17, 18, 20).
+1. **Read the strategic memory + status**: `chatgpt.context.md` (persistent
+   memory), `docs/PROJECT_STATUS.md` (live state), then the relevant `docs/NN_*.md`
+   (especially 02, 03, 05, 06, 17, 18, 20).
 2. **Identify the SIH requirement** being addressed (problem 26167 — cite it).
 3. **Check existing research / components** (`external/research/`, `docs/research/`,
    `packages/`). Has this been tried? See `19_EXPERIMENT_REGISTRY.md`.
@@ -94,3 +96,12 @@ decision · citation.
 
 See [`17_ENGINEERING_STRATEGY.md`](17_ENGINEERING_STRATEGY.md) and
 [`18_RESEARCH_TO_ACCURACY.md`](18_RESEARCH_TO_ACCURACY.md) for the full versions.
+
+## End every significant session by updating `docs/PROJECT_STATUS.md`
+
+Answer, in the file: **what changed** (code / research / metrics / design) ·
+**what we learned** (especially failures) · **what we proved** (measured facts
+only) · **what remains weak** · **the single highest-leverage next step**. Then
+re-score the WIN SCORECARD and explain any change. Also update `chatgpt.context.md`
+§33 if the high-level state moved, and add an ADR to `docs/DECISIONS.md` for any
+architecture / model / engineering decision.

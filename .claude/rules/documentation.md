@@ -1,5 +1,11 @@
 # Documentation Rules
 
+- `chatgpt.context.md` (repo root) is **persistent strategic memory**, not
+  disposable docs. Do not delete or gut it; keep §33 in sync with reality.
+- `docs/PROJECT_STATUS.md` is the living status file — update it at the end of
+  every significant session (DONE / IN PROGRESS / BLOCKED / MISSING / RESEARCH
+  NEEDED / METRICS / RISKS / NEXT 3 ACTIONS / WIN SCORECARD). METRICS holds only
+  real measurements, tagged and dated.
 - The numbered `docs/NN_*.md` files are the source of truth for design. Code and
   its doc change together in one PR — never let them drift.
 - Architectural decisions are appended to `docs/DECISIONS.md` as ADRs (context /

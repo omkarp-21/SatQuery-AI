@@ -1,5 +1,16 @@
 # SATQUERY AI
 
+## Read first (every serious session)
+
+1. [`chatgpt.context.md`](chatgpt.context.md) — persistent strategic memory and
+   SIH evaluation brain. **Not disposable documentation.** Keep it in sync with reality.
+2. This file (`CLAUDE.md`).
+3. [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) — live DONE / BLOCKED /
+   MISSING / METRICS / NEXT 3 / WIN SCORECARD. Update it every significant session.
+4. [`docs/DECISIONS.md`](docs/DECISIONS.md), then the relevant numbered `docs/`.
+5. [`docs/research/`](docs/research/) — model inventory + experiment registry
+   ([`docs/19_EXPERIMENT_REGISTRY.md`](docs/19_EXPERIMENT_REGISTRY.md)).
+
 ## Mission
 
 Build SatQuery AI for **SIH 2026 problem 26167**.
