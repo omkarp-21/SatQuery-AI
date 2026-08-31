@@ -23,14 +23,35 @@ You are working inside a system with a **deliberate, fixed** shape. Do not
 - **Explain** — assemble the evidence trail and execution trace.
 - **Audit** — write provenance: what ran, on what, with which versions, producing what.
 
+## Monorepo layout (ADR-001)
+
+```
+apps/backend/    FastAPI app (app/: api, core, schemas, services, main.py)
+apps/frontend/   React dashboard (src/)
+packages/core/            satquery_core           pipeline spine + typed contracts
+packages/geospatial/      satquery_geospatial     raster/vector engine
+packages/agents/          satquery_agents         agents + specialists
+packages/evidence/        satquery_evidence       evidence + verification + provenance
+packages/model_adapters/  satquery_model_adapters adapters + model_registry.yaml
+external/research/         vendored repos — READ-ONLY, gitignored, never imported
+models/{checkpoints,cache}/   gitignored
+```
+
 ## Fixed pipeline stage order
 
-Package: `backend/satquery/`. Order is load-bearing:
+Order is load-bearing:
 
 ```
 ingestion → metadata → routing → planning → registry → agents → specialists →
 fusion → verification → evidence → geospatial → confidence → provenance → reports
 ```
+
+Stage → package:
+- core stages (ingestion, metadata, routing, planning, registry, fusion,
+  confidence, reports) → `packages/core/src/satquery_core/<stage>/`
+- geospatial → `packages/geospatial`
+- agents, specialists → `packages/agents`
+- evidence, verification, provenance → `packages/evidence`
 
 | Stage | Responsibility |
 |-------|----------------|
@@ -38,7 +59,7 @@ fusion → verification → evidence → geospatial → confidence → provenanc
 | metadata | Extract CRS, transform, bounds, GSD, band info, acquisition dates |
 | routing | Pick modality path (single / bi-temporal / optical–SAR) and candidate models |
 | planning | Deterministic execution plan (DAG of specialist calls) |
-| registry | Resolve model entries from `models/model_registry.yaml` to adapters |
+| registry | Resolve model entries from `packages/model_adapters/model_registry.yaml` to adapters |
 | agents | Orchestrate the plan deterministically (no free-form LLM tool calls) |
 | specialists | Invoke model adapters, collect normalized results |
 | fusion | Combine multi-model outputs (weighted vote / rule-based per registry) |
@@ -51,11 +72,13 @@ fusion → verification → evidence → geospatial → confidence → provenanc
 
 ## Layer boundaries (do not cross)
 
-- **API / orchestration** → `backend/app/` (`api/`, `core/`, `schemas/`, `services/`, `main.py`)
-- **Pipeline logic** → `backend/satquery/<stage>/`
-- **Model code** → `models/` (`adapters/`, `checkpoints/`, `model_registry.yaml`)
-- **Reference research** → `research/repos/` — read-only, never imported by product code
-- **Frontend** → `frontend/src/` — talks to backend only via `docs/09_API_CONTRACTS.md`
+- **API / orchestration** → `apps/backend/app/` (`api/`, `core/`, `schemas/`, `services/`, `main.py`)
+- **Pipeline logic** → `packages/{core,geospatial,agents,evidence}/src/...`
+- **Model adapters + registry** → `packages/model_adapters/`; checkpoints → `models/checkpoints/`, cache → `models/cache/`
+- **Reference research** → `external/research/` — read-only, gitignored, never imported by product code
+- **Frontend** → `apps/frontend/src/` — talks to backend only via `docs/09_API_CONTRACTS.md`
+- Package deps are one-way (no cycles): `core` ← `agents`, `evidence`; `geospatial`
+  and `model_adapters` stand alone; `apps/backend` depends on all.
 
 ## Data contract rules
 

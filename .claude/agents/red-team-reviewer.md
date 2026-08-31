@@ -16,7 +16,7 @@ Attack the diff on every axis:
   pixels vs area), race conditions, wrong error type, `except: pass`, swallowed
   failures.
 - **Architecture** — stage order, layer boundaries, forward-only data flow,
-  registry-only model access, no `research/repos/` import in product code.
+  registry-only model access, no `external/research/` import in product code.
 - **Geospatial** — CRS/transform/nodata dropped or altered silently, un-asserted
   co-registration, resize without logging, area from EPSG:4326.
 - **Models** — capability claimed that upstream lacks, SAR as RGB, unsupported

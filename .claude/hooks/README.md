@@ -5,8 +5,8 @@ Place hook scripts here and wire them in [`../settings.json`](../settings.json) 
 
 Ideas for this project:
 
-- **PostToolUse (Edit|Write on `backend/**/*.py`)** → run `ruff check --fix` + `black` on the file.
-- **PostToolUse (Edit|Write on `frontend/src/**`)** → run `prettier --write` on the file.
+- **PostToolUse (Edit|Write on `packages/**/*.py` or `apps/backend/**/*.py`)** → run `ruff check --fix` + `black` on the file.
+- **PostToolUse (Edit|Write on `apps/frontend/src/**`)** → run `prettier --write` on the file.
 - **PreToolUse (Bash)** → block commands that touch `.env`, `models/checkpoints/`, or `data/raw/`.
 - **Stop** → run `make lint` and surface failures.
 

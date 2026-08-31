@@ -1,13 +1,14 @@
 services:
   api:
     build:
-      context: ./backend
-      dockerfile: ../infra/docker/backend.Dockerfile
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
     env_file: .env
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      - ./apps/backend:/app/apps/backend
+      - ./packages:/app/packages
       - ./models:/models
       - ./data:/data
     depends_on:
@@ -17,13 +18,13 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: ../infra/docker/frontend.Dockerfile
+      context: ./apps/frontend
+      dockerfile: ../../infrastructure/docker/frontend.Dockerfile
     env_file: .env
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - ./apps/frontend:/app
       - /app/node_modules
 
   db:
@@ -57,7 +58,7 @@ services:
   nginx:
     image: nginx:1.27-alpine
     volumes:
-      - ./infra/nginx:/etc/nginx/conf.d:ro
+      - ./infrastructure/nginx:/etc/nginx/conf.d:ro
     ports:
       - "8080:80"
     depends_on:

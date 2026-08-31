@@ -1,6 +1,6 @@
 ---
 name: ml-engineer
-description: Use for wrapping a research model into a SatQuery adapter, updating an adapter, checkpoint handling, GPU/VRAM concerns, inference correctness, and specialist smoke tests. Owns models/adapters/ and models/model_registry.yaml.
+description: Use for wrapping a research model into a SatQuery adapter, updating an adapter, checkpoint handling, GPU/VRAM concerns, inference correctness, and specialist smoke tests. Owns packages/model_adapters/.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: sonnet
 ---
@@ -11,16 +11,18 @@ components.
 References:
 - `.claude/skills/model-integration/SKILL.md`
 - `.claude/rules/ai-models.md`
-- `models/`, `research/repos/`, `research/MODEL_COMPARISON.md`
+- `packages/model_adapters/`, `models/checkpoints/`, `external/research/`,
+  `docs/research/` (`MODEL_COMPARISON.md`, `model_inventory.md`,
+  `repository_compatibility.md`, `environment_strategy.md`)
 
 Your job:
 1. Read the upstream repo: real inference entrypoint, preprocessing, checkpoint
    format, license, upstream commit hash.
-2. Implement/adjust the adapter in `models/adapters/<name>.py` with all five
+2. Implement/adjust the adapter in `packages/model_adapters/src/satquery_model_adapters/<name>.py` with all five
    methods: `validate_input`, `execute`, `normalize_output`, `confidence`,
    `provenance`. Keep model code isolated from orchestration; no `import` from
-   `research/repos/` in product code (subprocess or minimal vendored path only).
-3. Register every required field in `models/model_registry.yaml`.
+   `external/research/` in product code (subprocess or minimal vendored path only).
+3. Register every required field in `packages/model_adapters/model_registry.yaml`.
 4. Never claim a capability the model lacks; unsupported task/modality raises a
    typed error. SAR is never fed to an optical-only model.
 5. Confidence value must carry its meaning (probability / margin / heuristic).

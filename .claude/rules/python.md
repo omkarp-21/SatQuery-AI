@@ -13,8 +13,9 @@
   Never `except: pass`. Every caught exception is either handled or re-raised with context.
 - No blocking I/O in async code paths. Use `httpx.AsyncClient`, async DB drivers.
 - No global mutable state. Pass dependencies in (FastAPI `Depends`, explicit args).
-- Heavy ML imports (`torch`, `transformers`) live in `models/` and its optional
-  `ml` extra — never import them from `backend/app/` or a non-specialist stage.
-- Tests use `pytest` in `backend/tests/`, mirroring the package layout. New code
+- Heavy ML imports (`torch`, `open-clip`, …) live behind `packages/model_adapters`
+  and its optional `ml` extra — never import them from `apps/backend/app/`,
+  `packages/core`, or any non-specialist stage.
+- Tests use `pytest` in `apps/backend/tests/`, mirroring the package layout. New code
   ships with tests in the same change.
 - Randomness is seeded and the seed is recorded (evaluation, sampling, augmentation).

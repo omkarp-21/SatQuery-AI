@@ -12,7 +12,7 @@ predictable component.
 
 ```python
 class SpecialistAdapter(ModelAdapter):
-    name = "..."          # matches models/model_registry.yaml key
+    name = "..."          # matches packages/model_adapters/model_registry.yaml key
     version = "..."       # upstream tag/commit you integrated
     tasks = (...)
     modalities = (...)    # e.g. ("optical-bitemporal",) — SAR is its own tag
@@ -24,7 +24,7 @@ class SpecialistAdapter(ModelAdapter):
 
     def execute(self, request: AdapterRequest) -> RawOutput:
         """Run inference. Load lazily (self.load()). Prefer a vendored minimal
-        inference path or a subprocess call into research/repos/<repo>/ with an
+        inference path or a subprocess call into external/research/<repo>/ with an
         explicit arg list + timeout. Never import research code into product."""
 
     def normalize_output(self, raw: RawOutput) -> AdapterResult:
@@ -44,21 +44,23 @@ class SpecialistAdapter(ModelAdapter):
 
 1. **Read the repo.** Find the exact inference entrypoint, input preprocessing,
    checkpoint format, and license. Note the upstream commit hash in
-   `research/MODEL_COMPARISON.md`.
-2. **Vendor or submodule** into `research/repos/<name>/` (read-only).
+   `docs/research/MODEL_COMPARISON.md`.
+2. **Clone** into `external/research/<name>/` at a pinned commit via
+   `scripts/setup/clone_research_repos.sh` (read-only, gitignored). Set up its
+   isolated env/container per `docs/research/environment_strategy.md`.
 3. **Pin the checkpoint**: downloader in `scripts/download_models/`, expected
    sha256 recorded, target `models/checkpoints/<name>/`.
-4. **Write the adapter** in `models/adapters/<name>.py` implementing all five methods.
-5. **Register** in `models/model_registry.yaml` with every required field.
-6. **Smoke test** in `backend/tests/` (`@pytest.mark.slow`/`gpu`): load checkpoint,
+4. **Write the adapter** in `packages/model_adapters/src/satquery_model_adapters/<name>.py` implementing all five methods.
+5. **Register** in `packages/model_adapters/model_registry.yaml` with every required field.
+6. **Smoke test** in `packages/model_adapters/tests/` (`@pytest.mark.slow`/`gpu`): load checkpoint,
    run one real inference on a tiny fixture, assert the output schema.
 7. **Document** in the adapter docstring: what it does, what it does NOT do,
    expected input, output schema, confidence meaning, GPU/VRAM needs.
 
 ## Isolation rules
 
-- No `import` from `research/repos/` in `backend/` or `models/adapters/`
-  (subprocess or a small vendored function only).
+- No `import` from `external/research/` anywhere in `apps/` or `packages/`
+  (subprocess into an isolated env, or a small vendored function, only).
 - Orchestration (planning/agents) never imports `torch` or a model — it goes
   through the registry.
 - An adapter that can't fulfil a request raises `UnsupportedTaskError` /

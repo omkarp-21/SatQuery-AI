@@ -3,7 +3,7 @@
 - TypeScript strict mode. No `any` — use `unknown` and narrow, or define a type.
 - Functional React components with hooks. No class components.
 - API response types are generated or hand-mirrored from `docs/09_API_CONTRACTS.md`
-  and live in one place (`frontend/src/features/*/types.ts`). Components never
+  and live in one place (`apps/frontend/src/features/*/types.ts`). Components never
   redefine server shapes inline.
 - Server state via `@tanstack/react-query`. Local UI state via `zustand` or
   `useState`. Do not put server data in a global store.

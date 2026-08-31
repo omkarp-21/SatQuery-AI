@@ -7,10 +7,13 @@ description: How to test SatQuery well — pytest and vitest patterns, synthetic
 
 Enforces `.claude/rules/testing.md`. This is the practice.
 
-## Backend (pytest)
+## Python (pytest)
 
-Layout mirrors the package: `backend/tests/satquery/<stage>/test_*.py`,
-`backend/tests/models/test_<adapter>.py`.
+Layout mirrors the module under test:
+- pipeline stages → `packages/<pkg>/tests/<stage>/test_*.py`
+  (e.g. `packages/core/tests/routing/test_router.py`)
+- adapters → `packages/model_adapters/tests/test_<adapter>.py`
+- API / integration → `apps/backend/tests/`
 
 Per pipeline stage, write:
 1. **Transform test** — representative input → expected output values.
@@ -34,8 +37,9 @@ def tiny_raster(tmp_path):
     return path
 ```
 
-Keep a small library of these in `backend/tests/fixtures/` (single, bi-temporal
-aligned, bi-temporal misaligned, SAR-like dB, with-nodata).
+Keep a small library of these in `packages/geospatial/tests/fixtures/` (single,
+bi-temporal aligned, bi-temporal misaligned, SAR-like dB, with-nodata), exposed to
+other packages via a shared pytest fixture plugin.
 
 ## Adapter smoke tests
 

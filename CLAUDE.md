@@ -30,9 +30,31 @@ it never guesses past it.
 - Do not add dependencies without justification.
 - Test before integrating.
 
-## Architecture
+## Repository layout (monorepo)
 
-The pipeline package [`backend/satquery/`](backend/satquery/) runs these stages in order:
+```
+apps/
+  backend/     FastAPI app — wires the packages into query endpoints (app/)
+  frontend/    React dashboard (src/: maps, evidence, execution-trace, pages)
+packages/      installable workspace packages (src layout):
+  core/          satquery_core   — ingestion, metadata, routing, planning,
+                                   registry, fusion, confidence, reports + contracts
+  geospatial/    satquery_geospatial — raster/vector I/O, reprojection, alignment
+  agents/        satquery_agents — agents + specialists stages (deterministic)
+  evidence/      satquery_evidence — evidence, verification, provenance
+  model_adapters/ satquery_model_adapters — specialist adapters + model_registry.yaml
+external/research/  vendored reference repos — READ-ONLY, gitignored, never imported
+models/        checkpoints/ + cache/  (gitignored)
+data/          raw/ processed/ demo/  (raw/processed gitignored)
+evaluation/    datasets, scripts, metrics, cases, reports
+infrastructure/  docker/ nginx/ (+ research/ images later)
+docs/          numbered specs + DECISIONS.md + research/ (inventory, compatibility)
+```
+
+## Pipeline
+
+Stages run in this fixed order (across `packages/core`, `packages/agents`,
+`packages/evidence`, `packages/geospatial`):
 
 `ingestion → metadata → routing → planning → registry → agents → specialists →
 fusion → verification → evidence → geospatial → confidence → provenance → reports`
@@ -41,33 +63,35 @@ Details:
 - [`docs/03_SYSTEM_ARCHITECTURE.md`](docs/03_SYSTEM_ARCHITECTURE.md)
 - [`docs/05_MODEL_ARCHITECTURE.md`](docs/05_MODEL_ARCHITECTURE.md)
 - [`docs/06_AGENT_ARCHITECTURE.md`](docs/06_AGENT_ARCHITECTURE.md)
+- [`docs/DECISIONS.md`](docs/DECISIONS.md) ADR-001 (monorepo split)
 
 The custom [`satquery-architecture`](.claude/skills/satquery-architecture/SKILL.md)
 skill holds the authoritative structure — consult it before any restructuring.
 
 ## Commands
 
-**Backend:**
 ```bash
-make setup-backend         # pip install -e ".[dev]"
-make dev-backend           # uvicorn app.main:app --reload --port 8000
-make test-backend          # cd backend && pytest
-```
-
-**Frontend:**
-```bash
-make setup-frontend        # npm install
+make setup                 # editable-install packages, backend, frontend deps
+make setup-packages        # just the workspace packages
+make dev-backend           # uvicorn app.main:app --reload  (from apps/backend)
 make dev-frontend          # vite dev server on :5173
-make test-frontend         # vitest run
-```
-
-**Tests / quality / eval:**
-```bash
-make test                  # backend + frontend
-make lint                  # ruff + black --check + eslint
+make test                  # packages + backend + frontend
+make test-packages         # pytest across packages/*
+make lint                  # ruff + black --check (packages, apps/backend) + eslint
 make fmt                   # auto-format
 make eval                  # python evaluation/scripts/run_suite.py
+make clone-research        # (re)clone external/research/ at pinned commits
 ```
+
+## Research repos — hands off
+
+`external/research/` holds vendored upstream repos (GeoChat, Change-Agent,
+ChangeChat, ChangeFormer, RemoteCLIP, awesome-rs-vlms). They are **read-only,
+gitignored, and never imported** by product code. Their environments conflict with
+each other and with SatQuery — see [`docs/research/`](docs/research/)
+(`model_inventory.md`, `repository_compatibility.md`, `environment_strategy.md`).
+Integration happens later via `packages/model_adapters/` calling an isolated
+env/container by subprocess.
 
 ## Hard constraints live in `.claude/rules/`
 

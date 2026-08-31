@@ -18,7 +18,7 @@ Model code must remain isolated from orchestration logic.
 
 ## Additional constraints
 
-- These fields are declared in `models/model_registry.yaml` and enforced by the
+- These fields are declared in `packages/model_adapters/model_registry.yaml` and enforced by the
   adapter base class. Routing reads only the registry — never hardcoded model names.
 - An adapter never claims a capability the upstream model does not have. If a task
   is unsupported, the adapter raises `UnsupportedTaskError`, it does not approximate.
@@ -33,5 +33,5 @@ Model code must remain isolated from orchestration logic.
   The expected file hash is recorded so a wrong/partial checkpoint fails fast.
 - No model is integrated before its adapter has a smoke test that loads it and runs
   one real inference. "Test before integrating."
-- Research repo code stays in `research/repos/`. The adapter may shell out to it or
+- Research repo code stays in `external/research/`. The adapter may shell out to it or
   vendor a minimal inference path, but product code does not import from it.

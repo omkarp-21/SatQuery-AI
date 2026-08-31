@@ -26,7 +26,7 @@ Extract, in `research/papers/<name>.md`:
 
 ## Reviewing a reference repo
 
-- Confirm the license permits our use; record it in `research/MODEL_COMPARISON.md`.
+- Confirm the license permits our use; record it in `docs/research/MODEL_COMPARISON.md`.
 - Find the real inference entrypoint and its true input/output.
 - Note upstream commit hash. Note whether the released checkpoint matches the
   paper's numbers or a different config.
@@ -45,4 +45,4 @@ Extract, in `research/papers/<name>.md`:
 ## Output
 
 A short, skeptical memo per source. It feeds `docs/05_MODEL_ARCHITECTURE.md`,
-`research/MODEL_COMPARISON.md`, and the `ai-evaluator` agent's baselines.
+`docs/research/MODEL_COMPARISON.md`, and the `ai-evaluator` agent's baselines.

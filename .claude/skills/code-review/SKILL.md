@@ -10,7 +10,7 @@ description: Pre-merge code review for SatQuery — checks the change against th
 1. **Does it respect the boundaries?** (`.claude/rules/architecture.md`)
    - Pipeline stage order untouched; typed in/out; forward-only data flow.
    - Models reached only via adapter + registry.
-   - No import from `research/repos/` in product code.
+   - No import from `external/research/` in product code.
    - Orchestration vs pipeline vs model code not mixed.
 
 2. **Geospatial correctness** (`.claude/rules/geospatial.md`)

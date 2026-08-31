@@ -10,8 +10,8 @@
   entry when behavior changes. `make lint` and `make test` green before review.
 - Never commit: `.env`, `models/checkpoints/**`, `data/raw/**`, `data/processed/**`,
   `evaluation/reports/**`, large binaries. If `git add -A` would stage one, stop.
-- `research/repos/` entries are git submodules or shallow vendored copies with the
-  upstream commit hash recorded in `research/MODEL_COMPARISON.md`. Do not commit
+- `external/research/` entries are git submodules or shallow vendored copies with the
+  upstream commit hash recorded in `docs/research/MODEL_COMPARISON.md`. Do not commit
   edits to them.
 - Rewriting published history is off-limits. Fix forward with a new commit.
 - Tag releases `vMAJOR.MINOR.PATCH`; update `CHANGELOG` and `VERSION` in the same commit.

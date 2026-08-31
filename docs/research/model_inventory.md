@@ -1,0 +1,151 @@
+# Research Model Inventory
+
+> Status: **compiled from repository inspection only** — no dependencies installed,
+> no checkpoints downloaded, no datasets downloaded.
+> Source clones: `external/research/` (gitignored, read-only). Commit hashes in
+> `external/research/README.md`.
+> Compiled: 2026-08-31.
+
+Each entry records what the repository itself states or implies. Where a repo is
+silent, the field says "not stated" — nothing is invented.
+
+---
+
+## 1. awesome-rs-vlms — `external/research/awesome-rs-vlms`
+
+| Field | Value |
+|-------|-------|
+| Upstream | github.com/lzw-lzw/awesome-remote-sensing-vision-language-models |
+| Commit | `4d620f38e07a4c77a5d4d362fa68a012bc7ab011` (2024-04-27) |
+| README | Yes — a curated list of RS vision-language models, datasets, and papers. |
+| License | MIT (`LICENSE`) |
+| Python / PyTorch / CUDA | N/A — not runnable code. |
+| Checkpoints | None. |
+| Input / Output | N/A. |
+| Inference command | N/A. |
+| Role for SatQuery | Literature-review index only. Feeds `research-review`, not integration. |
+
+---
+
+## 2. GeoChat — `external/research/GeoChat`
+
+| Field | Value |
+|-------|-------|
+| Upstream | github.com/mbzuai-oryx/GeoChat (MBZUAI) |
+| Commit | `4850920e005a849bd224d0ce35aa9db031fa5155` (2024-11-28) |
+| README | Yes. Grounded LVLM for remote sensing (VQA, region captioning, visual grounding, scene classification). Built on LLaVA-v1.5 / Vicuna-7B. |
+| License | **No `LICENSE` file in the repo.** `pyproject.toml` classifier declares "Apache Software License". Treat as **Apache-2.0, unconfirmed** — verify with authors before redistribution. |
+| Python | `conda create -n geochat python=3.10` (README). `pyproject.toml` says `requires-python >=3.8`. |
+| PyTorch | `torch==2.0.1`, `torchvision==0.15.2` (pinned in `pyproject.toml`). |
+| CUDA | Not stated explicitly. `torch==2.0.1` default wheels are cu117/cu118. Optional `flash-attn` needs the CUDA toolkit + `ninja`. GPU expected. |
+| Key deps | `transformers==4.31.0`, `peft==0.4.0`, `accelerate==0.21.0`, `deepspeed==0.9.5`, `bitsandbytes==0.41.0`, `gradio==3.35.2`, `timm==0.6.13`, `einops==0.6.1`, `scikit-learn==1.2.2`, `httpx==0.24.0`. |
+| Checkpoints | Not downloaded. `docs/MODEL_ZOO.md` + `docs/LoRA.md` list them: GeoChat-7B as a **LoRA delta** over a LLaVA-v1.5-7B / Vicuna-7B base. Base weights must be obtained separately. HF org: `MBZUAI`. |
+| Input format | One RGB remote-sensing image (`--image-aspect-ratio pad`; ~504px per paper) + a text prompt. Task-specific prompt conventions for grounding (`[grounding]`), region, scene, VQA. |
+| Output format | Text. For grounding: bounding boxes (with rotation angle) encoded in the text response. |
+| Inference command | Gradio demo: `python geochat_demo.py --model-path <geochat-7B> --model-base <llava/vicuna-7b>`. Batch eval: `python geochat/eval/batch_geochat_vqa.py --model-path <..> --question-file <..> --image-folder <..> --answers-file <..>` (also `batch_geochat_grounding.py`, `batch_geochat_scene.py`, `batch_geochat_referring.py`). |
+| SatQuery role | Single-image optical VQA / grounding / scene specialist. |
+| Notes | `bitsandbytes==0.41.0` and `deepspeed==0.9.5` are Linux/CUDA-only — 4-/8-bit loading will not work natively on the Windows dev host. `gradio==3.35.2` pins `pydantic<2`. |
+
+---
+
+## 3. Change-Agent — `external/research/Change-Agent`
+
+| Field | Value |
+|-------|-------|
+| Upstream | github.com/Chen-Yang-Liu/Change-Agent (IEEE TGRS 2024) |
+| Commit | `68cbaa7f388b36e4fc10872f7a2911482d26ae5b` (2025-07-27) |
+| README | Yes. Two parts: `Multi_change/` (the MCI model — multi-class change detection + change captioning) and `lagent-main/` (a **vendored copy of the `lagent` agent framework**) that drives tools via an LLM. |
+| License | MIT (`LICENSE.txt`). `lagent-main/` carries its own `LICENSE`. |
+| Python | `conda create -n Multi_change_env python=3.9` (README). |
+| PyTorch | `torch==2.0.1+cu118`, `torchvision==0.15.2+cu118`, `torchaudio==2.0.2+cu118` (`Multi_change/requirement.txt`). |
+| CUDA | **11.8** (explicit `+cu118`). |
+| Key deps | `Multi_change`: `mmcv==1.3.1`, `mmengine==0.9.1`, `mmsegmentation==0.13.0`, `transformers==4.33.1`, `numpy==1.25.2`, `opencv-python==4.8.0.74`, `openai==1.3.4`, `pandas==2.1.2`. `lagent-main`: `streamlit`, `tiktoken`, `lmdeploy>=0.2.3`, `vllm>=0.3.3`, `transformers>=4.34`. |
+| Checkpoints | Not downloaded. `MCI_model.pth` from HF `lcybuaa/Change-Agent`; place in `./models_ckpt/`. May also require a SegFormer backbone. |
+| Datasets | LEVIR-MCI (HF `lcybuaa/LEVIR-MCI`) — **not downloaded**. |
+| Input format | Bi-temporal RGB image pair (LEVIR-MCI style, 256×256, building/road change). Agent layer additionally takes a natural-language instruction. |
+| Output format | Multi-class change masks (building / road) + change-caption text. The agent composes these via tool calls and needs an LLM (OpenAI API key via `openai==1.3.4`). |
+| Inference command | `python Multi_change/test.py --data_folder <LEVIR-MCI/images> --checkpoint <MCI_model.pth>`. Interactive: edit the checkpoint in `Multi_change/predict.py` (`Change_Perception.define_args()`), then `python Multi_change/try_chat.py` or `python Multi_change/web_demo.py` (Streamlit). |
+| SatQuery role | Bi-temporal change detection + captioning; a reference for agentic tool orchestration. |
+| Notes | **Internal dependency conflict**: `Multi_change` pins `transformers==4.33.1`, `lagent` requires `>=4.34`. The OpenMMLab stack (`mmcv==1.3.1` + `mmsegmentation==0.13.0` from the mmcv-1.x era, mixed with `mmengine==0.9.1` from the 2.x era) is inconsistent and `mmcv==1.3.1` has no wheels for torch 2.0 — expect a source build. Largest clone (~467 MB). |
+
+---
+
+## 4. ChangeChat — `external/research/ChangeChat`
+
+| Field | Value |
+|-------|-------|
+| Upstream | github.com/hanlinwu/ChangeChat |
+| Commit | `9facf50c68efa32f446f0f3aa700c0b76309029e` (2025-06-16) |
+| README | Yes (`readme.md`). Instruction-tuned LVLM for bi-temporal change (change captioning, change QA, change grounding). **Code is a GeoChat fork** — `pyproject.toml` is GeoChat's with the name swapped; `geochat_demo.py` and `scripts/` are carried over; homepage URL still points to GeoChat. |
+| License | **No `LICENSE` file.** `pyproject.toml` classifier says "Apache Software License". Upstream is GeoChat-derived (also Apache, unconfirmed). Treat as **Apache-2.0, unconfirmed**. |
+| Python | `conda create -n changechat python=3.9` (README). |
+| PyTorch | Badge: "PyTorch 2.0+". `pyproject.toml` (from GeoChat): `torch==2.0.1`, `torchvision==0.15.2`. |
+| CUDA | "CUDA 11.7+" (README). |
+| Key deps | README says `pip install -r requirements.txt` but **`requirements.txt` is absent at this commit**. Effective deps = `pyproject.toml` (GeoChat set): `transformers==4.31.0`, `peft==0.4.0`, `deepspeed==0.9.5`, `bitsandbytes==0.41.0`, `gradio==3.35.2`, `timm==0.6.13`. |
+| Checkpoints | **"coming soon" — not released.** Repo has empty `hf-models/` and `load/` dirs. Would layer a LoRA over a LLaVA/GeoChat base. |
+| Input format | Bi-temporal RS image pair + a natural-language instruction / question. |
+| Output format | Text (instruction response); change-grounding responses include boxes in text. |
+| Inference command | `python geochat_demo.py --model-path <changechat-weights>` (inherited from GeoChat); `test.ipynb`. |
+| SatQuery role | Bi-temporal change conversation specialist. |
+| Notes | **Not runnable yet**: no released weights, missing `requirements.txt`. Same Linux/CUDA-only concerns as GeoChat (`bitsandbytes`, `deepspeed`, `gradio<3.36`/`pydantic<2`). Second-largest clone (~347 MB), mostly `GPT-api/` and `images/`. |
+
+---
+
+## 5. ChangeFormer — `external/research/ChangeFormer`
+
+| Field | Value |
+|-------|-------|
+| Upstream | github.com/wgcban/ChangeFormer (IGARSS 2022) |
+| Commit | `afd1b7ed640aa265a2c730de958416ae7356a2f9` (2024-01-31) |
+| README | Yes. Transformer siamese network for binary change detection. |
+| License | MIT (`LICENSE`). |
+| Python | **3.8.0** (README, explicit). |
+| PyTorch | **1.10.1**, `torchvision 0.11.2` (README + `requirements.txt`). |
+| CUDA | **10.2** (`requirements.txt` is a conda explicit spec: `cudatoolkit=10.2.89`, `pytorch=1.10.1=py3.8_cuda10.2_cudnn7.6.5_0`). CPU supported via `--gpu_ids -1`. |
+| Key deps | `timm=0.4.12`, `einops=0.3.2`, `numpy=1.21.2`, `matplotlib=3.4.3`, `scipy`, `tqdm` (conda spec, linux-64). |
+| Checkpoints | Not downloaded. ChangeFormerV6 pretrained for **LEVIR-CD** and **DSIFN-CD** from GitHub Releases `v0.1.0` (zip). Training also needs SegFormer MiT-b2 backbone `segformer.b2.512x512.ade.160k.pth`. Place under `checkpoints/ChangeFormer_LEVIR/` etc. (`best_ckpt.pt`). |
+| Input format | Bi-temporal RGB pair, 3-band, 256×256 (LEVIR-CD) or 512×512 (DSIFN). Folder layout `A/`, `B/`, `list/` (+ `label/` for eval). Samples in `samples_LEVIR/`. |
+| Output format | Binary change mask (`n_class=2`), predictions saved as PNG to `--output_folder`. |
+| Inference command | `python demo_LEVIR.py --checkpoint_root <root> --checkpoint_name best_ckpt.pt --data_name quick_start_LEVIR --split demo --output_folder samples_LEVIR/predict_CD_ChangeFormerV6`. Also `demo_DSIFN.py`. Eval: `sh scripts/eval_ChangeFormer_LEVIR.sh` → `eval_cd.py`. Train: `sh scripts/run_ChangeFormer_LEVIR.sh` → `main_cd.py`. |
+| SatQuery role | Bi-temporal **mask** backend (precise, language-free) feeding fusion/verification. |
+| Notes | **CUDA 10.2 + cuDNN 7.6.5 does not support Ampere or newer GPUs** (RTX 30xx/40xx, A100/H100). To run on modern hardware, rebuild the env against a newer PyTorch (1.12+/2.x on cu113+) — the model code is simple enough that this usually works — or run CPU-only for the demo. The `requirements.txt` is a linux-64 conda lockfile and will not resolve on Windows/macOS as-is. |
+
+---
+
+## 6. RemoteCLIP — `external/research/RemoteCLIP`
+
+| Field | Value |
+|-------|-------|
+| Upstream | github.com/ChenDelong1999/RemoteCLIP (IEEE TGRS 2024) |
+| Commit | `a6a4787507e441f444c20404c90dd18520a8960d` (2024-06-27) |
+| README | Yes. CLIP fine-tuned for remote sensing; retrieval, zero-shot classification, embeddings. Weights converted to OpenCLIP format. |
+| License | **Apache-2.0** (`LICENSE`). |
+| Python | Not pinned. Colab/Jupyter demo; works on modern 3.8–3.11. |
+| PyTorch | Not pinned. Provided through `open-clip-torch`; `import torch, open_clip`. |
+| CUDA | Not required. Demo calls `.cuda()` but image/text encoding runs on CPU. |
+| Key deps | `open-clip-torch`, `huggingface_hub` (for `hf_hub_download`), `torch`, `Pillow`. Retrieval eval adds `clip_benchmark`. |
+| Checkpoints | Not downloaded. `RemoteCLIP-RN50.pt`, `RemoteCLIP-ViT-B-32.pt`, `RemoteCLIP-ViT-L-14.pt` from HF `chendelong/RemoteCLIP` via `huggingface_hub.hf_hub_download("chendelong/RemoteCLIP", "RemoteCLIP-{name}.pt", cache_dir="checkpoints")`. |
+| Input format | One RGB image (OpenCLIP preprocess for the chosen backbone) + text (class names / captions via `open_clip.get_tokenizer`). |
+| Output format | L2-normalized image and text embeddings; cosine similarity → zero-shot logits or retrieval ranking. |
+| Inference command | `demo.ipynb` / `RemoteCLIP_colab_demo.ipynb`; or `model, _, preprocess = open_clip.create_model_and_transforms("ViT-L-14"); model.load_state_dict(torch.load("RemoteCLIP-ViT-L-14.pt")); model.encode_image(...) / model.encode_text(...)`. Retrieval eval: `python retrieval.py --model-name ViT-L-14 --retrieval-json-dir <..> --retrieval-images-dir <..>`. |
+| SatQuery role | Scene retrieval, zero-shot tagging, and embedding index. |
+| Notes | Cleanest integration of the six: pure pip, permissive license, small clone (~5 MB), CPU-capable, no exotic pins. |
+
+---
+
+## Cross-repo summary
+
+| Repo | License | Python | PyTorch | CUDA | Weights available? | CPU-capable? |
+|------|---------|--------|---------|------|--------------------|--------------|
+| awesome-rs-vlms | MIT | – | – | – | – | – |
+| GeoChat | Apache-2.0¹ | 3.10 | 2.0.1 | 11.7/11.8 | Yes (LoRA + base) | Inference yes²; no 4/8-bit on Windows |
+| Change-Agent | MIT | 3.9 | 2.0.1+cu118 | 11.8 | Yes (`MCI_model.pth`) | Model yes; agent needs LLM API |
+| ChangeChat | Apache-2.0¹ | 3.9 | 2.0.1 | 11.7+ | **No (coming soon)** | n/a yet |
+| ChangeFormer | MIT | 3.8 | 1.10.1 | **10.2** | Yes (Releases v0.1.0) | Yes (`--gpu_ids -1`) |
+| RemoteCLIP | Apache-2.0 | flexible | via open-clip | optional | Yes (HF) | Yes |
+
+¹ Declared in package metadata; no `LICENSE` file in the repo — confirm before redistribution.
+² Full-precision inference needs enough VRAM for a 7B model (~16 GB) or CPU offload.
+
+See `docs/research/repository_compatibility.md` for the conflict analysis and
+`docs/research/environment_strategy.md` for per-model isolation.

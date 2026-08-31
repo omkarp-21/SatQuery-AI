@@ -1,6 +1,6 @@
 ---
 name: map-ui
-description: The SatQuery map is part of the evidence system, not decoration. Covers MapLibre layer architecture, tile/COG sources, drawing AOIs, showing change masks and detections as inspectable layers, SAR vs optical rendering, coordinate readouts, and linking map features to the evidence panel. Invoke for any work in frontend/src/maps or evidence overlays.
+description: The SatQuery map is part of the evidence system, not decoration. Covers MapLibre layer architecture, tile/COG sources, drawing AOIs, showing change masks and detections as inspectable layers, SAR vs optical rendering, coordinate readouts, and linking map features to the evidence panel. Invoke for any work in apps/frontend/src/maps or evidence overlays.
 ---
 
 # Map UI
@@ -17,7 +17,7 @@ The map is never a stylized backdrop with markers dropped on top.
 ## Layer architecture
 
 ```
-frontend/src/maps/
+apps/frontend/src/maps/
   MapProvider.tsx      # owns the single maplibre-gl instance
   layers/
     basemap.ts         # neutral reference basemap

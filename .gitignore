@@ -20,14 +20,16 @@ htmlcov/
 
 # --- Node / frontend ---
 node_modules/
-frontend/dist/
-frontend/build/
+apps/frontend/dist/
+apps/frontend/build/
 .vite/
 *.local
 
 # --- Models & data (large binaries) ---
 models/checkpoints/**
 !models/checkpoints/.gitkeep
+models/cache/**
+!models/cache/.gitkeep
 data/raw/**
 !data/raw/.gitkeep
 data/processed/**
@@ -37,6 +39,13 @@ data/processed/**
 *.onnx
 *.safetensors
 *.ckpt
+
+# --- Vendored research repos (external/research/) ---
+# Cloned for reference only. Never committed, never modified. Commit hashes are
+# recorded in external/research/README.md and docs/research/model_inventory.md.
+external/research/*/
+!external/research/papers/
+!external/research/benchmarks/
 
 # --- Evaluation outputs ---
 evaluation/reports/**

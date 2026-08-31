@@ -43,7 +43,7 @@ inputs must give the same result (seeds fixed).
 ## Routing decision
 
 - Rules first: modality of the imagery + task type → allowed models
-  (from `models/model_registry.yaml` capabilities).
+  (from `packages/model_adapters/model_registry.yaml` capabilities).
 - LLM only to disambiguate the natural-language intent into a task + parameters,
   with its output validated against a schema and the registry. An LLM suggestion
   that names an unregistered model or unsupported task is rejected.

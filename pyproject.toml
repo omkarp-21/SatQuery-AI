@@ -1,0 +1,31 @@
+# Repo-root tooling config for the SatQuery monorepo.
+# Runnable code lives in packages/* and apps/backend (each has its own project
+# metadata). This file only centralizes lint/format/type/test settings.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["external", "models", "data", "evaluation/reports"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+extend-exclude = "/(external|models|data)/"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+exclude = ["external/", "build/", "dist/"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["packages", "apps/backend"]
+norecursedirs = ["external", "models", "data", "node_modules"]
+markers = [
+    "slow: deselect with -m 'not slow'",
+    "gpu: requires a CUDA GPU",
+    "integration: hits real external services / imagery providers",
+]

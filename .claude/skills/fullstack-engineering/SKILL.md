@@ -9,12 +9,12 @@ description: General full-stack engineering practice for SatQuery — how the Fa
 
 | Kind of change | Location |
 |----------------|----------|
-| New HTTP endpoint / request-response shape | `backend/app/api/` + `schemas/`, doc in `docs/09_API_CONTRACTS.md` |
-| Orchestration across stages, background jobs | `backend/app/services/` |
-| A step in the query pipeline | `backend/satquery/<stage>/` |
-| Model wrapping | `models/adapters/` + registry |
-| UI screen / component | `frontend/src/` (`pages/`, `features/`, `components/`) |
-| Map layer / evidence overlay | `frontend/src/maps/`, `frontend/src/evidence/` |
+| New HTTP endpoint / request-response shape | `apps/backend/app/api/` + `schemas/`, doc in `docs/09_API_CONTRACTS.md` |
+| Orchestration across stages, background jobs | `apps/backend/app/services/` |
+| A step in the query pipeline | `packages/{core,geospatial,agents,evidence}/src/…/<stage>/` |
+| Model wrapping | `packages/model_adapters/` + registry |
+| UI screen / component | `apps/frontend/src/` (`pages/`, `features/`, `components/`) |
+| Map layer / evidence overlay | `apps/frontend/src/maps/`, `apps/frontend/src/evidence/` |
 | Config / secret | `.env` (+ `.env.example`), read via `app/core/` settings |
 
 ## API contract discipline
