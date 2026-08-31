@@ -16,6 +16,8 @@ REPOS=(
   "ChangeChat|https://github.com/hanlinwu/ChangeChat|9facf50c68efa32f446f0f3aa700c0b76309029e"
   "ChangeFormer|https://github.com/wgcban/ChangeFormer|afd1b7ed640aa265a2c730de958416ae7356a2f9"
   "RemoteCLIP|https://github.com/ChenDelong1999/RemoteCLIP|a6a4787507e441f444c20404c90dd18520a8960d"
+  "CROMA|https://github.com/antofuller/CROMA|59505a6bcadbf36ba20767270154bf9f3067c5e7"
+  "DOFA|https://github.com/zhu-xlab/DOFA|0cfb7e1099f4d4c4022946ff7862c7cd7b8411b9"
 )
 
 for entry in "${REPOS[@]}"; do

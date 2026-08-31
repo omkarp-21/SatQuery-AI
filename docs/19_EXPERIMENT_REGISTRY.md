@@ -74,19 +74,20 @@ what we measured, what we decided.
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?
-- Models / methods: GeoChat vs RemoteCLIP (zero-shot classification / retrieval) vs
-  any further candidate found in `external/research/awesome-rs-vlms`. Same prompts,
-  same preprocessing where the task allows.
-- Dataset: the EXP-001 held-out set for VQA/grounding; a scene-classification /
-  retrieval set (e.g. from RESISC45 / AID, or VRSBench) for RemoteCLIP-style tasks.
-- Metric: per-task accuracy + measured p50/p95 latency + a recorded integration-cost
-  note (env size, deps, adapter effort) — the accuracy-to-engineering-cost ratio
-  from `docs/18`.
+- Models / methods (G1.6): **TinyRS / TinyRS-R1** (`aybora/Qwen2-VL-TinyRS*`, 2B,
+  Apache-2.0) **vs RSCoVLM-3B** (Qwen2.5-VL-3B, MIT) — both **local**, 4-bit/CPU.
+  Remote arm (only if both fail the threshold): **GeoChat** on a rented GPU ≥16 GB.
+  RemoteCLIP zero-shot as the scene-classification reference. RS-MoE **excluded** —
+  no released weights.
+- Dataset: an **RSVQA-LR** sample for VQA; a **DIOR-RSVG** sample for grounding
+  (capability B). Held-out; check overlap with each model's instruction data.
+- Metric: VQA accuracy; grounding acc@IoU0.5; measured p50/p95 latency (4-bit CPU
+  vs GPU); integration-cost note. **Define a "usable" threshold before running**
+  (`EXPERIMENT_DECISION_TREE.md`).
 - Baseline: whichever candidate is wired first (its reproduction number).
 - Result: _not measured_.
-- Notes: compare each model only on tasks it actually supports; do not force one
-  shared metric across incompatible tasks.
-- DECISION: _pending_ — output is a chosen single-image specialist stack.
+- Notes: compare each model only on tasks it supports; picks the model for **A + B**.
+- DECISION: _pending_ — KEEP one local VLM, or trigger the remote-GPU gate.
 
 ## EXP-003 — Temporal stack: Change-Agent vs ChangeChat vs ChangeFormer
 
@@ -94,17 +95,18 @@ what we measured, what we decided.
 - Hypothesis: n/a — selection bake-off (informs H2)
 - Question: Which temporal stack gives the best combination of change-mask quality,
   semantic change interpretation, speed, and integration stability?
-- Models / methods: `external/research/Change-Agent` `MCI_model.pth` (mask + caption)
-  vs `external/research/ChangeFormer` V6 (mask only) vs `external/research/ChangeChat`
-  (⚠ weights unreleased at pinned commit — **BLOCKED** until then).
-- Dataset: LEVIR-CD (mask) and LEVIR-MCI (mask + caption) test splits (HF
-  `lcybuaa/LEVIR-MCI`), not yet downloaded.
-- Metric: change-mask IoU / F1; change-captioning BLEU-4 / CIDEr / METEOR; p50/p95
-  latency; a stability note (crashes, env fragility).
-- Baseline: image-difference + threshold (mask) and a rule-based captioner.
+- Models / methods (G1.6): **Arm 1 (local, first):** ChangeFormer mask → connected
+  components → caption each region with the EXP-002 single-image VLM → rule-assemble
+  a change description. **Arm 2 (remote ceilings):** Change-Agent `MCI_model.pth`
+  (Linux+conda), TEOChat, UniRS — only if Arm 1 underperforms. ChangeChat
+  **excluded** (no weights; README now ≥48 GB to train).
+- Dataset: LEVIR-CD (mask) + **LEVIR-MCI / LEVIR-CC** (mask + caption) sample.
+- Metric: change-mask IoU / F1; change-caption BLEU-4 / CIDEr / METEOR; change-QA
+  accuracy where available; p50/p95 latency; stability note.
+- Baseline: image-difference + threshold (mask); a rule-only captioner.
 - Result: _not measured_.
-- Notes: compare on the parts each actually supports.
-- DECISION: _pending_ — output is a chosen temporal specialist stack.
+- Notes: ChangeFormer already MEASURED as the mask worker (IoU 0.83 / n=7).
+- DECISION: _pending_ — keep ChangeFormer + a chosen semantic/language layer.
 
 ## EXP-004 — Optical-only vs optical + SAR  ⭐ next experiment (G1.5, ADR-005)
 
@@ -112,9 +114,12 @@ what we measured, what we decided.
 - Hypothesis: H3
 - Question: For suitable queries (built-up / informal-settlement classification),
   does a **joint optical+SAR** representation improve the result vs optical-only?
-- Models / methods: **CROMA** (`antofuller/CROMA`, MIT, HF) joint S1+S2 encoder
-  with a linear-probe head **vs** an optical-only head (CROMA-optical, or RemoteCLIP
-  image features). Runs on the 4 GB laptop / CPU — no GPU box needed.
+- Models / methods (G1.6 — both encoders **REPRODUCED** on CPU): 3 arms, same
+  linear-probe head, same split, same budget —
+  (1) **optical-only** (CROMA `optical_GAP` or RemoteCLIP image features);
+  (2) **CROMA** `joint_GAP` (native joint radar-optical);
+  (3) **DOFA** S1⊕S2 features concatenated (downstream fusion).
+  All run on the 4 GB laptop / CPU — no GPU box.
 - Dataset: a **fixed, recorded subset** of reBEN / BigEarthNet v2 (Zenodo
   `10891137`) — paired Sentinel-1 (VV/VH, dB) + Sentinel-2 (12-band), held-out
   split, leakage-checked. **Subset only** (a few k patches), not the full 549 k.
@@ -125,7 +130,8 @@ what we measured, what we decided.
 - Result: _not measured_.
 - Notes: also produces the adaptation evidence for requirement E — the probe head
   IS a bounded BigEarthNet adaptation (see EXP-008, shares this pipeline).
-- DECISION: _pending_ — KEEP / REJECT / INVESTIGATE CROMA for the SAR path.
+- DECISION: _pending_ — KEEP the better of CROMA/DOFA for the SAR path, or, if the
+  SAR delta ≈ 0, INVESTIGATE preprocessing then re-measure (`EXPERIMENT_DECISION_TREE.md`).
 
 ## EXP-008 — RS adaptation probe on BigEarthNet v2 (requirement E)
 
@@ -201,9 +207,9 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image RS-VLM bake-off (incl. TinyRS) | selection | PLANNED | — |
-| EXP-003 | temporal stack bake-off (incl. TEOChat / caption pipeline) | selection (→H2) | PLANNED | — |
-| **EXP-004** | **optical vs optical+SAR (CROMA + reBEN)** | **H3** | **PLANNED — ⭐ next** | — |
+| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | PLANNED | — |
+| EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
+| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA, reBEN subset** | **H3** | **PLANNED — ⭐ next** | — |
 | EXP-005 | unverified vs verified | H4 | PLANNED | — |
 | EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
 | EXP-007 | geospatial validation on/off | H5 | PLANNED | — |

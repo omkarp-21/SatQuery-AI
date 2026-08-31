@@ -4,7 +4,10 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01**. Companions: `runtime_validation.md`, `model_inventory.md`,
+> Date: **2026-09-01** (refreshed after G1.6 model tournament — D is now
+> **REPRODUCED**, not NONE). Full candidate cards + tournament verdicts:
+> **`docs/research/MODEL_TOURNAMENT.md`**; branching: **`EXPERIMENT_DECISION_TREE.md`**.
+> Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
 >
 > **Nothing here adds a model to the final stack.** Candidates are for evaluation
@@ -64,21 +67,21 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 | | |
 |---|---|
-| **Current model/tool** | **NONE.** Every runnable model (RemoteCLIP, ChangeFormer) and the blocked ones (GeoChat) are **optical-only**. |
-| **Evidence status** | **NONE. This is the single biggest capability gap.** |
-| **Missing capability** | Any model that ingests SAR (σ⁰ VV/VH, dB) and fuses it with optical. |
-| **Candidate solution** | **CROMA** (Sentinel-1 2-ch + Sentinel-2 12-ch, **MIT**, HF weights `antofuller/CROMA`, ViT-B/L, 120×120 patches, deps = torch + einops only — **runs on the 4 GB GPU or CPU**). Alternatives: **DOFA** (multi-sensor hypernetwork, in TorchGeo), **MaRS** (VHR 0.35 m SAR+optical foundation model, AAAI 2026 — research candidate, release unverified), DeCUR, SAR-JEPA. |
-| **Validation plan** | **EXP-004 (recommended next — see below):** CROMA joint encoder vs optical-only (RemoteCLIP) for built-up classification, on a **small** paired Sentinel-1/2 subset from reBEN (BigEarthNet v2), with a linear-probe head. Metric: built-up F1; report where SAR *hurt*. Runs locally. |
-| **Risk** | CROMA needs exact Sentinel-1/2 preprocessing (12-band S2, 2-band S1 GRD in dB, channel norm) and 120×120 tiling; embeddings need a small trained head (bounded — doubles as requirement E). SAR must be handled as backscatter, never RGB (`.claude/rules/geospatial.md`, `remote-sensing` skill). |
+| **Current model/tool** | **CROMA** + **DOFA** — both **REPRODUCED** on CPU (G1.6, `runtime_validation.md`). RemoteCLIP / ChangeFormer / GeoChat remain optical-only. |
+| **Evidence status** | **REPRODUCED** (was NONE at G1.5). CROMA produces joint SAR+optical embeddings; DOFA encodes S1 (2ch) and S2 (12ch) via one wavelength-conditioned encoder. **Not yet MEASURED** on a task. |
+| **Missing capability** | A **measured** SAR-vs-no-SAR delta on a real task; a downstream head. |
+| **Candidate solution** | **CROMA** (native joint radar-optical cross-encoder, MIT, 194 M, `antofuller/CROMA`) — **primary**. **DOFA** (one wavelength-conditioned encoder, MIT, 111 M, `XShadow/DOFA`) — **challenger** (fuse S1⊕S2 downstream). MaRS = watch-item (VHR ≠ Sentinel scale; release unverified). |
+| **Validation plan** | **EXP-004 (still the recommended next — see below):** 3 arms — optical-only probe / CROMA `joint_GAP` probe / DOFA S1⊕S2 probe — on a **small** fixed reBEN (BigEarthNet v2) subset, held-out split, same head/budget. Metric: built-up F1 (+ 2–3 classes); report abs + rel SAR delta, where SAR helps, where it hurts. **Local.** |
+| **Risk** | Sentinel-1/2 preprocessing (12-band S2, 2-band S1 in dB, channel norm, 120-px tiling for CROMA); probe capacity; SAR handled as backscatter, never RGB. Do **not** claim "SAR improves accuracy" before EXP-004 produces the number. |
 
 ### E. Remote-sensing adaptation — ≥1 visual/VL component fine-tuned/adapted on BigEarthNet or another open source  *(mandatory)*
 
 | | |
 |---|---|
-| **Current model/tool** | NONE — all models used as-is. |
-| **Evidence status** | **NONE.** |
+| **Current model/tool** | NONE integrated — but the **encoders are now reproduced** (CROMA, DOFA), so the probe is directly executable. |
+| **Evidence status** | **NONE** (plan ready and unblocked). |
 | **Missing capability** | A documented adaptation with a before→after measurement. |
-| **Candidate solution** | LoRA / linear-probe adaptation of the smallest runnable encoder (**CROMA** joint encoder, or RemoteCLIP's image encoder) on **reBEN / BigEarthNet v2** (Sentinel-1+2, 19-class multilabel, 549 k patches, Zenodo `10891137`) — using a **subset** (~10–50 k patches), feasible on the 4 GB GPU. Satisfies the PS requirement **and** provides EXP-004's classifier head. |
+| **Candidate solution** | Linear-probe → LoRA on a **frozen** CROMA (or DOFA) encoder over a **reBEN / BigEarthNet v2** subset (S1+S2, 19-class multilabel, 549 k patches, Zenodo `10891137`; use ~10–50 k). Both encoders reproduced → feasible on the 4 GB laptop. Shares EXP-004's data + split. Method labels kept distinct: linear probe ≠ LoRA ≠ full fine-tune ≠ instruction tuning. |
 | **Validation plan** | **EXP-E (new):** frozen encoder + linear probe vs LoRA-adapted, on a fixed reBEN subset split. Report multilabel mAP / micro-F1 **before → after** (SatQuery number #3), with seed / split / hardware / date. |
 | **Risk** | Scope creep into full fine-tuning — must stay a bounded linear/LoRA probe (`.claude/rules/scope.md`). reBEN full download is large — **subset only**; record exactly which patches. |
 
@@ -119,16 +122,16 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 ## Gap summary (most urgent first)
 
-| Gap | Status | Blocking? | Cheapest path to first evidence |
+| Gap | Status (post-G1.6) | Blocking? | Cheapest path to next evidence |
 |-----|--------|-----------|--------------------------------|
-| **D. Optical–SAR** | NONE | mandatory + differentiation | CROMA + reBEN subset, **local** (EXP-004) |
-| **E. RS adaptation** | NONE | mandatory | linear/LoRA probe on reBEN subset, **local** (EXP-E) — pairs with D |
-| **A. Single-image VQA** | DOCUMENTED | mandatory | TinyRS venv, local (4-bit / CPU); GeoChat needs cloud GPU |
-| **C. Semantic change (language)** | mask only | mandatory | ChangeFormer + region-caption pipeline, local |
-| **G. Geospatial validation** | DESIGNED | mandatory + prerequisite | our code, local (EXP-007) |
-| **H. Evidence/confidence/audit** | DESIGNED | mandatory | our code, local (EXP-005) |
-| **F. Agentic routing** | DESIGNED | mandatory | our code, after ≥2 adapters (EXP-006) |
-| **B. Extra single-image task** | PARTIAL | mandatory | TinyRS grounding, local |
+| **D. Optical–SAR** | **REPRODUCED** (CROMA + DOFA) | mandatory + differentiation | MEASURE via EXP-004 (CROMA vs DOFA, reBEN subset) — **local** |
+| **E. RS adaptation** | NONE (unblocked — encoders reproduced) | mandatory | linear→LoRA probe on reBEN subset (EXP-008), shares EXP-004 data — **local** |
+| **A. Single-image VQA** | DOCUMENTED | mandatory | run TinyRS + RSCoVLM-3B (EXP-002), 4-bit / CPU — **local**; GeoChat only if both fail |
+| **B. Extra single-image task** | PARTIAL (RemoteCLIP retrieval only) | mandatory | grounding via TinyRS/RSCoVLM (EXP-002) — **local**; GeoGround = remote backup |
+| **C. Semantic change (language)** | mask MEASURED; language NONE | mandatory | ChangeFormer + region-caption pipeline (EXP-003) — **local** |
+| **G. Geospatial validation** | DESIGNED | mandatory + prerequisite | build `packages/geospatial` + EXP-007 — **local** |
+| **H. Evidence/confidence/audit** | DESIGNED | mandatory | build `packages/evidence` + EXP-005 — **local** |
+| **F. Agentic routing** | DESIGNED | mandatory | our code, after ≥2 adapters (EXP-006) — **local** |
 
 ---
 

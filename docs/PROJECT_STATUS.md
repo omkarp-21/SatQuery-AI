@@ -15,7 +15,8 @@
 | Claude Code harness: `CLAUDE.md`, 10 rules, 18 skills, 11 subagents | files present under `.claude/`; frontmatter checked |
 | `docs/19` reconciled to canonical 7 experiments (EXP-001…007); doc stubs 03/05/06/07/08/11/16 fleshed out; `.claude/rules/scope.md` added | reviewed `SatQuery_Claude_Bootstrap` (2026-09-01); it was a thinner earlier draft — only the missing routing/single-image experiments + scope rule were additive |
 | **G1 runtime validation** — 5 repos, isolated venvs, official examples run | `docs/research/runtime_validation.md`. **RUNNING:** RemoteCLIP (CPU, correct), ChangeFormer (CPU, IoU 0.83/n=7, no source edits). **BLOCKED:** GeoChat (7B>4 GB VRAM; deepspeed/bnb), Change-Agent (mmcv 1.3.1 build), ChangeChat (no weights). Host GPU = RTX 3050 Ti 4 GB, no conda/Docker/WSL. |
-| **G1.5 capability gap matrix** — 8 mandatory reqs (A–H) mapped; candidates scouted | `docs/research/CAPABILITY_GAP_MATRIX.md` (ADR-005). Biggest gaps: **D optical–SAR = NONE**, **E adaptation = NONE**. Candidates recorded (not adopted): TinyRS, TEOChat, CROMA, DOFA, MaRS. Infra decision: 1 cloud GPU ≥16 GB unblocks GeoChat+TEOChat+Change-Agent; CROMA/DOFA/adaptation run local. Next experiment = **EXP-004**. |
+| **G1.5 capability gap matrix** — 8 mandatory reqs (A–H) mapped; candidates scouted | `docs/research/CAPABILITY_GAP_MATRIX.md` (ADR-005). Candidates recorded (not adopted): TinyRS, TEOChat, CROMA, DOFA, MaRS. |
+| **G1.6 model tournament** — 15-repo pool validated; CROMA + DOFA reproduced | `docs/research/MODEL_TOURNAMENT.md` + `EXPERIMENT_DECISION_TREE.md` (ADR-006). **REPRODUCED (CPU):** CROMA (joint SAR+optical, 194 M, MIT), DOFA (S1+S2 encoder, 111 M, MIT) → gap D now **REPRODUCED** (was NONE). **RE-VERIFIED REJECT:** ChangeChat (no weights, ≥48 GB to train), **RS-MoE** (no weights/inference). **TEST FURTHER local:** TinyRS, RSCoVLM-3B. **Remote-GPU only:** GeoChat, GeoGround, TEOChat, UniRS, LRS-VQA. `SARLANG-1M` = SAR-language dataset (not a model). No remote GPU yet — not justified. |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -29,10 +30,11 @@
 
 ## IN PROGRESS
 
-- V0 vertical slice — *not started*. Next up (RemoteCLIP is validated and ready to wire).
-- ChangeFormer adapter — model validated (`.venvs/changeformer`), adapter not written.
-- Model comparison matrix — `docs/research/MODEL_COMPARISON.md` still a skeleton;
-  `docs/research/runtime_validation.md` now has the G1 evidence.
+- V0 vertical slice — *not started*. Next: EXP-004 (local), then adapters, then V0.
+- Adapters — RemoteCLIP / ChangeFormer / CROMA / DOFA all reproduced in `.venvs/*`;
+  no adapter written yet.
+- 4 reference venvs built: `.venvs/{remoteclip,changeformer,croma,dofa}` (gitignored);
+  checkpoints in `models/cache/*` (gitignored, ~2.2 GB total).
 
 ---
 
@@ -109,6 +111,10 @@ reproduction / SatQuery.
 | RemoteCLIP-ViT-B-32 zero-shot | correct (97.8% top-1) | `assets/airport.jpg` | n=1 | 2026-09-01 | **reproduction** | official example; not a benchmark |
 | RemoteCLIP inference latency | ~150 ms/query | — | — | 2026-09-01 | measured (host) | CPU, warm, ViT-B-32, 1 img + ~4 prompts |
 | ChangeFormer inference latency | ~790 ms / 256² pair | — | — | 2026-09-01 | measured (host) | CPU; ~1–2 OOM faster expected on GPU |
+| CROMA-base reproduced | official example OK (joint SAR+optical embeddings, shapes correct, finite) | random S1/S2 tensors | n/a | 2026-09-01 | **reproduction** | CPU `.venvs/croma`; 194 M params; NOT measured on a task |
+| CROMA-base latency | ~340 ms/sample (joint forward) | — | — | 2026-09-01 | measured (host) | CPU, batch 8 |
+| DOFA ViT-B reproduced | `forward_features` OK for S1 (2ch) + S2 (12ch), finite (B,768) | random tensors | n/a | 2026-09-01 | **reproduction** | CPU `.venvs/dofa`; 111 M params; NOT measured on a task |
+| DOFA ViT-B latency | ~120 ms/sample | — | — | 2026-09-01 | measured (host) | CPU, batch 4 |
 
 ---
 
@@ -120,7 +126,8 @@ reproduction / SatQuery.
 | No GPU-backed research env → GeoChat + Change-Agent blocked, slow iteration | High | **confirmed in G1.** First stack (RemoteCLIP + ChangeFormer) runs CPU-only; a cloud Linux GPU ≥16 GB is needed before EXP-001 / GeoChat |
 | Adaptation requirement (BigEarthNet) not scoped | High | scope a minimal LoRA/adapter fine-tune on one component before freezing architecture |
 | Novelty currently asserted, not measured | High | EXP-004–EXP-007 must produce real deltas before any novelty claim in the PPT |
-| ChangeChat unusable → narrows temporal options | Medium | Change-Agent vs ChangeFormer decision via EXP-003 |
+| ChangeChat + RS-MoE have no released weights → narrower temporal/VQA options | Medium | ChangeFormer + composed caption pipeline (EXP-003); TinyRS/RSCoVLM-3B for VQA (EXP-002) |
+| "SAR helps" is only reproduced, not measured → don't claim it | High | EXP-004 must produce the abs+rel delta before any optical–SAR novelty claim |
 | Scope creep vs hackathon time budget | Medium | scope-control checklist (`chatgpt.context.md` §27); cut anything without an eval path |
 | Six-slide PPT claims outrunning the prototype | Medium | slide claims gated on `docs/PROJECT_STATUS.md` METRICS + demo path |
 | Overfitting / gaming the public benchmarks (numbers that won't hold on unseen ISRO/SAC data) | Medium | held-out splits + leakage checks; report a "known distribution gaps" section (`docs/11`); prefer robustness stress tests (EXP-007) over leaderboard chasing |
@@ -130,41 +137,44 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **Run EXP-004** (the G1.5 highest-value experiment): CROMA joint optical–SAR
-   vs optical-only for built-up classification on a small reBEN (BigEarthNet v2)
-   subset, linear-probe head. Moves 4 mandatory gaps at once (D optical–SAR,
-   E adaptation, first #3 number, H3) — **on the existing 4 GB laptop, no infra
-   spend.** See `docs/research/CAPABILITY_GAP_MATRIX.md`.
-2. **Wrap the two validated models as adapters** in
-   `packages/model_adapters/src/satquery_model_adapters/` — `remoteclip.py` and
-   `changeformer.py` (subprocess to their `.venvs`), each with the smoke test G1
-   proved. Update `model_registry.yaml` with the measured facts. Prereq for V0 + EXP-006.
-3. **Stand up `.venvs/tinyrs`** and reproduce a VQA + grounding example locally
-   (4-bit / CPU) → closes gaps A/B without waiting for a GPU box. Provision the
-   cloud GPU only after EXP-004/EXP-E are done.
+1. **Run EXP-004** — 3-arm probe (optical-only / CROMA `joint_GAP` / DOFA S1⊕S2) on
+   a small reBEN (BigEarthNet v2) subset, linear head. **MEASURES** gap D, gives
+   H3 its first number, and its head IS EXP-008 (gap E). **Local, no infra spend.**
+2. **Run EXP-002** — TinyRS vs RSCoVLM-3B on an RSVQA-LR + DIOR-RSVG sample
+   (4-bit / CPU). Picks the local single-image model for gaps A + B, or triggers
+   the remote-GPU gate. **Local.**
+3. **Wrap the 4 reproduced models as adapters** (`remoteclip`, `changeformer`,
+   `croma`, `dofa`) with the smoke tests already proven; populate
+   `model_registry.yaml` with measured facts. Prereq for V0 + EXP-006.
+
+Remote GPU: **still not justified.** Provision one Linux box ≥16 GB only after
+EXP-002/004/008, and only if the local VQA candidates measurably underperform.
 
 ---
 
 ## WIN SCORECARD (0–10 — honest)
 
-| Dimension | Score | Δ | Why |
+| Dimension | Score | Δ (since G1) | Why |
 |-----------|:----:|:--:|-----|
-| Problem fit | 4 | — | requirements understood + documented; nothing built against them |
-| Novelty | 2 | — | contribution areas named; none validated |
-| Technical depth | 4 | +1 | G1 proved two research models actually run + measured; real env constraints known |
-| Prototype completeness | 1 | — | still no end-to-end path (adapters not written) |
-| Accuracy | 1 | +1 | one real reproduction (ChangeFormer IoU 0.83, n=7) — sanity, not benchmark |
-| Multimodal (optical–SAR) reasoning | 0 | — | not started; no SAR model in the runnable set |
-| Temporal reasoning | 2 | +2 | ChangeFormer change-mask **runs** and reproduces plausibly (n=7) |
-| Geospatial integrity | 2 | — | rules + skill written; no code |
+| Problem fit | 4 | — | requirements mapped (A–H); nothing built against them |
+| Novelty | 2 | — | contribution areas named; none measured |
+| Technical depth | 5 | +1 | 4 research models reproduced on CPU incl. two optical–SAR encoders; 15-repo pool validated; decision tree written |
+| Prototype completeness | 1 | — | still no end-to-end path (no adapter) |
+| Accuracy | 1 | — | one reproduction (ChangeFormer IoU 0.83, n=7); CROMA/DOFA reproduced but not scored |
+| Multimodal (optical–SAR) reasoning | 2 | +2 | CROMA + DOFA **reproduced** (S1+S2 embeddings) — gap D moved NONE → REPRODUCED; not yet measured |
+| Temporal reasoning | 2 | — | ChangeFormer mask runs (n=7); language side still unbuilt |
+| Geospatial integrity | 2 | — | rules + skill; no code |
 | Evidence / verification | 1 | — | designed; not built |
-| UI / UX | 1 | — | dir skeleton + design skill |
-| Benchmark readiness | 2 | +1 | two validated venvs + `runtime_validation.md`; real benchmarks still not acquired |
-| Feasibility | 6 | +1 | first stack (RemoteCLIP + ChangeFormer) proven runnable CPU-only, no source edits; GeoChat/Change-Agent need a GPU box |
-| Impact | 4 | — | clear institutional relevance in the framing |
-| PPT quality | 3 | — | six-slide blueprint + story defined; no evidence content |
-| Demo quality | 0 | — | no demo path yet |
+| UI / UX | 1 | — | skeleton + design skill |
+| Benchmark readiness | 2 | — | 4 venvs + tournament docs; real benchmarks still not acquired |
+| Feasibility | 7 | +1 | 4-model local stack (RemoteCLIP, ChangeFormer, CROMA, DOFA) proven CPU-only, no source edits; remote GPU still not needed |
+| Impact | 4 | — | clear institutional relevance |
+| PPT quality | 3 | — | blueprint + story; no evidence content |
+| Demo quality | 0 | — | no demo path |
 
-**Read:** G1 converted "5 candidate repos" into "2 that run here, 2 that need a
-Linux GPU, 1 rejected". Foundation is solid; still **no end-to-end prototype**.
-Next value: adapters for the two runnable models, then V0. Explain every change here.
+**Read:** G1.6 turned a 15-repo candidate pool into a decision: **4 models
+reproduced locally** (RemoteCLIP, ChangeFormer, CROMA, DOFA — all MIT/Apache, all
+CPU), **2 REJECTED for missing weights** (ChangeChat, RS-MoE), the rest are
+remote-GPU or local-untested. Gap D moved from NONE to REPRODUCED. Still **no
+end-to-end prototype and no measured task number for D/E**. Next value: EXP-004 +
+EXP-002 (both local), then adapters, then V0.

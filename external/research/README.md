@@ -28,6 +28,8 @@ Third-party research repositories, cloned **for reference and inventory only**.
 | `ChangeChat/` | hanlinwu/ChangeChat | `9facf50c68efa32f446f0f3aa700c0b76309029e` | 2025-06-16 | Apache-2.0 (declared in metadata; no LICENSE file in repo) |
 | `ChangeFormer/` | wgcban/ChangeFormer | `afd1b7ed640aa265a2c730de958416ae7356a2f9` | 2024-01-31 | MIT |
 | `RemoteCLIP/` | ChenDelong1999/RemoteCLIP | `a6a4787507e441f444c20404c90dd18520a8960d` | 2024-06-27 | Apache-2.0 |
+| `CROMA/` | antofuller/CROMA | `59505a6bcadbf36ba20767270154bf9f3067c5e7` | 2024-01-10 | MIT | *(added G1.6 for optical–SAR)* |
+| `DOFA/` | zhu-xlab/DOFA | `0cfb7e1099f4d4c4022946ff7862c7cd7b8411b9` | 2026-07-22 | MIT | *(added G1.6 — CROMA challenger)* |
 
 `awesome-rs-vlms/` is a curated link list (a paper/model survey), not a runnable
 model — kept for literature review.

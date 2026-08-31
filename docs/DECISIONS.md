@@ -5,6 +5,55 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-006 — G1.6 model tournament: CROMA + DOFA reproduced; RS-MoE + ChangeChat rejected; first stack unchanged
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G1.6 validated the full 15-repo candidate pool from the brief
+  (`docs/research/MODEL_TOURNAMENT.md`). Ran the smallest official example for each
+  local-feasible candidate on the dev host (RTX 3050 Ti 4 GB, no conda/Docker/WSL).
+- **Evidence:**
+  - **CROMA** — REPRODUCED on CPU. `use_croma.py` official example: joint SAR+optical
+    embeddings, correct shapes, finite. 194 M params, MIT, ~340 ms/sample,
+    `pip install torch einops`, no source edits.
+  - **DOFA** — REPRODUCED on CPU. `vit_base_patch16` + `DOFA_ViT_base_e100.pth`,
+    `forward_features` for Sentinel-1 (2 ch) and Sentinel-2 (12 ch) via one
+    wavelength-conditioned encoder. 111 M params, MIT, ~120 ms/sample,
+    `timm==0.9.2`, no source edits.
+  - **ChangeChat** — re-verified: still no released weights ("coming soon"); README
+    now cites **≥48 GB VRAM** for training. **REJECT for now** stands.
+  - **RS-MoE** — no released checkpoints, no inference script (training cfgs only),
+    no license. **REJECT for now** (despite "VERY HIGH" brief priority — artifacts
+    don't exist).
+  - **TinyRS, RSCoVLM-3B** — DOCUMENTED, released weights, plausibly local (2–3 B,
+    4-bit/CPU). Not run this session. **TEST FURTHER (local, EXP-002).**
+  - **GeoGround, UniRS, LRS-VQA** — ~7 B, remote-GPU only. LRS-VQA also useful as a
+    VQA *benchmark*. UniRS weights are non-commercial.
+  - **SARLANG-1M** — a SAR-language dataset/benchmark, not a model. **KEEP FOR
+    LATER** as SAR-language eval + fine-tune data.
+- **Alternatives considered:** adopt CROMA now (rejected — `docs/18` needs a
+  measured SAR delta first); pick CROMA vs DOFA now (rejected — decide in EXP-004);
+  rent a GPU to run the 7 B VLMs now (rejected — every next high-value experiment is
+  local; the remote-GPU gate in `EXPERIMENT_DECISION_TREE.md` is not yet met).
+- **Decision:**
+  1. **First stack unchanged:** RemoteCLIP + ChangeFormer, **+ CROMA pending
+     EXP-004**. DOFA is CROMA's challenger in EXP-004. No model is adopted yet.
+  2. **CROMA is the primary optical–SAR candidate** (native joint encoder → matches
+     the PS "joint reasoning" wording); **DOFA the challenger** (lighter, flexible).
+  3. VQA/grounding (A/B): **TinyRS + RSCoVLM-3B local bake-off (EXP-002)** before any
+     remote GeoChat run.
+  4. Repository pool is **closed** — no more hunting (brief rule).
+  5. Remote GPU still **not provisioned**; gate = EXP-002 local arm fails the
+     usability threshold.
+- **Trade-off:** the optical–SAR and adaptation capabilities stay REPRODUCED (not
+  MEASURED) until EXP-004/008; the single-image VQA path rests on two untested
+  local candidates.
+- **Consequence:** new docs `MODEL_TOURNAMENT.md`, `EXPERIMENT_DECISION_TREE.md`;
+  updated `runtime_validation.md`, `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`,
+  `docs/19` (EXP-002/003/004 concretized), PROJECT_STATUS. `.venvs/{croma,dofa}` +
+  `models/cache/{croma,dofa}` added (gitignored). No pipeline-architecture change,
+  no rule change.
+
 ## ADR-005 — G1.5 capability-gap closure: candidate shortlist, infra, and next experiment
 
 - **Date:** 2026-09-01

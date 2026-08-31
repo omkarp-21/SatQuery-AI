@@ -1,14 +1,28 @@
 # Repository Compatibility Analysis
 
-> Companion to `docs/research/model_inventory.md`. Purpose: show why the six
-> research repos **cannot share one environment**, and what conflicts each pair
-> creates. Compiled 2026-08-31 from repository inspection only.
+> Companion to `docs/research/model_inventory.md`. Purpose: show why the research
+> repos **cannot share one environment**. Compiled 2026-08-31; **G1/G1.6 update
+> 2026-09-01** — 4 isolated venvs now exist and their actual pins are recorded below.
 
 ## TL;DR
 
 There is **no single Python/PyTorch/CUDA environment** that satisfies all repos.
-They must be isolated (one env or container per model). Do **not** merge their
-requirements files. Details below.
+One env/container per model. Do **not** merge requirements files.
+
+## Validated venvs (G1 / G1.6 — actual working pins, host = Windows 11, CPU)
+
+| venv | Repo | Key pins found necessary | Notes |
+|------|------|--------------------------|-------|
+| `.venvs/remoteclip` | RemoteCLIP | `open-clip-torch 3.3.0`, `torch 2.13 (cpu)` | no pins needed; newest open_clip loads 2023 weights |
+| `.venvs/changeformer` | ChangeFormer | **`torch<2.6`** (2.5.1), **`numpy<1.24`** (1.23.5), `opencv-python-headless`, `tifffile`, `scikit-image 0.21`, `scipy 1.10` | torch≥2.6 breaks its `torch.load`; `np.str` removed ≥1.24. **No source edits.** |
+| `.venvs/croma` | CROMA | `torch 2.13 (cpu)`, `einops` | trivial; device-agnostic code |
+| `.venvs/dofa` | DOFA | `torch 2.13 (cpu)`, **`timm==0.9.2`**, `numpy 1.26.4` | heavy repo reqs (kornia/rasterio/geobench) are demo-only, not the encoder |
+
+CROMA and DOFA are **mutually compatible** (torch 2.x + einops/timm) and could
+share one venv — kept separate for clean provenance. Neither conflicts with the
+SatQuery product env except on Python version.
+
+Details on the mutually-incompatible legacy repos below.
 
 ## Conflict matrix
 

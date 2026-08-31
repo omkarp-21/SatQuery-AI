@@ -1,39 +1,56 @@
 # Research Model Inventory
 
-> Status: repository inspection (2026-08-31) **+ G1 runtime validation
-> (2026-09-01)** **+ G1.5 candidate scouting (2026-09-01)**. Runtime evidence:
-> **`docs/research/runtime_validation.md`**. Capability gaps + new candidates:
-> **`docs/research/CAPABILITY_GAP_MATRIX.md`**.
-> Source clones: `external/research/` (gitignored, read-only). Commit hashes in
-> `external/research/README.md`.
-> (File is `model_inventory.md` — earlier drafts/briefs call it `MODEL_INVENTORY.md`.)
+> Status: repo inspection (2026-08-31) **+ G1 runtime validation** **+ G1.5
+> candidate scouting** **+ G1.6 model tournament (2026-09-01)**.
+> Runtime evidence: **`docs/research/runtime_validation.md`**. Tournament +
+> full candidate cards: **`docs/research/MODEL_TOURNAMENT.md`**. Gaps:
+> **`docs/research/CAPABILITY_GAP_MATRIX.md`**. Branching: **`EXPERIMENT_DECISION_TREE.md`**.
+> Source clones: `external/research/` (gitignored, read-only).
+> (File is `model_inventory.md` — earlier briefs call it `MODEL_INVENTORY.md`.)
 
-## Evidence status — tracked separately per level
+## Evidence ladder — 5 levels, kept separate
 
 | Level | Meaning |
 |-------|---------|
-| **DOCUMENTED** | Repo/paper claims it; we have not run it. (≈ paper number #1) |
+| **PAPER-REPORTED** | The authors' number, their setup. (number #1) |
+| **DOCUMENTED** | The repo states the capability; we have not run it. |
 | **REPRODUCED** | We ran the official example → sane result on ≥1 input. |
-| **MEASURED** | We scored it vs reference data, metric + dataset + split + hardware recorded. |
+| **MEASURED** | We scored it vs reference data; metric + dataset + split + hardware recorded. (#2 / #3) |
 | **INTEGRATED** | Runs inside the SatQuery pipeline via an adapter, with provenance. |
+| **VALIDATED** | End-to-end in the pipeline, verified, with provenance. |
 
 | Model | Documented | Reproduced | Measured | Integrated | Overall |
 |-------|:---------:|:---------:|:--------:|:----------:|---------|
 | RemoteCLIP | ✅ | ✅ (zero-shot airport 97.8 %) | ⚠️ latency only (~150 ms) | ❌ | **RUNNING** — KEEP, wire first (V0) |
 | ChangeFormer | ✅ | ✅ (`demo_LEVIR.py`) | ✅ change-IoU 0.832 / F1 0.908 (n=7) | ❌ | **RUNNING** — KEEP, change-mask backend (V1) |
+| **CROMA** | ✅ | ✅ (`use_croma.py` — joint SAR+optical embeddings, 194 M, ~340 ms CPU) | ❌ | ❌ | **RUNNING** (G1.6) — KEEP FOR TOURNAMENT, **primary optical–SAR** |
+| **DOFA** | ✅ | ✅ (`forward_features` S1 2ch + S2 12ch, 111 M, ~120 ms CPU) | ❌ | ❌ | **RUNNING** (G1.6) — KEEP FOR TOURNAMENT, CROMA challenger |
 | GeoChat | ✅ | ❌ (7B > 4 GB VRAM; `deepspeed`/`bnb` unbuildable) | ❌ | ❌ | **BLOCKED** — TEST FURTHER on ≥16 GB Linux GPU |
 | Change-Agent | ✅ | ❌ (`mmcv==1.3.1` unbuildable; `transformers` conflict) | ❌ | ❌ | **BLOCKED** — TEST FURTHER on Linux+conda |
-| ChangeChat | ✅ | ❌ (no released weights, no requirements.txt) | ❌ | ❌ | **REJECT for now** |
+| ChangeChat | ✅ | ❌ (no weights; README now ≥48 GB VRAM to train) | ❌ | ❌ | **REJECT for now** (re-verified G1.6) |
 
 **INTEGRATED count = 0.** No model is in the SatQuery pipeline yet.
 
-Candidates being scouted for the open gaps (not adopted — see
-`CAPABILITY_GAP_MATRIX.md` for full records): **TinyRS** (2B RS-VLM, Apache-2.0),
-**TEOChat** (temporal EO VLM, non-commercial), **CROMA** (optical-SAR, MIT),
-**DOFA** (multi-sensor incl. SAR), **MaRS** (VHR optical-SAR FM — release unverified).
+## G1.6 candidate pool (15 repos + carry-overs — full cards in `MODEL_TOURNAMENT.md`)
 
-Each entry below records what the repository itself states or implies. Where a repo
-is silent, the field says "not stated" — nothing is invented.
+| Candidate | Role | Licence | Weights? | Local (4 GB)? | Verdict |
+|-----------|------|---------|----------|---------------|---------|
+| CROMA | optical–SAR joint repr. | MIT | yes | ✅ | **REPRODUCED** — primary D |
+| DOFA | multi-sensor repr. (incl. SAR) | MIT | yes | ✅ | **REPRODUCED** — D challenger |
+| TinyRS / R1 | lightweight single-image VLM (VQA, grounding) | Apache-2.0 | yes (`aybora/Qwen2-VL-TinyRS*`) | borderline (2B) | **TEST FURTHER** — primary local VQA (EXP-002) |
+| RSCoVLM | multi-task RS VLM (VQA+grounding+detect) | **MIT / CC-BY-4.0** | yes (3B & 7B) | borderline (3B) | **TEST FURTHER** — TinyRS challenger, best licence |
+| GeoGround | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`) | ❌ (~7B) | **TEST FURTHER / BACKUP** — remote grounding ceiling |
+| LRS-VQA | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (7B) | ❌ | **KEEP FOR LATER** — as a VQA benchmark |
+| UniRS | unified single/dual-temporal/video VLM | code Apache; **weights CC-BY-NC-SA (non-commercial)** | unclear | ❌ (VILA-1.5) | **BACKUP** — remote, licence-restricted |
+| TEOChat | temporal EO VLM (semantic change, change-QA) | non-commercial (LLaMA-derived) | yes | ❌ (~7B) | **TEST FURTHER** — remote C ceiling |
+| Change-Agent | temporal semantic + caption | MIT | yes (`MCI_model.pth`) | ❌ (`mmcv`) | **TEST FURTHER** — Linux only |
+| RS-MoE | lightweight RS caption + VQA (MoE) | not stated | **no** (training cfgs only) | ? | **REJECT for now** — no artifacts |
+| ChangeChat | temporal change caption/VQA | absent | **no** ("coming soon") | ❌ | **REJECT for now** |
+| SARLANG-1M | SAR-language **dataset/benchmark** (1M pairs, 7 tasks) | not stated | n/a (data only) | n/a | **KEEP FOR LATER** — SAR-language eval + fine-tune data |
+| MaRS | VHR optical–SAR FM (AAAI 2026) | not stated | release unverified | ❌ | **BACKUP / WATCH** — VHR ≠ Sentinel scale |
+
+Each numbered entry below records what the repository itself states or implies.
+Where a repo is silent, the field says "not stated" — nothing is invented.
 
 ---
 
