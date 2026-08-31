@@ -1,0 +1,55 @@
+# SATQUERY model registry.
+# The routing stage reads this file to decide which specialist(s) to invoke.
+# Each entry maps to an adapter in models/adapters/.
+
+version: 1
+
+models:
+  geochat:
+    adapter: models.adapters.geochat:GeoChatAdapter
+    task: [vqa, grounding, region-captioning]
+    modality: [optical-single]
+    checkpoint: checkpoints/geochat/
+    device: cuda
+    notes: "Conversational VQA + visual grounding on single RS images."
+
+  change_agent:
+    adapter: models.adapters.change_agent:ChangeAgentAdapter
+    task: [change-detection, change-captioning, multi-turn]
+    modality: [optical-bitemporal]
+    checkpoint: checkpoints/change_agent/
+    device: cuda
+    notes: "Agentic bitemporal change analysis."
+
+  changechat:
+    adapter: models.adapters.changechat:ChangeChatAdapter
+    task: [change-captioning, change-vqa]
+    modality: [optical-bitemporal]
+    checkpoint: checkpoints/changechat/
+    device: cuda
+    notes: "Instruction-tuned change conversation."
+
+  changeformer:
+    adapter: models.adapters.changeformer:ChangeFormerAdapter
+    task: [change-detection]
+    modality: [optical-bitemporal]
+    checkpoint: checkpoints/changeformer/
+    device: cuda
+    notes: "Transformer-based binary/semantic change masks."
+
+  remoteclip:
+    adapter: models.adapters.remoteclip:RemoteClipAdapter
+    task: [retrieval, zero-shot-classification, embedding]
+    modality: [optical-single]
+    checkpoint: checkpoints/remoteclip/
+    device: cuda
+    notes: "CLIP fine-tuned for remote sensing; scene retrieval + embeddings."
+
+routing:
+  default_task_model:
+    vqa: geochat
+    grounding: geochat
+    change-detection: changeformer
+    change-captioning: changechat
+    retrieval: remoteclip
+  fusion_strategy: weighted-vote  # see backend/satquery/fusion/
