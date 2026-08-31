@@ -15,6 +15,7 @@
 | Claude Code harness: `CLAUDE.md`, 10 rules, 18 skills, 11 subagents | files present under `.claude/`; frontmatter checked |
 | `docs/19` reconciled to canonical 7 experiments (EXP-001…007); doc stubs 03/05/06/07/08/11/16 fleshed out; `.claude/rules/scope.md` added | reviewed `SatQuery_Claude_Bootstrap` (2026-09-01); it was a thinner earlier draft — only the missing routing/single-image experiments + scope rule were additive |
 | **G1 runtime validation** — 5 repos, isolated venvs, official examples run | `docs/research/runtime_validation.md`. **RUNNING:** RemoteCLIP (CPU, correct), ChangeFormer (CPU, IoU 0.83/n=7, no source edits). **BLOCKED:** GeoChat (7B>4 GB VRAM; deepspeed/bnb), Change-Agent (mmcv 1.3.1 build), ChangeChat (no weights). Host GPU = RTX 3050 Ti 4 GB, no conda/Docker/WSL. |
+| **G1.5 capability gap matrix** — 8 mandatory reqs (A–H) mapped; candidates scouted | `docs/research/CAPABILITY_GAP_MATRIX.md` (ADR-005). Biggest gaps: **D optical–SAR = NONE**, **E adaptation = NONE**. Candidates recorded (not adopted): TinyRS, TEOChat, CROMA, DOFA, MaRS. Infra decision: 1 cloud GPU ≥16 GB unblocks GeoChat+TEOChat+Change-Agent; CROMA/DOFA/adaptation run local. Next experiment = **EXP-004**. |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -67,19 +68,29 @@
 
 ## RESEARCH NEEDED (open questions, `chatgpt.context.md` §32)
 
-1. Exact packaging + access for the eval benchmarks (RSVQA, VRSBench, CDVQA).
-2. BigEarthNet access + the training/label format expected for adaptation.
-3. Which checkpoints are actually downloadable; confirm licenses — GeoChat and
-   ChangeChat repos have **no LICENSE file** (metadata says Apache; unconfirmed).
-4. GPU environment decision (local WSL2/Docker vs cloud).
-5. Real candidate-model performance on our data (EXP-001, EXP-002).
-6. Exact input/output contracts per model (bands, size, dtype, prompt format).
-7. Achievable end-to-end latency, with and without GPU.
-8. How confidence will be derived (calibrated probability vs margin vs heuristic).
-9. Best optical–SAR fusion approach for built-up / change tasks.
-10. Best temporal model (Change-Agent vs ChangeFormer pipeline).
-11. Best grounding model (GeoChat vs alternatives).
-12. How much fine-tuning is genuinely required to satisfy the adaptation requirement.
+**G1.5 partially answered — `docs/research/CAPABILITY_GAP_MATRIX.md`:**
+- ~~Best optical–SAR fusion approach~~ → **CROMA** (S1+S2, MIT, HF, runs on 4 GB) is
+  the first candidate to evaluate; DOFA alt; MaRS watch-item (release unverified).
+- ~~BigEarthNet access~~ → **reBEN / BigEarthNet v2** on Zenodo `10891137` (S1+S2,
+  19-class multilabel, 549 k patches — use a **subset**).
+- ~~Best grounding / lightweight VQA model~~ → **TinyRS** (Qwen2-VL-2B, Apache-2.0,
+  HF) as the local option; GeoChat/TEOChat need a GPU box.
+- ~~GPU environment decision~~ → **one cloud Linux GPU ≥16 GB** (24 ideal) unblocks
+  GeoChat + TEOChat + (with conda) Change-Agent. Don't provision until EXP-004/EXP-E
+  (local) are done.
+
+**Still open:**
+1. Exact packaging + held-out split construction for RSVQA / VRSBench / CDVQA
+   (leakage vs model pretraining data).
+2. Confirm licences for GeoChat / ChangeChat weights (no LICENSE file); confirm
+   TinyRS weight licence (Qwen2-VL base) and MaRS release + licence.
+3. Exact input/output contracts per model (bands, size, dtype, prompt format) —
+   especially CROMA's Sentinel-1/2 preprocessing.
+4. How confidence will be derived (probability vs margin vs heuristic) + calibration data.
+5. How large the adaptation (E) must be to satisfy the PS — target a bounded
+   linear/LoRA probe, measure if that's enough.
+6. Semantic-change language path: cheap (ChangeFormer + region-caption) vs TEOChat
+   vs Change-Agent — decided by EXP-003.
 
 ---
 
@@ -119,17 +130,18 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **Wrap the two validated models as adapters** in
-   `packages/model_adapters/src/satquery_model_adapters/` — `remoteclip.py`
-   (subprocess/inproc to `.venvs/remoteclip`) and `changeformer.py` (to
-   `.venvs/changeformer`), each with the smoke test that G1 already proved runs.
-   Update `model_registry.yaml` capability entries with the measured facts.
-2. **Build V0**: `POST /query` → ingestion + metadata (real CRS/transform/bounds)
-   → RemoteCLIP adapter → reports. One demo GeoTIFF, offline. Feature-complete per
-   `docs/17`.
-3. **Decide the GPU path** (cloud Linux ≥16 GB) so GeoChat (EXP-001) and
-   Change-Agent (EXP-003) become runnable; until then EXP-001 uses a small
-   CPU-runnable control VLM vs RemoteCLIP where the task allows.
+1. **Run EXP-004** (the G1.5 highest-value experiment): CROMA joint optical–SAR
+   vs optical-only for built-up classification on a small reBEN (BigEarthNet v2)
+   subset, linear-probe head. Moves 4 mandatory gaps at once (D optical–SAR,
+   E adaptation, first #3 number, H3) — **on the existing 4 GB laptop, no infra
+   spend.** See `docs/research/CAPABILITY_GAP_MATRIX.md`.
+2. **Wrap the two validated models as adapters** in
+   `packages/model_adapters/src/satquery_model_adapters/` — `remoteclip.py` and
+   `changeformer.py` (subprocess to their `.venvs`), each with the smoke test G1
+   proved. Update `model_registry.yaml` with the measured facts. Prereq for V0 + EXP-006.
+3. **Stand up `.venvs/tinyrs`** and reproduce a VQA + grounding example locally
+   (4-bit / CPU) → closes gaps A/B without waiting for a GPU box. Provision the
+   cloud GPU only after EXP-004/EXP-E are done.
 
 ---
 

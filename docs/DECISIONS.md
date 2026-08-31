@@ -5,6 +5,45 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-005 — G1.5 capability-gap closure: candidate shortlist, infra, and next experiment
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G1 left 8 mandatory PS capabilities partly uncovered
+  (`docs/research/CAPABILITY_GAP_MATRIX.md`). Biggest: **D (optical–SAR) = NONE**
+  and **E (RS adaptation) = NONE**; A (single-image VQA) is DOCUMENTED-only
+  (GeoChat GPU-blocked); C has a mask but no semantic/language change; F/G/H are
+  designed-only. Candidate scouting (web, 2026-09-01) surfaced current options.
+- **Alternatives considered:** provision a GPU box now and reproduce GeoChat/TEOChat
+  first (rejected — spends money/time before the free local experiments that close
+  more gaps); adopt CROMA/TinyRS into the stack now (rejected — `docs/18` requires
+  measurement first).
+- **Decision:**
+  1. **Candidate shortlist for evaluation only** (not adopted): **CROMA** (gap D,
+     MIT, runs local) as the first optical–SAR candidate; **TinyRS** (gaps A/B,
+     Apache-2.0, 2B, runs local 4-bit/CPU) as the first local VQA/grounding
+     candidate; **TEOChat** (gap C, non-commercial, needs GPU) and **DOFA** (gap D
+     alt) as secondary; **MaRS** as a watch-item (VHR ≠ our Sentinel scale;
+     release unverified from here).
+  2. **BigEarthNet v2 / reBEN** (Zenodo `10891137`, S1+S2, 19-class multilabel) is
+     the adaptation source (req. E) — **subset only**.
+  3. **Infrastructure:** one **cloud Linux GPU ≥16 GB** (24 ideal) unblocks
+     GeoChat + TEOChat + (with conda) Change-Agent. **Do not provision it until
+     EXP-004 + EXP-008 (local, free) are done.** CROMA/DOFA/TinyRS/adaptation run
+     on the existing RTX 3050 Ti 4 GB.
+  4. **Next experiment = EXP-004** — CROMA joint optical–SAR vs optical-only for
+     built-up classification on a reBEN subset with a linear-probe head. It moves
+     four mandatory gaps at once (D, E via EXP-008, first #3 number, H3) on
+     hardware we already have.
+- **Trade-off:** the single-image VQA path (A) leans on TinyRS (small, authors'
+  numbers unverified) until a GPU box lets us reproduce GeoChat; deployment claims
+  involving TEOChat are barred by its non-commercial licence.
+- **Consequence:** `docs/19` EXP-004 concretized + EXP-008 added; `model_inventory.md`
+  now tracks DOCUMENTED/REPRODUCED/MEASURED/INTEGRATED separately (INTEGRATED = 0);
+  PROJECT_STATUS NEXT-3 reordered to EXP-004 → adapters → TinyRS. No change to the
+  pipeline architecture (ADR-001) or any rule. Implementation starts only after
+  this matrix is reviewed.
+
 ## ADR-004 — First SatQuery specialist stack = RemoteCLIP + ChangeFormer (from G1 evidence)
 
 - **Date:** 2026-09-01

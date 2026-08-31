@@ -1,23 +1,39 @@
 # Research Model Inventory
 
 > Status: repository inspection (2026-08-31) **+ G1 runtime validation
-> (2026-09-01)**. Runtime results — did it actually run, on what hardware, with
-> what latency/quality — are in **`docs/research/runtime_validation.md`**.
+> (2026-09-01)** **+ G1.5 candidate scouting (2026-09-01)**. Runtime evidence:
+> **`docs/research/runtime_validation.md`**. Capability gaps + new candidates:
+> **`docs/research/CAPABILITY_GAP_MATRIX.md`**.
 > Source clones: `external/research/` (gitignored, read-only). Commit hashes in
 > `external/research/README.md`.
+> (File is `model_inventory.md` — earlier drafts/briefs call it `MODEL_INVENTORY.md`.)
 
-## G1 runtime status (see `runtime_validation.md` for evidence)
+## Evidence status — tracked separately per level
 
-| Model | Ran official example? | Status | First-stack role |
-|-------|-----------------------|--------|------------------|
-| RemoteCLIP | **yes** (zero-shot, correct) | **RUNNING** — CPU, ~150 ms, Apache-2.0 | **KEEP** — wire first (V0) |
-| ChangeFormer | **yes** (`demo_LEVIR.py`, IoU 0.83 / n=7) | **RUNNING** — CPU, ~790 ms/pair, MIT, needs numpy<1.24 + torch<2.6 | **KEEP** — change-mask backend (V1) |
-| GeoChat | no | **BLOCKED** — 7B > 4 GB VRAM; `deepspeed`/`bitsandbytes` unbuildable on Windows | TEST FURTHER on ≥16 GB GPU |
-| Change-Agent | no | **BLOCKED** — `mmcv==1.3.1` unbuildable; internal `transformers` conflict | TEST FURTHER on Linux+conda |
-| ChangeChat | no | **BLOCKED** — no released weights, no requirements.txt | REJECT for now |
+| Level | Meaning |
+|-------|---------|
+| **DOCUMENTED** | Repo/paper claims it; we have not run it. (≈ paper number #1) |
+| **REPRODUCED** | We ran the official example → sane result on ≥1 input. |
+| **MEASURED** | We scored it vs reference data, metric + dataset + split + hardware recorded. |
+| **INTEGRATED** | Runs inside the SatQuery pipeline via an adapter, with provenance. |
 
-Each entry records what the repository itself states or implies. Where a repo is
-silent, the field says "not stated" — nothing is invented.
+| Model | Documented | Reproduced | Measured | Integrated | Overall |
+|-------|:---------:|:---------:|:--------:|:----------:|---------|
+| RemoteCLIP | ✅ | ✅ (zero-shot airport 97.8 %) | ⚠️ latency only (~150 ms) | ❌ | **RUNNING** — KEEP, wire first (V0) |
+| ChangeFormer | ✅ | ✅ (`demo_LEVIR.py`) | ✅ change-IoU 0.832 / F1 0.908 (n=7) | ❌ | **RUNNING** — KEEP, change-mask backend (V1) |
+| GeoChat | ✅ | ❌ (7B > 4 GB VRAM; `deepspeed`/`bnb` unbuildable) | ❌ | ❌ | **BLOCKED** — TEST FURTHER on ≥16 GB Linux GPU |
+| Change-Agent | ✅ | ❌ (`mmcv==1.3.1` unbuildable; `transformers` conflict) | ❌ | ❌ | **BLOCKED** — TEST FURTHER on Linux+conda |
+| ChangeChat | ✅ | ❌ (no released weights, no requirements.txt) | ❌ | ❌ | **REJECT for now** |
+
+**INTEGRATED count = 0.** No model is in the SatQuery pipeline yet.
+
+Candidates being scouted for the open gaps (not adopted — see
+`CAPABILITY_GAP_MATRIX.md` for full records): **TinyRS** (2B RS-VLM, Apache-2.0),
+**TEOChat** (temporal EO VLM, non-commercial), **CROMA** (optical-SAR, MIT),
+**DOFA** (multi-sensor incl. SAR), **MaRS** (VHR optical-SAR FM — release unverified).
+
+Each entry below records what the repository itself states or implies. Where a repo
+is silent, the field says "not stated" — nothing is invented.
 
 ---
 

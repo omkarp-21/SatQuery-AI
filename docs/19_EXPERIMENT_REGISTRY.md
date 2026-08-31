@@ -106,21 +106,41 @@ what we measured, what we decided.
 - Notes: compare on the parts each actually supports.
 - DECISION: _pending_ — output is a chosen temporal specialist stack.
 
-## EXP-004 — Optical-only vs optical + SAR
+## EXP-004 — Optical-only vs optical + SAR  ⭐ next experiment (G1.5, ADR-005)
 
-- Status: PLANNED
+- Status: PLANNED — **highest-value next** (`docs/research/CAPABILITY_GAP_MATRIX.md`).
 - Hypothesis: H3
-- Question: For suitable queries (e.g. built-up / informal-settlement
-  classification), does adding SAR evidence (VV/VH backscatter, in dB) improve the
-  result vs optical-only reasoning?
-- Models / methods: optical-only baseline (RemoteCLIP zero-shot or the chosen
-  single-image specialist); + a SAR-feature rule or a small classifier on σ⁰ VV/VH;
-  fusion in `packages/core` (fusion stage).
-- Dataset: TBD paired Sentinel-2 + Sentinel-1 tiles over a region with a built-up
-  reference layer. Record CRS, GSD, dates, co-registration residual.
-- Metric: F1 / IoU on the target class; explicitly report cases where SAR *hurt*.
-- Baseline: optical-only (our reproduction number).
+- Question: For suitable queries (built-up / informal-settlement classification),
+  does a **joint optical+SAR** representation improve the result vs optical-only?
+- Models / methods: **CROMA** (`antofuller/CROMA`, MIT, HF) joint S1+S2 encoder
+  with a linear-probe head **vs** an optical-only head (CROMA-optical, or RemoteCLIP
+  image features). Runs on the 4 GB laptop / CPU — no GPU box needed.
+- Dataset: a **fixed, recorded subset** of reBEN / BigEarthNet v2 (Zenodo
+  `10891137`) — paired Sentinel-1 (VV/VH, dB) + Sentinel-2 (12-band), held-out
+  split, leakage-checked. **Subset only** (a few k patches), not the full 549 k.
+- Preprocessing: CROMA's channel norm; S1 in dB; 120×120 tiling; record CRS/GSD.
+- Metric: per-class F1 / mAP for built-up + 2–3 other classes; **explicitly report
+  where SAR hurt**. p50 latency of the joint encoder.
+- Baseline: optical-only head (its reproduction number).
 - Result: _not measured_.
+- Notes: also produces the adaptation evidence for requirement E — the probe head
+  IS a bounded BigEarthNet adaptation (see EXP-008, shares this pipeline).
+- DECISION: _pending_ — KEEP / REJECT / INVESTIGATE CROMA for the SAR path.
+
+## EXP-008 — RS adaptation probe on BigEarthNet v2 (requirement E)
+
+- Status: PLANNED (shares infrastructure with EXP-004)
+- Hypothesis: n/a — mandatory-capability evidence (PS §Adaptation)
+- Question: Does a bounded adaptation (linear probe → LoRA) of a frozen RS encoder
+  on a BigEarthNet-v2 subset measurably improve multilabel classification, and is a
+  linear/LoRA probe *sufficient* to satisfy the PS adaptation requirement?
+- Models / methods: frozen CROMA (or RemoteCLIP) encoder + (a) linear probe vs
+  (b) LoRA-adapted, same reBEN subset + split as EXP-004.
+- Metric: multilabel micro-F1 / mAP **before → after**, with n, seed, hardware, date.
+- Baseline: frozen encoder + linear probe.
+- Result: _not measured_.
+- Notes: keep it a bounded probe — no full fine-tuning (`.claude/rules/scope.md`).
+  Record exactly which patches.
 - DECISION: _pending_.
 
 ## EXP-005 — Unverified answer vs verified answer
@@ -180,13 +200,15 @@ what we measured, what we decided.
 
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
-| EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED | — |
-| EXP-002 | single-image RS-VLM bake-off | selection | PLANNED | — |
-| EXP-003 | temporal stack bake-off | selection (→H2) | PLANNED | — |
-| EXP-004 | optical vs optical+SAR | H3 | PLANNED | — |
+| EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
+| EXP-002 | single-image RS-VLM bake-off (incl. TinyRS) | selection | PLANNED | — |
+| EXP-003 | temporal stack bake-off (incl. TEOChat / caption pipeline) | selection (→H2) | PLANNED | — |
+| **EXP-004** | **optical vs optical+SAR (CROMA + reBEN)** | **H3** | **PLANNED — ⭐ next** | — |
 | EXP-005 | unverified vs verified | H4 | PLANNED | — |
-| EXP-006 | LLM vs constrained routing | H2 | PLANNED | — |
+| EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
 | EXP-007 | geospatial validation on/off | H5 | PLANNED | — |
+| EXP-008 | RS adaptation probe on BigEarthNet v2 (req. E) | n/a | PLANNED (shares EXP-004 infra) | — |
 
 Hypothesis coverage: H1→EXP-001, H2→EXP-006 (informed by EXP-003), H3→EXP-004,
-H4→EXP-005, H5→EXP-007.
+H4→EXP-005, H5→EXP-007. Mandatory-capability coverage without a hypothesis:
+req. E → EXP-008.
