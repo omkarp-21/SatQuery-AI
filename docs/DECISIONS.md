@@ -5,6 +5,43 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-004 — First SatQuery specialist stack = RemoteCLIP + ChangeFormer (from G1 evidence)
+
+- **Date:** 2026-09-01
+- **Status:** Accepted (revisit when a GPU box exists — `docs/28`/open-mindedness rule)
+- **Context:** G1 runtime validation (`docs/research/runtime_validation.md`) ran the
+  smallest official inference example for each of the 5 candidate repos on the dev
+  host (Windows 11, RTX 3050 Ti **4 GB**, no conda/Docker/WSL).
+  - **RemoteCLIP** — RUNNING. Pure pip, CPU, Apache-2.0, official zero-shot example
+    correct (97.8% airport), ~150 ms/query, ~1.6 GB RSS. Integration cost LOW.
+  - **ChangeFormer** — RUNNING with **no source edits**, env pins only
+    (`numpy<1.24` for removed `np.str`; `torch<2.6` for its `torch.load`). MIT,
+    `demo_LEVIR.py` exit 0, change-IoU 0.83 / F1 0.91 on 7 bundled labelled
+    samples (reproduction, n=7), 41 M params, ~790 ms/pair CPU. Cost LOW–MEDIUM.
+  - **GeoChat** — BLOCKED. 7B merged model > 4 GB VRAM (even 4-bit ≈5–6 GB);
+    `deepspeed==0.9.5` fails to build on Windows; `bitsandbytes==0.41.0` Linux-only.
+  - **Change-Agent** — BLOCKED. `mmcv==1.3.1` unbuildable (no wheels; ancient
+    setup.py; needs CUDA toolkit + MSVC); internal `transformers` 4.33 vs ≥4.34.
+  - **ChangeChat** — BLOCKED. No released weights, no `requirements.txt`.
+- **Alternatives considered:** (a) block all SatQuery progress on a GPU box —
+  rejected, RemoteCLIP + ChangeFormer already cover V0 + the V1 change path;
+  (b) port ChangeFormer / build mmcv now — rejected, environment cost with no
+  measured payoff yet (scope rule); (c) drop change detection until GeoChat is
+  available — rejected, ChangeFormer is the stronger evidence today.
+- **Decision:** The **first specialist stack is RemoteCLIP + ChangeFormer.**
+  Write their adapters next (they are the only two with a proven runnable path).
+  GeoChat integration is **gated on provisioning a Linux GPU ≥16 GB** and blocks
+  EXP-001 until then; use a small CPU-runnable control VLM for EXP-001 in the
+  interim where the task allows. Change-Agent stays a TEST-FURTHER item for
+  EXP-003 on Linux+conda. ChangeChat is **rejected for now**.
+- **Trade-off:** No single-image VQA/grounding capability in the local prototype
+  until a GPU is available — the demo's single-image path leans on RemoteCLIP
+  (retrieval/zero-shot) rather than free-form VQA at first.
+- **Consequence:** `.venvs/remoteclip` and `.venvs/changeformer` are the reference
+  environments (gitignored); checkpoints in `models/cache/` (gitignored).
+  `model_registry.yaml` capability entries to be updated with the measured facts.
+  This does **not** change the pipeline architecture (ADR-001) or any rule.
+
 ## ADR-003 — `chatgpt.context.md` as persistent strategic memory; `docs/PROJECT_STATUS.md` as living status
 
 - **Date:** 2026-08-31

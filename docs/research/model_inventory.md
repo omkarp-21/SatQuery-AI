@@ -1,10 +1,20 @@
 # Research Model Inventory
 
-> Status: **compiled from repository inspection only** — no dependencies installed,
-> no checkpoints downloaded, no datasets downloaded.
+> Status: repository inspection (2026-08-31) **+ G1 runtime validation
+> (2026-09-01)**. Runtime results — did it actually run, on what hardware, with
+> what latency/quality — are in **`docs/research/runtime_validation.md`**.
 > Source clones: `external/research/` (gitignored, read-only). Commit hashes in
 > `external/research/README.md`.
-> Compiled: 2026-08-31.
+
+## G1 runtime status (see `runtime_validation.md` for evidence)
+
+| Model | Ran official example? | Status | First-stack role |
+|-------|-----------------------|--------|------------------|
+| RemoteCLIP | **yes** (zero-shot, correct) | **RUNNING** — CPU, ~150 ms, Apache-2.0 | **KEEP** — wire first (V0) |
+| ChangeFormer | **yes** (`demo_LEVIR.py`, IoU 0.83 / n=7) | **RUNNING** — CPU, ~790 ms/pair, MIT, needs numpy<1.24 + torch<2.6 | **KEEP** — change-mask backend (V1) |
+| GeoChat | no | **BLOCKED** — 7B > 4 GB VRAM; `deepspeed`/`bitsandbytes` unbuildable on Windows | TEST FURTHER on ≥16 GB GPU |
+| Change-Agent | no | **BLOCKED** — `mmcv==1.3.1` unbuildable; internal `transformers` conflict | TEST FURTHER on Linux+conda |
+| ChangeChat | no | **BLOCKED** — no released weights, no requirements.txt | REJECT for now |
 
 Each entry records what the repository itself states or implies. Where a repo is
 silent, the field says "not stated" — nothing is invented.
@@ -45,6 +55,7 @@ silent, the field says "not stated" — nothing is invented.
 | Inference command | Gradio demo: `python geochat_demo.py --model-path <geochat-7B> --model-base <llava/vicuna-7b>`. Batch eval: `python geochat/eval/batch_geochat_vqa.py --model-path <..> --question-file <..> --image-folder <..> --answers-file <..>` (also `batch_geochat_grounding.py`, `batch_geochat_scene.py`, `batch_geochat_referring.py`). |
 | SatQuery role | Single-image optical VQA / grounding / scene specialist. |
 | Notes | `bitsandbytes==0.41.0` and `deepspeed==0.9.5` are Linux/CUDA-only — 4-/8-bit loading will not work natively on the Windows dev host. `gradio==3.35.2` pins `pydantic<2`. |
+| **Runtime (G1)** | **BLOCKED** (hardware + deps). `MBZUAI/geochat-7B` is a LoRA-*merged* ≥7B model (~14 GB fp16) — exceeds the 4 GB validation GPU even at 4-bit (~5–6 GB). `pip install deepspeed==0.9.5` **fails on Windows** (`AssertionError: Unable to pre-compile ops without torch installed`). `bitsandbytes==0.41.0` has no Windows wheels. Not run; weights not downloaded. Integration cost **HIGH** — needs a Linux GPU ≥16 GB. → **TEST FURTHER** (blocks EXP-001). See `runtime_validation.md`. |
 
 ---
 
@@ -67,6 +78,7 @@ silent, the field says "not stated" — nothing is invented.
 | Inference command | `python Multi_change/test.py --data_folder <LEVIR-MCI/images> --checkpoint <MCI_model.pth>`. Interactive: edit the checkpoint in `Multi_change/predict.py` (`Change_Perception.define_args()`), then `python Multi_change/try_chat.py` or `python Multi_change/web_demo.py` (Streamlit). |
 | SatQuery role | Bi-temporal change detection + captioning; a reference for agentic tool orchestration. |
 | Notes | **Internal dependency conflict**: `Multi_change` pins `transformers==4.33.1`, `lagent` requires `>=4.34`. The OpenMMLab stack (`mmcv==1.3.1` + `mmsegmentation==0.13.0` from the mmcv-1.x era, mixed with `mmengine==0.9.1` from the 2.x era) is inconsistent and `mmcv==1.3.1` has no wheels for torch 2.0 — expect a source build. Largest clone (~467 MB). |
+| **Runtime (G1)** | **BLOCKED** (deps). `pip install mmcv==1.3.1` **fails at build** on Windows (`No module named 'pkg_resources'` in the isolated build env; 2021-era setup.py) and would need CUDA toolkit + MSVC for ops even past that — no prebuilt wheels for any current Python/torch. Not run; `MCI_model.pth` + LEVIR-MCI not downloaded. Integration cost **HIGH** — Linux + conda + `mmcv` source build (or port to modern mmcv). → **TEST FURTHER** (compare vs ChangeFormer in EXP-003). See `runtime_validation.md`. |
 
 ---
 
@@ -88,6 +100,7 @@ silent, the field says "not stated" — nothing is invented.
 | Inference command | `python geochat_demo.py --model-path <changechat-weights>` (inherited from GeoChat); `test.ipynb`. |
 | SatQuery role | Bi-temporal change conversation specialist. |
 | Notes | **Not runnable yet**: no released weights, missing `requirements.txt`. Same Linux/CUDA-only concerns as GeoChat (`bitsandbytes`, `deepspeed`, `gradio<3.36`/`pydantic<2`). Second-largest clone (~347 MB), mostly `GPT-api/` and `images/`. |
+| **Runtime (G1)** | **BLOCKED** — nothing to run. No released weights ("coming soon"); no `requirements.txt` at the pinned commit. Integration cost cannot be assessed. → **REJECT for now**; revisit only on a weights + dependency release. See `runtime_validation.md`. |
 
 ---
 
@@ -109,6 +122,7 @@ silent, the field says "not stated" — nothing is invented.
 | Inference command | `python demo_LEVIR.py --checkpoint_root <root> --checkpoint_name best_ckpt.pt --data_name quick_start_LEVIR --split demo --output_folder samples_LEVIR/predict_CD_ChangeFormerV6`. Also `demo_DSIFN.py`. Eval: `sh scripts/eval_ChangeFormer_LEVIR.sh` → `eval_cd.py`. Train: `sh scripts/run_ChangeFormer_LEVIR.sh` → `main_cd.py`. |
 | SatQuery role | Bi-temporal **mask** backend (precise, language-free) feeding fusion/verification. |
 | Notes | **CUDA 10.2 + cuDNN 7.6.5 does not support Ampere or newer GPUs** (RTX 30xx/40xx, A100/H100). To run on modern hardware, rebuild the env against a newer PyTorch (1.12+/2.x on cu113+) — the model code is simple enough that this usually works — or run CPU-only for the demo. The `requirements.txt` is a linux-64 conda lockfile and will not resolve on Windows/macOS as-is. |
+| **Runtime (G1)** | **RUNNING** (no source edits — env pins only). `.venvs/changeformer`: **torch 2.5.1+cpu** (torch ≥2.6 breaks its `torch.load`), **numpy 1.23.5** (`datasets/CD_dataset.py` uses removed `np.str`), + `opencv-python-headless`, `tifffile`, `scikit-image 0.21`, `scipy 1.10`, `timm`, `einops`. `demo_LEVIR.py --gpu_ids -1` → exit 0, 7 masks. Bundled-label score: **change-IoU 0.832 / F1 0.908 (n=7, reproduction)**. Author record: `Historical_best_acc=0.9495` on LEVIR-CD (their number). 41 M params, ~790 ms/256² pair (CPU), RSS ~1.0 GB. Integration cost **LOW–MEDIUM**. See `runtime_validation.md`. |
 
 ---
 
@@ -130,19 +144,20 @@ silent, the field says "not stated" — nothing is invented.
 | Inference command | `demo.ipynb` / `RemoteCLIP_colab_demo.ipynb`; or `model, _, preprocess = open_clip.create_model_and_transforms("ViT-L-14"); model.load_state_dict(torch.load("RemoteCLIP-ViT-L-14.pt")); model.encode_image(...) / model.encode_text(...)`. Retrieval eval: `python retrieval.py --model-name ViT-L-14 --retrieval-json-dir <..> --retrieval-images-dir <..>`. |
 | SatQuery role | Scene retrieval, zero-shot tagging, and embedding index. |
 | Notes | Cleanest integration of the six: pure pip, permissive license, small clone (~5 MB), CPU-capable, no exotic pins. |
+| **Runtime (G1)** | **RUNNING.** `.venvs/remoteclip` (open-clip-torch 3.3.0, torch 2.13.0+cpu). Checkpoint `RemoteCLIP-ViT-B-32.pt` (605 MB) loads all-keys-matched. Official example on `assets/airport.jpg` → 97.78 % "An airport". 151 M params, ~150 ms/query (CPU, warm), RSS ~1.6 GB. Integration cost **LOW**. See `runtime_validation.md`. |
 
 ---
 
 ## Cross-repo summary
 
-| Repo | License | Python | PyTorch | CUDA | Weights available? | CPU-capable? |
-|------|---------|--------|---------|------|--------------------|--------------|
-| awesome-rs-vlms | MIT | – | – | – | – | – |
-| GeoChat | Apache-2.0¹ | 3.10 | 2.0.1 | 11.7/11.8 | Yes (LoRA + base) | Inference yes²; no 4/8-bit on Windows |
-| Change-Agent | MIT | 3.9 | 2.0.1+cu118 | 11.8 | Yes (`MCI_model.pth`) | Model yes; agent needs LLM API |
-| ChangeChat | Apache-2.0¹ | 3.9 | 2.0.1 | 11.7+ | **No (coming soon)** | n/a yet |
-| ChangeFormer | MIT | 3.8 | 1.10.1 | **10.2** | Yes (Releases v0.1.0) | Yes (`--gpu_ids -1`) |
-| RemoteCLIP | Apache-2.0 | flexible | via open-clip | optional | Yes (HF) | Yes |
+| Repo | License | Python | PyTorch | CUDA | Weights available? | CPU-capable? | G1 runtime |
+|------|---------|--------|---------|------|--------------------|--------------|------------|
+| awesome-rs-vlms | MIT | – | – | – | – | – | n/a (link list) |
+| GeoChat | Apache-2.0¹ | 3.10 | 2.0.1 | 11.7/11.8 | Yes (LoRA + base) | Inference yes²; no 4/8-bit on Windows | **BLOCKED** (7B > 4 GB; deepspeed/bnb) |
+| Change-Agent | MIT | 3.9 | 2.0.1+cu118 | 11.8 | Yes (`MCI_model.pth`) | Model yes; agent needs LLM API | **BLOCKED** (mmcv 1.3.1 build) |
+| ChangeChat | Apache-2.0¹ | 3.9 | 2.0.1 | 11.7+ | **No (coming soon)** | n/a yet | **BLOCKED** (no weights) |
+| ChangeFormer | MIT | 3.8 | 1.10.1 | **10.2** | Yes (Releases v0.1.0) | Yes (`--gpu_ids -1`) | **RUNNING** (torch<2.6, numpy<1.24) |
+| RemoteCLIP | Apache-2.0 | flexible | via open-clip | optional | Yes (HF) | Yes | **RUNNING** |
 
 ¹ Declared in package metadata; no `LICENSE` file in the repo — confirm before redistribution.
 ² Full-precision inference needs enough VRAM for a 7B model (~16 GB) or CPU offload.

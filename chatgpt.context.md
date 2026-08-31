@@ -1028,17 +1028,20 @@ Update this section frequently. The authoritative live view is
 - Monorepo scaffold + Claude Code harness (rules/skills/agents) built (ADR-001).
 - 6 research repos cloned + inventoried under `external/research/` (ADR-002).
 - Strategy docs `docs/17`–`docs/21` written.
+- **G1 runtime validation done (ADR-004, `docs/research/runtime_validation.md`):**
+  RemoteCLIP + ChangeFormer **RUN** on the dev host (CPU); GeoChat + Change-Agent
+  **BLOCKED** (need Linux GPU ≥16 GB / mmcv build); ChangeChat **rejected** (no
+  weights). First specialist stack = **RemoteCLIP + ChangeFormer**.
 
 ## In Progress
-- Clone/inventory research repositories. (done — inventory in `docs/research/`)
-- Validate candidate model environments.
-- Build model comparison matrix.
+- Validate candidate model environments. (done — G1)
+- Build model comparison matrix. (evidence in `docs/research/runtime_validation.md`)
 - Build experiment registry. (seeded — `docs/19_EXPERIMENT_REGISTRY.md`)
-- Build project-status system. (created — `docs/PROJECT_STATUS.md`)
-- Build initial MVP architecture. (V0 not yet started)
+- Build project-status system. (live — `docs/PROJECT_STATUS.md`)
+- Build initial MVP architecture. (V0 not yet started — adapters next)
 
 ## Missing
-- Reproduced model benchmarks.
+- Reproduced model **benchmarks** (real benchmark, not the G1 smoke checks).
 - Actual baseline metrics.
 - Actual SatQuery metrics.
 - Fine-tuning/adaptation proof.

@@ -25,8 +25,8 @@
 | ChangeChat | container `satquery/research-changechat`, `FROM satquery/research-geochat` | same | weights + `requirements.txt` not released upstream; pin when they are |
 | Change-Agent — perception | container `satquery/research-changeagent` | `nvidia/cuda:11.8.0-cudnn8-devel` (needs a compiler), Python 3.9 | `torch==2.0.1+cu118`, `transformers==4.33.1`, **mmcv 1.3.1 source build**, `mmsegmentation==0.13.0` |
 | Change-Agent — agent (lagent) | venv `.venvs/changeagent-lagent` or a light container | Python 3.10 | `transformers>=4.34`, `lmdeploy`/`vllm` optional, needs an LLM endpoint (OpenAI-compatible) |
-| ChangeFormer | container `satquery/research-changeformer` | `nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu20.04`, Python 3.8 | **rebuilt**: `torch==1.12.1+cu113`, `torchvision==0.13.1`, `timm==0.6.13` — **not** the repo's cu10.2 conda lockfile |
-| RemoteCLIP | venv `.venvs/remoteclip` | host Python 3.11 | `pip install open-clip-torch huggingface_hub torch pillow`; add `clip_benchmark` only for retrieval eval |
+| ChangeFormer | **venv `.venvs/changeformer`** (G1: a container was not needed) | host Python 3.11 | **validated**: `torch==2.5.1` (torch ≥2.6 breaks its `torch.load`) + `numpy==1.23.5` (removed `np.str`) + `opencv-python-headless`, `tifffile`, `scikit-image==0.21`, `scipy==1.10`, `timm`, `einops`. **No repo source edits.** cu113 container still an option for GPU speed. |
+| RemoteCLIP | venv `.venvs/remoteclip` | host Python 3.11 | **validated**: `pip install open-clip-torch pillow` (open-clip-torch 3.3.0, torch 2.13 CPU). Checkpoint `RemoteCLIP-ViT-B-32.pt` loads all-keys-matched; add `clip_benchmark` only for retrieval eval. |
 | awesome-rs-vlms | none | — | not runnable code |
 
 ## Layout (to be created when integration starts — not now)

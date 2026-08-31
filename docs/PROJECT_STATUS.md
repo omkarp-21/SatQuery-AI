@@ -14,6 +14,7 @@
 | Monorepo structure `apps/` + `packages/` + `external/` | `git ls-files`; ADR-001 in `docs/DECISIONS.md` |
 | Claude Code harness: `CLAUDE.md`, 10 rules, 18 skills, 11 subagents | files present under `.claude/`; frontmatter checked |
 | `docs/19` reconciled to canonical 7 experiments (EXP-001…007); doc stubs 03/05/06/07/08/11/16 fleshed out; `.claude/rules/scope.md` added | reviewed `SatQuery_Claude_Bootstrap` (2026-09-01); it was a thinner earlier draft — only the missing routing/single-image experiments + scope rule were additive |
+| **G1 runtime validation** — 5 repos, isolated venvs, official examples run | `docs/research/runtime_validation.md`. **RUNNING:** RemoteCLIP (CPU, correct), ChangeFormer (CPU, IoU 0.83/n=7, no source edits). **BLOCKED:** GeoChat (7B>4 GB VRAM; deepspeed/bnb), Change-Agent (mmcv 1.3.1 build), ChangeChat (no weights). Host GPU = RTX 3050 Ti 4 GB, no conda/Docker/WSL. |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -27,9 +28,10 @@
 
 ## IN PROGRESS
 
-- V0 vertical slice — *not started*. Next up.
-- Candidate model environment validation — planned per `docs/research/environment_strategy.md`.
-- Model comparison matrix — skeleton in `docs/research/MODEL_COMPARISON.md`, unfilled.
+- V0 vertical slice — *not started*. Next up (RemoteCLIP is validated and ready to wire).
+- ChangeFormer adapter — model validated (`.venvs/changeformer`), adapter not written.
+- Model comparison matrix — `docs/research/MODEL_COMPARISON.md` still a skeleton;
+  `docs/research/runtime_validation.md` now has the G1 evidence.
 
 ---
 
@@ -37,16 +39,19 @@
 
 | Blocker | Impact | Path forward |
 |---------|--------|--------------|
-| **ChangeChat has no released weights** + missing `requirements.txt` at pinned commit | EXP-003 (temporal bake-off) cannot include ChangeChat as a runnable option | proceed with Change-Agent vs ChangeFormer; revisit if weights ship |
-| **No confirmed GPU on dev host** (Windows 11) | Cannot run 7B VLMs or CUDA-only stacks (`bitsandbytes`, `deepspeed`, `mmcv 1.x`) natively | decide: WSL2 + Docker + NVIDIA toolkit, or a cloud GPU box; CPU-only for RemoteCLIP / ChangeFormer demo |
-| **ChangeFormer pins CUDA 10.2** | Won't run on Ampere+ GPUs as-is | rebuild env on torch ≥1.12 / cu113+ (model code is portable) or CPU |
+| **GeoChat un-runnable on the dev host** — 7B merged model > 4 GB VRAM (RTX 3050 Ti); `deepspeed==0.9.5` fails to build on Windows; `bitsandbytes==0.41.0` Linux-only | No single-image VQA/grounding specialist locally; **EXP-001 blocked** | provision a Linux GPU ≥16 GB (cloud), then reproduce `geochat_demo.py` / `batch_geochat_*` |
+| **Change-Agent un-runnable** — `mmcv==1.3.1` unbuildable (no wheels; ancient setup.py; needs CUDA toolkit + MSVC); internal `transformers` 4.33 vs ≥4.34 conflict | Temporal bake-off (EXP-003) can't include Change-Agent yet | Linux + conda + `mmcv` source build, or port to modern mmcv/mmseg |
+| **ChangeChat has no released weights** + no `requirements.txt` at pinned commit | Nothing to run — **REJECT for now** | revisit only on a weights + dependency release |
+| **No GPU-backed research env** (Windows 11, 4 GB laptop GPU, no conda/Docker/WSL) | CUDA-only stacks and 7B models can't run locally; CPU-only for the two that work | decide GPU path: cloud Linux box vs local WSL2+Docker+NVIDIA toolkit |
 
 ---
 
 ## MISSING (required, not yet built)
 
-- Reproduced model benchmarks (number #2) — none.
-- Baseline metrics and SatQuery metrics (number #3) — none.
+- Reproduced model **benchmarks** (number #2) — none on a real benchmark. (Two
+  smoke-level reproductions exist from G1: RemoteCLIP official example correct;
+  ChangeFormer IoU 0.83 on 7 bundled samples. Not benchmarks.)
+- Baseline metrics and full SatQuery metrics (number #3) — none.
 - Fine-tuning / adaptation proof (BigEarthNet requirement, PS §Adaptation) — not scoped.
 - Real evaluation harness — `evaluation/scripts/run_suite.py` is a stub; no metrics, no cases.
 - Datasets — none downloaded (RSVQA, VRSBench, CDVQA, LEVIR-MCI, BigEarthNet).
@@ -80,14 +85,19 @@
 
 ## METRICS
 
-**None measured.** All experiment entries in `docs/19_EXPERIMENT_REGISTRY.md` are
-`PLANNED`. Do not populate this section with anything that is not the output of a
-real run, tagged with dataset / split / seed / hardware / date and labelled as
-paper / reproduction / SatQuery.
+No **benchmark** numbers yet; all `docs/19` experiments are `PLANNED`. The only
+real measurements are two G1 runtime smoke checks (tiny n — sanity, not benchmark).
+Do not add anything that is not a real run, tagged and labelled paper /
+reproduction / SatQuery.
 
-| Metric | Value | Dataset | Split | Date | Number type |
-|--------|-------|---------|-------|------|-------------|
-| — | not measured | — | — | — | — |
+| Metric | Value | Dataset | Split | Date | Number type | Notes |
+|--------|-------|---------|-------|------|-------------|-------|
+| ChangeFormerV6 change-IoU | 0.832 | LEVIR-CD bundled `samples_LEVIR` | 7 labelled samples (demo) | 2026-09-01 | **reproduction** | CPU, `.venvs/changeformer` torch 2.5.1; n=7 — sanity check only |
+| ChangeFormerV6 change-F1 | 0.908 | LEVIR-CD bundled `samples_LEVIR` | 7 labelled samples (demo) | 2026-09-01 | **reproduction** | same run |
+| ChangeFormerV6 overall acc (LEVIR-CD test) | 0.9495 | LEVIR-CD | test | (upstream) | **paper / author** | from checkpoint `log.txt` — not ours |
+| RemoteCLIP-ViT-B-32 zero-shot | correct (97.8% top-1) | `assets/airport.jpg` | n=1 | 2026-09-01 | **reproduction** | official example; not a benchmark |
+| RemoteCLIP inference latency | ~150 ms/query | — | — | 2026-09-01 | measured (host) | CPU, warm, ViT-B-32, 1 img + ~4 prompts |
+| ChangeFormer inference latency | ~790 ms / 256² pair | — | — | 2026-09-01 | measured (host) | CPU; ~1–2 OOM faster expected on GPU |
 
 ---
 
@@ -96,7 +106,7 @@ paper / reproduction / SatQuery.
 | Risk | Severity | Mitigation |
 |------|----------|------------|
 | Environment fragmentation across 5 research models | High | per-model container/venv (`docs/research/environment_strategy.md`); integrate one at a time |
-| No GPU on dev host → slow iteration + demo latency | High | secure a GPU path early; keep a CPU-capable fallback demo (RemoteCLIP + ChangeFormer) |
+| No GPU-backed research env → GeoChat + Change-Agent blocked, slow iteration | High | **confirmed in G1.** First stack (RemoteCLIP + ChangeFormer) runs CPU-only; a cloud Linux GPU ≥16 GB is needed before EXP-001 / GeoChat |
 | Adaptation requirement (BigEarthNet) not scoped | High | scope a minimal LoRA/adapter fine-tune on one component before freezing architecture |
 | Novelty currently asserted, not measured | High | EXP-004–EXP-007 must produce real deltas before any novelty claim in the PPT |
 | ChangeChat unusable → narrows temporal options | Medium | Change-Agent vs ChangeFormer decision via EXP-003 |
@@ -109,37 +119,40 @@ paper / reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **Build V0**: `POST /query` → ingestion + metadata (real CRS/transform/bounds
-   extraction) → RemoteCLIP adapter (real checkpoint, zero-shot tag/retrieve) →
-   reports. One demo GeoTIFF, offline. Feature-complete per `docs/17`.
-2. **Stand up the real eval harness**: `evaluation/scripts/run_suite.py` + one
-   metric (unit-tested) + one `evaluation/cases/` entry; move **EXP-001** to
-   `RUNNING` with a concrete dataset + baseline model chosen.
-3. **Decide the GPU/environment path** and get **one** reproduction number (#2):
-   load GeoChat *or* ChangeFormer, run a single real inference, record it.
+1. **Wrap the two validated models as adapters** in
+   `packages/model_adapters/src/satquery_model_adapters/` — `remoteclip.py`
+   (subprocess/inproc to `.venvs/remoteclip`) and `changeformer.py` (to
+   `.venvs/changeformer`), each with the smoke test that G1 already proved runs.
+   Update `model_registry.yaml` capability entries with the measured facts.
+2. **Build V0**: `POST /query` → ingestion + metadata (real CRS/transform/bounds)
+   → RemoteCLIP adapter → reports. One demo GeoTIFF, offline. Feature-complete per
+   `docs/17`.
+3. **Decide the GPU path** (cloud Linux ≥16 GB) so GeoChat (EXP-001) and
+   Change-Agent (EXP-003) become runnable; until then EXP-001 uses a small
+   CPU-runnable control VLM vs RemoteCLIP where the task allows.
 
 ---
 
-## WIN SCORECARD (0–10 — honest, early baseline)
+## WIN SCORECARD (0–10 — honest)
 
-| Dimension | Score | Why |
-|-----------|:----:|-----|
-| Problem fit | 4 | requirements understood + documented; nothing built against them |
-| Novelty | 2 | contribution areas named; none validated |
-| Technical depth | 3 | strong architecture/process docs; no working intelligence |
-| Prototype completeness | 1 | skeleton only, no end-to-end path |
-| Accuracy | 0 | nothing measured |
-| Multimodal (optical–SAR) reasoning | 0 | not started |
-| Temporal reasoning | 0 | not started |
-| Geospatial integrity | 2 | rules + skill written; no code |
-| Evidence / verification | 1 | designed; not built |
-| UI / UX | 1 | dir skeleton + design skill |
-| Benchmark readiness | 1 | benchmarks identified; none acquired; harness is a stub |
-| Feasibility | 5 | plan is realistic; environment fragmentation is the main threat |
-| Impact | 4 | clear institutional relevance in the framing |
-| PPT quality | 3 | six-slide blueprint + story defined; no evidence content |
-| Demo quality | 0 | no demo path yet |
+| Dimension | Score | Δ | Why |
+|-----------|:----:|:--:|-----|
+| Problem fit | 4 | — | requirements understood + documented; nothing built against them |
+| Novelty | 2 | — | contribution areas named; none validated |
+| Technical depth | 4 | +1 | G1 proved two research models actually run + measured; real env constraints known |
+| Prototype completeness | 1 | — | still no end-to-end path (adapters not written) |
+| Accuracy | 1 | +1 | one real reproduction (ChangeFormer IoU 0.83, n=7) — sanity, not benchmark |
+| Multimodal (optical–SAR) reasoning | 0 | — | not started; no SAR model in the runnable set |
+| Temporal reasoning | 2 | +2 | ChangeFormer change-mask **runs** and reproduces plausibly (n=7) |
+| Geospatial integrity | 2 | — | rules + skill written; no code |
+| Evidence / verification | 1 | — | designed; not built |
+| UI / UX | 1 | — | dir skeleton + design skill |
+| Benchmark readiness | 2 | +1 | two validated venvs + `runtime_validation.md`; real benchmarks still not acquired |
+| Feasibility | 6 | +1 | first stack (RemoteCLIP + ChangeFormer) proven runnable CPU-only, no source edits; GeoChat/Change-Agent need a GPU box |
+| Impact | 4 | — | clear institutional relevance in the framing |
+| PPT quality | 3 | — | six-slide blueprint + story defined; no evidence content |
+| Demo quality | 0 | — | no demo path yet |
 
-**Read:** strong strategic and organizational foundation; **zero measured
-capability.** The single highest-value move is a working V0 plus the first real
-measurement. Scores will only rise on evidence — explain every change here.
+**Read:** G1 converted "5 candidate repos" into "2 that run here, 2 that need a
+Linux GPU, 1 rejected". Foundation is solid; still **no end-to-end prototype**.
+Next value: adapters for the two runnable models, then V0. Explain every change here.

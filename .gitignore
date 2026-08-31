@@ -61,3 +61,6 @@ Thumbs.db
 *.log
 logs/
 .cache/
+
+# --- local model validation venvs ---
+.venvs/
