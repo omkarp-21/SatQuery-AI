@@ -7,6 +7,10 @@ How Claude is configured to work in this repo. The layers, in order of authority
                     │
                     ▼
               PROJECT CONTEXT         docs/*, README, AGENTS.md
+                                      └─ process: docs/17 (engineering strategy),
+                                         18 (research→accuracy + the three numbers),
+                                         19 (experiment registry), 20 (roadmap),
+                                         21 (Claude working principles — read first)
                     │
           ┌─────────┴─────────┐
           ▼                   ▼

@@ -38,11 +38,15 @@ Extract, in `research/papers/<name>.md`:
 
 - Cite the source for every quantitative statement.
 - "The paper reports X on dataset D" — not "the model achieves X".
-- Distinguish *their* results from *our* results. Never merge them.
+- **The three numbers** (`docs/18_RESEARCH_TO_ACCURACY.md`): keep *paper result*,
+  *our reproduction*, and *SatQuery result* in separate columns, separately
+  labelled. Never merge them. If we haven't run it, both #2 and #3 are "not yet
+  measured".
 - If we haven't tested it on our data, say "untested on our data".
 - Estimates are labeled estimates.
 
 ## Output
 
 A short, skeptical memo per source. It feeds `docs/05_MODEL_ARCHITECTURE.md`,
-`docs/research/MODEL_COMPARISON.md`, and the `ai-evaluator` agent's baselines.
+`docs/research/MODEL_COMPARISON.md`, the `ai-evaluator` agent's baselines, and —
+when it motivates a trial — a new `EXP-NNN` in `docs/19_EXPERIMENT_REGISTRY.md`.

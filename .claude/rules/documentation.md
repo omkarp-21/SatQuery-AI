@@ -14,6 +14,12 @@
 - No claim in docs without a basis. Performance numbers cite the benchmark run
   (`docs/13_PERFORMANCE.md`); accuracy numbers cite the eval run
   (`docs/11_EVALUATION_PLAN.md` + `evaluation/reports/`). Mark estimates as estimates.
+- **The three numbers stay separate** (`docs/18_RESEARCH_TO_ACCURACY.md`): a
+  *paper result* is always attributed and cited; *our reproduction* is labelled as
+  such; only an *integrated-system* measurement under our evaluation may be called
+  a "SatQuery result". Never write "the paper reports X" as though X were ours.
+- Every model trial referenced in docs points to its `EXP-NNN` entry in
+  `docs/19_EXPERIMENT_REGISTRY.md`.
 - Diagrams have a text description alongside them (accessibility + diffability).
 - Write for a new teammate joining mid-hackathon: assume domain interest, not
   project context.

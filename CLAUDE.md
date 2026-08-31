@@ -93,6 +93,30 @@ each other and with SatQuery — see [`docs/research/`](docs/research/)
 Integration happens later via `packages/model_adapters/` calling an isolated
 env/container by subprocess.
 
+## How work is done here — `docs/17`–`docs/21`
+
+SatQuery is a **research-backed working prototype**. Prototype quality and research
+accuracy reinforce each other; the cadence is
+**research → experiment → measure → integrate → improve → demonstrate**.
+
+- [`docs/17_ENGINEERING_STRATEGY.md`](docs/17_ENGINEERING_STRATEGY.md) — two
+  parallel tracks (product ∥ research), priority order, Definition of Feature/Research Complete.
+- [`docs/18_RESEARCH_TO_ACCURACY.md`](docs/18_RESEARCH_TO_ACCURACY.md) — the core
+  loop (never skip the baseline), accuracy engineering, model-selection principle,
+  hypotheses H1–H5, failure-driven development, the novelty rule.
+- [`docs/19_EXPERIMENT_REGISTRY.md`](docs/19_EXPERIMENT_REGISTRY.md) — every model
+  trial has an `EXP-NNN` id and a `KEEP / REJECT / INVESTIGATE` decision. No
+  off-the-record "trying models".
+- [`docs/20_PROTOTYPE_ROADMAP.md`](docs/20_PROTOTYPE_ROADMAP.md) — V0 → V2 capability
+  milestones, each with a research gate.
+- [`docs/21_CLAUDE_WORKING_PRINCIPLES.md`](docs/21_CLAUDE_WORKING_PRINCIPLES.md) —
+  the pre-flight checklist for any major feature. Read it first.
+
+**The three numbers — never mix them:** (1) *paper result* — what the authors
+report; (2) *our reproduction* — what we measure running their code; (3) *SatQuery
+result* — what the integrated system scores under our evaluation. Only #3 may be
+called "SatQuery's accuracy". Never: "the paper says X, so SatQuery does X."
+
 ## Hard constraints live in `.claude/rules/`
 
 Load-bearing engineering constraints are in [`.claude/rules/`](.claude/rules/):

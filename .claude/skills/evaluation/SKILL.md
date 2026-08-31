@@ -47,12 +47,31 @@ make eval          # python evaluation/scripts/run_suite.py
 A run must: fix seeds, log hardware, record commit SHA, time each query, save
 per-case pass/fail with the rubric, and list failures explicitly.
 
+## The three numbers — never mix them (`docs/18_RESEARCH_TO_ACCURACY.md`)
+
+| # | Name | May be written as |
+|---|------|-------------------|
+| 1 | **Paper result** | "GeoChat reports X on RSVQA (paper, [cite])" — always attributed |
+| 2 | **Our reproduction** | "reproduction: we get X running their code + checkpoint on their benchmark" |
+| 3 | **SatQuery result** | "SatQuery scores X on <our split>" — the integrated system under our eval |
+
+Only #3 is "SatQuery's accuracy". Forbidden: *"the paper says X, therefore
+SatQuery achieves X."* If only #1 exists, say so and mark #2/#3 "not yet measured".
+
+## Experiment registry
+
+Every model trial is an `EXP-NNN` entry in `docs/19_EXPERIMENT_REGISTRY.md`,
+created **before** the work, ending in `KEEP / REJECT / INVESTIGATE`. Eval reports
+and `evaluation/cases/` entries link back to their `EXP-NNN`. Baseline first,
+always (`docs/18`).
+
 ## Reporting language
 
 - "We measured X on split S (n=…, seed=…, GPU=…)." — allowed.
 - "X% accuracy" with no record — not allowed.
 - Improvement claims state the baseline and the delta with n.
 - Unknown = "not yet evaluated", not an optimistic guess.
+- State which of the three numbers every figure is.
 
 ## Generalization to ISRO / unseen data
 
