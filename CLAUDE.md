@@ -1,45 +1,112 @@
-# CLAUDE.md — SATQUERY
+# SATQUERY AI
 
-Guidance for AI coding agents working in this repo. Humans: see [`README.md`](README.md).
+## Mission
 
-## What this project is
+Build SatQuery AI for **SIH 2026 problem 26167**.
 
-Agentic natural-language query system over satellite imagery. A query is planned,
-routed to specialist vision-language models, fused, verified, and returned with an
-evidence trail. Judged for SIH — correctness, explainability, and demo polish matter.
+**Goal:** Create a reliable agentic multimodal remote-sensing intelligence system
+that accepts natural-language queries over single-image, bi-temporal, and
+optical–SAR imagery, and returns answers backed by verifiable evidence.
 
-## Where things live
+## Core principle
 
-- `backend/app/` — FastAPI: `api/` routes, `core/` config+wiring, `schemas/` Pydantic models, `services/` orchestration, `main.py` entrypoint.
-- `backend/satquery/` — the pipeline package. Stage order:
-  `ingestion → metadata → routing → planning → registry → agents → specialists → fusion → verification → evidence → geospatial → confidence → provenance → reports`.
-- `models/adapters/` — one file per model (`geochat`, `change_agent`, `changechat`, `changeformer`, `remoteclip`). Each exposes a uniform adapter interface. Registry: `models/model_registry.yaml`.
-- `frontend/src/` — React. Feature dirs: `maps/`, `evidence/`, `execution-trace/`, `pages/`, shared `components/`, `features/`.
-- `evaluation/` — datasets, scripts, metrics, cases, reports. Keep eval cases in `evaluation/cases/`.
-- `docs/` — numbered specs are the source of truth. Update the relevant doc in the same change as the code.
-- `research/repos/` — vendored reference implementations. Do not edit; read for reference only.
+**Plan → Validate → Execute → Verify → Explain → Audit**
 
-## Conventions
+Every query flows through these six phases. No phase is skipped, even under time
+pressure. If a phase cannot complete, the pipeline fails loudly with a reason —
+it never guesses past it.
 
-- **Python:** 3.11+, FastAPI, Pydantic v2, `ruff` + `black`, type hints required. Package manager per `backend/pyproject.toml`. Tests with `pytest` in `backend/tests/`.
-- **Frontend:** TypeScript, keep components typed; colocate tests.
-- **Adapters:** never call a model directly from the pipeline — go through its adapter and the registry.
-- **Provenance:** every answer must carry evidence + execution trace. Don't add a code path that returns a result without recording provenance.
-- **Secrets:** only via `.env` (see `.env.example`). Never commit checkpoints, raw data, or `.env`.
-- **Decisions:** append to `docs/DECISIONS.md` for anything architectural.
+## Non-negotiables
 
-## Common commands
+- Never invent model capabilities.
+- Never fabricate evaluation metrics.
+- Never silently alter geospatial metadata.
+- Never treat SAR as ordinary RGB.
+- Every specialist must expose a standard adapter interface.
+- Every execution must generate provenance metadata.
+- Every model output must be independently verifiable where possible.
+- Prefer reuse of proven open-source research implementations.
+- Keep research repositories isolated from product code.
+- Do not add dependencies without justification.
+- Test before integrating.
 
+## Architecture
+
+The pipeline package [`backend/satquery/`](backend/satquery/) runs these stages in order:
+
+`ingestion → metadata → routing → planning → registry → agents → specialists →
+fusion → verification → evidence → geospatial → confidence → provenance → reports`
+
+Details:
+- [`docs/03_SYSTEM_ARCHITECTURE.md`](docs/03_SYSTEM_ARCHITECTURE.md)
+- [`docs/05_MODEL_ARCHITECTURE.md`](docs/05_MODEL_ARCHITECTURE.md)
+- [`docs/06_AGENT_ARCHITECTURE.md`](docs/06_AGENT_ARCHITECTURE.md)
+
+The custom [`satquery-architecture`](.claude/skills/satquery-architecture/SKILL.md)
+skill holds the authoritative structure — consult it before any restructuring.
+
+## Commands
+
+**Backend:**
 ```bash
-make setup            # install deps
-make dev              # run everything
-make test             # backend + frontend tests
-make lint             # ruff + black + eslint
-make eval             # run evaluation suite
+make setup-backend         # pip install -e ".[dev]"
+make dev-backend           # uvicorn app.main:app --reload --port 8000
+make test-backend          # cd backend && pytest
 ```
 
-## Guardrails
+**Frontend:**
+```bash
+make setup-frontend        # npm install
+make dev-frontend          # vite dev server on :5173
+make test-frontend         # vitest run
+```
 
-- Large binaries (`models/checkpoints/`, `data/raw/`, `data/processed/`) are gitignored — keep it that way.
-- Prefer editing an existing pipeline stage over adding a new top-level package.
-- If a change spans stages, note the data contract in the stage's module docstring.
+**Tests / quality / eval:**
+```bash
+make test                  # backend + frontend
+make lint                  # ruff + black --check + eslint
+make fmt                   # auto-format
+make eval                  # python evaluation/scripts/run_suite.py
+```
+
+## Hard constraints live in `.claude/rules/`
+
+Load-bearing engineering constraints are in [`.claude/rules/`](.claude/rules/):
+`architecture`, `python`, `typescript`, `geospatial`, `ai-models`, `testing`,
+`security`, `git`, `documentation`. Follow them literally.
+
+## Expert behaviors live in `.claude/skills/`
+
+Model-invoked skills in [`.claude/skills/`](.claude/skills/) carry deep domain
+knowledge (remote sensing, geospatial engineering, model integration, agent
+orchestration, evaluation discipline, map UI, demo engineering, …). Invoke the
+relevant skill when a task enters its domain.
+
+## Delegated review lives in `.claude/agents/`
+
+Subagents in [`.claude/agents/`](.claude/agents/) handle scoped work and review:
+`architect`, `remote-sensing-researcher`, `ml-engineer`, `geospatial-engineer`,
+`backend-engineer`, `frontend-engineer`, `ai-evaluator`, `security-engineer`,
+`performance-engineer`, `red-team-reviewer`, `hackathon-jury`. Route a change to
+the matching specialist; run risky changes through `red-team-reviewer` and
+demo-facing features through `hackathon-jury` before merge.
+
+## Three voices, held in tension
+
+- **Product** (`product-engineering` skill): ship aggressively, simplify, prioritize leverage.
+- **Research** (`research-review` skill): claim conservatively, cite sources, no fabricated numbers.
+- **Engineering** (`testing` / `performance` skills): measure everything, handle every error.
+
+When they conflict, **research rigor wins over shipping speed.** "Move fast" must
+never become "fake the AI or the metrics."
+
+## Definition of Done
+
+A feature is not complete until:
+
+1. code works
+2. tests exist
+3. logging exists
+4. errors are handled
+5. documentation is updated
+6. demo path works
