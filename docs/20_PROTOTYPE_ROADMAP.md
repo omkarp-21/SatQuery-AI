@@ -56,7 +56,9 @@ GeoChat).
 - Plan is stored verbatim for provenance.
 
 **Research gate:** EXP-001 **MEASURED** (H1) — RS-adapted vs generic VLM on our
-held-out split, with the before/after in doc 19. Decision recorded.
+held-out split, with the before/after in doc 19. Decision recorded. EXP-002
+(single-image RS-VLM bake-off) and EXP-006 (LLM vs constrained routing, H2)
+**started**.
 
 ---
 
@@ -77,9 +79,9 @@ Grounding results and change masks appear on the map as inspectable layers
   distinct.
 - Regression suite covers all three paths.
 
-**Research gate:** EXP-002 (H2, temporal specialist choice) and EXP-003 (H3,
-optical+SAR) **MEASURED**, decisions recorded. EXP-005 (H5, geospatial gate)
-**started**.
+**Research gate:** EXP-002 (single-image bake-off), EXP-003 (temporal stack
+bake-off), EXP-004 (H3, optical+SAR) and EXP-006 (H2, routing) **MEASURED**,
+decisions recorded. EXP-007 (H5, geospatial gate) **started**.
 
 ---
 
@@ -96,7 +98,7 @@ replayable. The UI's evidence panel and execution-trace panel are peers of the m
 - Confidence values are labelled (probability / margin / heuristic).
 - Clicking an evidence item highlights its map geometry and its trace step.
 
-**Research gate:** EXP-004 (H4, verifier detection) and EXP-005 (H5) **MEASURED**,
+**Research gate:** EXP-005 (H4, verifier detection) and EXP-007 (H5) **MEASURED**,
 decisions recorded. Reliability numbers exist as **SatQuery results** (number #3),
 clearly separated from paper and reproduction numbers.
 

@@ -2,7 +2,7 @@
 
 > Living status file (see `chatgpt.context.md` §24). Update every significant
 > session. No fabricated numbers — "not measured" is the honest value until a real
-> run exists. Last updated: **2026-08-31**.
+> run exists. Last updated: **2026-09-01**.
 
 ---
 
@@ -12,7 +12,8 @@
 |------|--------------|
 | PS 26167 requirements captured | `chatgpt.context.md` §4; mapped in `docs/20_PROTOTYPE_ROADMAP.md` |
 | Monorepo structure `apps/` + `packages/` + `external/` | `git ls-files`; ADR-001 in `docs/DECISIONS.md` |
-| Claude Code harness: `CLAUDE.md`, 9 rules, 18 skills, 11 subagents | files present under `.claude/`; frontmatter checked |
+| Claude Code harness: `CLAUDE.md`, 10 rules, 18 skills, 11 subagents | files present under `.claude/`; frontmatter checked |
+| `docs/19` reconciled to canonical 7 experiments (EXP-001…007); doc stubs 03/05/06/07/08/11/16 fleshed out; `.claude/rules/scope.md` added | reviewed `SatQuery_Claude_Bootstrap` (2026-09-01); it was a thinner earlier draft — only the missing routing/single-image experiments + scope rule were additive |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -36,7 +37,7 @@
 
 | Blocker | Impact | Path forward |
 |---------|--------|--------------|
-| **ChangeChat has no released weights** + missing `requirements.txt` at pinned commit | EXP-002 / EXP-003 cannot include ChangeChat as a runnable option | proceed with Change-Agent vs ChangeFormer; revisit if weights ship |
+| **ChangeChat has no released weights** + missing `requirements.txt` at pinned commit | EXP-003 (temporal bake-off) cannot include ChangeChat as a runnable option | proceed with Change-Agent vs ChangeFormer; revisit if weights ship |
 | **No confirmed GPU on dev host** (Windows 11) | Cannot run 7B VLMs or CUDA-only stacks (`bitsandbytes`, `deepspeed`, `mmcv 1.x`) natively | decide: WSL2 + Docker + NVIDIA toolkit, or a cloud GPU box; CPU-only for RemoteCLIP / ChangeFormer demo |
 | **ChangeFormer pins CUDA 10.2** | Won't run on Ampere+ GPUs as-is | rebuild env on torch ≥1.12 / cu113+ (model code is portable) or CPU |
 
@@ -101,6 +102,8 @@ paper / reproduction / SatQuery.
 | ChangeChat unusable → narrows temporal options | Medium | Change-Agent vs ChangeFormer decision via EXP-003 |
 | Scope creep vs hackathon time budget | Medium | scope-control checklist (`chatgpt.context.md` §27); cut anything without an eval path |
 | Six-slide PPT claims outrunning the prototype | Medium | slide claims gated on `docs/PROJECT_STATUS.md` METRICS + demo path |
+| Overfitting / gaming the public benchmarks (numbers that won't hold on unseen ISRO/SAC data) | Medium | held-out splits + leakage checks; report a "known distribution gaps" section (`docs/11`); prefer robustness stress tests (EXP-007) over leaderboard chasing |
+| `scope.md` justification skipped under time pressure | Medium | `.claude/rules/scope.md` is always-loaded; every feature PR answers the 7 questions |
 
 ---
 

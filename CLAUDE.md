@@ -132,7 +132,7 @@ called "SatQuery's accuracy". Never: "the paper says X, so SatQuery does X."
 
 Load-bearing engineering constraints are in [`.claude/rules/`](.claude/rules/):
 `architecture`, `python`, `typescript`, `geospatial`, `ai-models`, `testing`,
-`security`, `git`, `documentation`. Follow them literally.
+`security`, `git`, `documentation`, `scope`. Follow them literally.
 
 ## Expert behaviors live in `.claude/skills/`
 

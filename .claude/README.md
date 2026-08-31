@@ -36,7 +36,7 @@ How Claude is configured to work in this repo. The layers, in order of authority
 ## `rules/` — hard engineering constraints (always in effect)
 
 `architecture` · `python` · `typescript` · `geospatial` · `ai-models` ·
-`testing` · `security` · `git` · `documentation`
+`testing` · `security` · `git` · `documentation` · `scope`
 
 Non-negotiable. A change that violates a rule does not merge.
 

@@ -167,13 +167,16 @@ repos read-only and isolated (`docs/research/`).
 We explicitly test hypotheses. Each **must** have a registered experiment
 (`19_EXPERIMENT_REGISTRY.md`).
 
-| ID | Hypothesis |
-|----|-----------|
-| **H1** | Remote-sensing-adapted VLMs outperform generic VLMs on RS tasks. |
-| **H2** | Task-specific specialist routing improves reliability over a single monolithic VLM. |
-| **H3** | Optical + SAR evidence improves reliability for suitable queries vs optical-only reasoning. |
-| **H4** | A verification layer can detect unsupported or contradictory model outputs. |
-| **H5** | Geospatial validation reduces invalid paired-image execution and spatial-reasoning failures. |
+| ID | Hypothesis | Experiment |
+|----|-----------|------------|
+| **H1** | Remote-sensing-adapted VLMs outperform generic VLMs on RS tasks. | EXP-001 |
+| **H2** | Task-specific specialist routing improves reliability over a single monolithic VLM. | EXP-006 (informed by EXP-003) |
+| **H3** | Optical + SAR evidence improves reliability for suitable queries vs optical-only reasoning. | EXP-004 |
+| **H4** | A verification layer can detect unsupported or contradictory model outputs. | EXP-005 |
+| **H5** | Geospatial validation reduces invalid paired-image execution and spatial-reasoning failures. | EXP-007 |
+
+Selection bake-offs (no hypothesis): EXP-002 (single-image RS-VLM comparison),
+EXP-003 (temporal stack comparison). Full set of seven: `chatgpt.context.md` §11.
 
 ---
 
