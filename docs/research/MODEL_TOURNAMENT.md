@@ -14,8 +14,11 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
-Current: nothing is INTEGRATED. 4 models are REPRODUCED (RemoteCLIP, ChangeFormer,
-CROMA, DOFA); ChangeFormer also has one MEASURED point (n=7).
+Current: 4 models REPRODUCED (RemoteCLIP, ChangeFormer, CROMA, DOFA). ChangeFormer
+has one MEASURED point (n=7) **and is now INTEGRATED** — it runs inside the G2
+temporal vertical slice via a subprocess adapter with provenance
+(`apps/backend/app/services/temporal_slice.py`). Not yet VALIDATED (no benchmark
+under our eval).
 
 ---
 
@@ -206,16 +209,16 @@ before→after.
 
 **I. Evidence level per mandatory capability**
 
-| Cap | Level now | Note |
+| Cap | Level now (post-G2) | Note |
 |-----|-----------|------|
-| A single-image VQA | **DOCUMENTED** | TinyRS/RSCoVLM releasable locally; none reproduced |
-| B extra single-image task | **DOCUMENTED** (grounding) / RemoteCLIP retrieval REPRODUCED (not "captioning/grounding" per PS) | |
-| C bi-temporal change | mask **MEASURED** (ChangeFormer n=7); semantic/language **NONE** | |
-| D optical–SAR | **REPRODUCED** (CROMA + DOFA embeddings) — up from NONE | not yet MEASURED on a task |
-| E RS adaptation | **NONE** (plan ready: EXP-008 on reproduced encoders) | |
-| F agentic routing | **DESIGNED** only | needs ≥2 adapters first |
-| G geospatial validation | **DESIGNED** only | prerequisite for C & D trust |
-| H evidence + confidence + audit | **DESIGNED** only | |
+| A single-image VQA | **DOCUMENTED** | EXP-002 setup done; TinyRS download flaky; none reproduced |
+| B extra single-image task | **DOCUMENTED** (grounding); RemoteCLIP retrieval REPRODUCED (≠ PS "captioning/grounding") | |
+| C bi-temporal change | mask **INTEGRATED** (G2 slice, e2e, provenance); semantic/language **NONE** | |
+| D optical–SAR | **REPRODUCED** + probe machinery **VALIDATED** (EXP-004 Run 1, synthetic) | not yet MEASURED on a real task (Run 2) |
+| E RS adaptation | **NONE** (harness ready: EXP-008 on the reproduced encoders) | |
+| F agentic routing | **DESIGNED** only | needs the remaining adapters first |
+| G geospatial validation | **IMPLEMENTED** (`validate_geotiff` + `check_pair_compatibility`, 13 tests, gate live) | not yet stress-tested (EXP-007) |
+| H evidence + confidence + audit | provenance **threaded** through the slice; verifier + confidence method **NONE** | no confidence value is produced anywhere |
 
 **J. Current unresolved blockers**
 1. No VQA model reproduced (A/B) — TinyRS/RSCoVLM local run not yet attempted.

@@ -70,7 +70,9 @@ what we measured, what we decided.
 
 ## EXP-002 — Candidate single-image RS-VLM comparison
 
-- Status: PLANNED
+- Status: **RUNNING (setup)** — `docs/research/EXP-002.md`. `.venvs/tinyrs` +
+  transformers 4.49 built; usability threshold fixed; TinyRS weight download flaky
+  (HF `ChunkedEncodingError`), resuming. **N=0.** RSCoVLM-3B not started.
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?
@@ -108,9 +110,14 @@ what we measured, what we decided.
 - Notes: ChangeFormer already MEASURED as the mask worker (IoU 0.83 / n=7).
 - DECISION: _pending_ — keep ChangeFormer + a chosen semantic/language layer.
 
-## EXP-004 — Optical-only vs optical + SAR  ⭐ next experiment (G1.5, ADR-005)
+## EXP-004 — Optical-only vs optical + SAR  ⭐ (G1.5, ADR-005)
 
-- Status: PLANNED — **highest-value next** (`docs/research/CAPABILITY_GAP_MATRIX.md`).
+- Status: **PARTIAL** — `docs/research/EXP-004.md`. **Run 1 (controlled synthetic
+  sanity check) done 2026-09-01:** 3-arm frozen-feature linear probe on real CROMA +
+  DOFA encoders; a SAR-only signal is recovered by CROMA-`joint_GAP` and DOFA-fused
+  (bal-acc 1.00) and is at chance for optical-only (~0.49). Validates the machinery
+  + directional H3. **NOT a benchmark.** **Run 2 (real DFC2020/reBEN) pending** a
+  dataset download.
 - Hypothesis: H3
 - Question: For suitable queries (built-up / informal-settlement classification),
   does a **joint optical+SAR** representation improve the result vs optical-only?
@@ -207,9 +214,9 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | PLANNED | — |
+| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | **RUNNING (setup, N=0)** | — |
 | EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
-| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA, reBEN subset** | **H3** | **PLANNED — ⭐ next** | — |
+| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **PARTIAL — Run 1 sanity done; Run 2 pending** | — |
 | EXP-005 | unverified vs verified | H4 | PLANNED | — |
 | EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
 | EXP-007 | geospatial validation on/off | H5 | PLANNED | — |

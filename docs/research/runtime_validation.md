@@ -11,6 +11,13 @@
 > **G1.6 update:** added **CROMA** and **DOFA** — both **REPRODUCED** on CPU
 > (sections below). ChangeChat re-verified: still no weights (README now cites
 > ≥48 GB VRAM for training) → REJECT stands.
+>
+> **G2 update (2026-09-01):** **ChangeFormer is now INTEGRATED** — it runs inside
+> the temporal vertical slice via a subprocess adapter (`.venvs/changeformer`),
+> product code never imports the repo. CROMA + DOFA feature-extraction exercised in
+> the EXP-004 Run 1 harness (`docs/research/EXP-004.md`). New venv `.venvs/satquery`
+> (rasterio/pyproj) for the geospatial slice; `.venvs/tinyrs` set up for EXP-002
+> (weight download flaky — N=0).
 
 ## Validation host
 

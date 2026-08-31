@@ -4,9 +4,10 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01** (refreshed after G1.6 model tournament — D is now
-> **REPRODUCED**, not NONE). Full candidate cards + tournament verdicts:
-> **`docs/research/MODEL_TOURNAMENT.md`**; branching: **`EXPERIMENT_DECISION_TREE.md`**.
+> Date: **2026-09-01** (refreshed after **G2** — geospatial + temporal vertical
+> slices implemented; EXP-004 machinery validated). Experiment write-ups:
+> **`EXP-002.md`**, **`EXP-004.md`**. Candidate cards: **`MODEL_TOURNAMENT.md`**;
+> branching: **`EXPERIMENT_DECISION_TREE.md`**.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
 >
@@ -122,16 +123,16 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 ## Gap summary (most urgent first)
 
-| Gap | Status (post-G1.6) | Blocking? | Cheapest path to next evidence |
+| Gap | Status (post-G2) | Blocking? | Cheapest path to next evidence |
 |-----|--------|-----------|--------------------------------|
-| **D. Optical–SAR** | **REPRODUCED** (CROMA + DOFA) | mandatory + differentiation | MEASURE via EXP-004 (CROMA vs DOFA, reBEN subset) — **local** |
-| **E. RS adaptation** | NONE (unblocked — encoders reproduced) | mandatory | linear→LoRA probe on reBEN subset (EXP-008), shares EXP-004 data — **local** |
-| **A. Single-image VQA** | DOCUMENTED | mandatory | run TinyRS + RSCoVLM-3B (EXP-002), 4-bit / CPU — **local**; GeoChat only if both fail |
+| **D. Optical–SAR** | **REPRODUCED** + 3-arm probe machinery **validated** (EXP-004 Run 1, synthetic sanity) | mandatory + differentiation | EXP-004 **Run 2** on DFC2020 val split (11 GB, once) → first measured SAR delta — **local** |
+| **E. RS adaptation** | NONE (unblocked — encoders + probe harness ready) | mandatory | EXP-008 linear→LoRA on the EXP-004-winning encoder, same data — **local** |
+| **A. Single-image VQA** | DOCUMENTED (EXP-002 setup; TinyRS download flaky) | mandatory | finish TinyRS + RSCoVLM-3B (EXP-002) vs the fixed threshold — **local**; GeoChat only if both fail |
 | **B. Extra single-image task** | PARTIAL (RemoteCLIP retrieval only) | mandatory | grounding via TinyRS/RSCoVLM (EXP-002) — **local**; GeoGround = remote backup |
-| **C. Semantic change (language)** | mask MEASURED; language NONE | mandatory | ChangeFormer + region-caption pipeline (EXP-003) — **local** |
-| **G. Geospatial validation** | DESIGNED | mandatory + prerequisite | build `packages/geospatial` + EXP-007 — **local** |
-| **H. Evidence/confidence/audit** | DESIGNED | mandatory | build `packages/evidence` + EXP-005 — **local** |
-| **F. Agentic routing** | DESIGNED | mandatory | our code, after ≥2 adapters (EXP-006) — **local** |
+| **C. Semantic change (language)** | mask **INTEGRATED** end-to-end (G2 temporal slice); language NONE | mandatory | ChangeFormer mask → region-caption pipeline (EXP-003) — **local** |
+| **G. Geospatial validation** | **IMPLEMENTED** (`validate_geotiff` + `check_pair_compatibility`, 13 tests; co-reg gate live in the slice) | mandatory + prerequisite | EXP-007 (gate ON/OFF stress set) — **local** |
+| **H. Evidence/confidence/audit** | provenance **threaded** through the temporal slice; verifier + confidence method NONE | mandatory | build `packages/evidence` verifier + EXP-005; pick a documented confidence source — **local** |
+| **F. Agentic routing** | DESIGNED | mandatory | our code, after the remaining adapters (EXP-006) — **local** |
 
 ---
 

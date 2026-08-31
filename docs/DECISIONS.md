@@ -5,6 +5,52 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-007 — G2: geospatial + temporal vertical slices; ChangeFormer adapter via subprocess; EXP-004 machinery validated on a synthetic control
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G2 called for controlled capability experiments (EXP-002, EXP-004)
+  **and** the first vertical-slice integration, without building the agent, UI, or
+  a confidence value.
+- **What was built / measured:**
+  - **Track C — geospatial slice:** `packages/geospatial/{raster,validation,errors}.py`
+    — `validate_geotiff` (format, dims, CRS, transform, bounds, bands, NoData) and
+    `check_pair_compatibility` (co-registration gate). 13 tests, synthetic rasters.
+  - **Track D — temporal slice (real end-to-end):** `scripts/research/changeformer_infer.py`
+    (research-env bridge) + a real `ChangeFormerAdapter` that **subprocesses** into
+    `.venvs/changeformer` (product code never imports the research repo) +
+    `apps/backend/app/services/temporal_slice.py` (`run_change_slice`). Path:
+    T1/T2 GeoTIFF → validate → co-reg check → ChangeFormer → mask → area/bbox/centroid
+    → `ChangeSliceResult` + provenance. Demo pair in `data/demo/temporal/`;
+    changed_fraction 0.2526 matches G1 `demo_LEVIR.py`; misregistered pairs blocked.
+    **No confidence value is produced** — `changed_fraction` is labelled as coverage.
+  - **Track B — EXP-004 Run 1:** 3-arm frozen-feature linear probe (optical-only /
+    CROMA `joint_GAP` / DOFA S2⊕S1) on a **synthetic** paired S1/S2 set with a
+    controlled SAR-only signal (N=240/160, seed 20260901, CPU). SAR-only signal
+    recovered by the fusion arms (1.00), at chance for optical-only (~0.49).
+    **Explicitly a sanity check, not a benchmark** — no small labelled S1+S2 set is
+    free (DFC2020 preprocessed = 11 GB).
+  - **Track A — EXP-002:** `.venvs/tinyrs` + transformers 4.49 built; usability
+    threshold fixed; TinyRS weight download hit repeated `ChunkedEncodingError` from
+    HF — **N=0**.
+- **Alternatives considered:** download DFC2020 (11 GB) now for a real EXP-004
+  (rejected — over the "no large blind download" line for one session; Run 2 is a
+  deliberate, named next step); vendor a ChangeFormer inference path into product
+  code instead of subprocessing (rejected — `.claude/rules/ai-models.md` isolation);
+  emit a confidence number from `changed_fraction` (rejected — it is coverage, not
+  calibrated).
+- **Decision:** Keep the subprocess-adapter pattern for all research models. The
+  geospatial gate is a hard precondition for any paired analysis (`strict=True`
+  default). EXP-004 stays PARTIAL until Run 2 on DFC2020/reBEN. EXP-002 stays
+  RUNNING until the download completes and the threshold check runs. **Remote GPU
+  still not justified** — nothing this session needed it.
+- **Consequence:** new `.venvs/{satquery,tinyrs}`, `data/demo/temporal/`,
+  `packages/geospatial/*`, `packages/model_adapters/{errors,changeformer}.py`,
+  `scripts/research/changeformer_infer.py`, `apps/backend/app/services/temporal_slice.py`,
+  tests. New docs `EXP-002.md`, `EXP-004.md`. No pipeline-architecture or rule change.
+  Test-dir `__init__.py` files removed (pytest src-layout); `apps/backend/pyproject.toml`
+  `readme` field dropped (hatchling rejected the `../../` path).
+
 ## ADR-006 — G1.6 model tournament: CROMA + DOFA reproduced; RS-MoE + ChangeChat rejected; first stack unchanged
 
 - **Date:** 2026-09-01

@@ -1,1 +1,0 @@
-"""SATQUERY backend test suite."""

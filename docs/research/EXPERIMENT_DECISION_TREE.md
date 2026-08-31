@@ -63,8 +63,16 @@ measured to be materially worse.
 
 ### EXP-004 — optical vs optical+SAR (CROMA vs DOFA)  → gap D, H3
 
-- **Inputs:** a fixed, recorded reBEN / BigEarthNet-v2 subset (S1 VV/VH dB + S2
-  12-band), held-out split, leakage-checked. Subset only (a few k patches).
+- **Run 1 done (2026-09-01, `EXP-004.md`):** controlled synthetic-signal sanity
+  check. All 3 arms' feature→probe→metric machinery works on the real CROMA/DOFA
+  encoders; a SAR-only signal is recovered by CROMA-`joint_GAP` and DOFA-fused
+  (1.00) and at chance for optical-only (~0.49). **Directional H3 support; not a
+  benchmark; no KEEP/REJECT.** → proceed to Run 2.
+- **Run 2 dataset (blocked on a download):** no small labelled S1+S2 set is free —
+  `DFC_preprocessed.pt` (CROMA's DFC2020) is **11 GB**; reBEN needs shard pulls.
+  Plan: download DFC2020 **once**, use only the **8 874-patch val split**, 8-class
+  majority-label scene classification.
+- **Inputs (Run 2):** the DFC2020 val split (or a reBEN shard), held-out, leakage-checked.
 - **Arms:** (1) optical-only linear probe on S2 features; (2) optical+SAR — CROMA
   `joint_GAP` linear probe; (3) optical+SAR — DOFA S1⊕S2 concatenated features
   linear probe. Same head, same budget, same split.
