@@ -4,7 +4,7 @@
 > reached, with the artifact that proves it. Never promote a row without a real
 > run. Levels: `PAPER-REPORTED < DOCUMENTED < REPRODUCED < MEASURED < INTEGRATED
 > < VALIDATED`.
-> Updated: **2026-09-01 (G5A)**.
+> Updated: **2026-09-01 (G6)**.
 
 ## Level definitions
 
@@ -53,13 +53,14 @@
 | Multimodal joint-repr contract (`run_joint_representation`) | **INTEGRATED** (internal, G3) | `test_multimodal_slice.py`; representation-level only |
 | SpecialistAdapter interface | **INTEGRATED** | 4 adapters implement `validate/execute/normalize_output/provenance` + `run()`; `AdapterResult` carries status/timing/model_meta |
 | `EvidenceItem` + `Provenance` (`packages/evidence`) | **INTEGRATED** (G3) | 9 tests; wired into `/change`, `/scene`, multimodal |
-| Deterministic verifier (`verify()`) | **INTEGRATED** (G3) | structural checks only — SUPPORTED/CONTRADICTED/INSUFFICIENT/NA; `notes` say "not semantic" |
+| Deterministic verifier (`verify()`) — structural | **VALIDATED (structural)** (G6) | **EXP-005**: structural-defect detection **P/R/F1 = 1.00** on a curated n=24 corpus (TP 8/FP 0/TN 12/FN 0); `evaluation/scripts/exp005_verifier_detection.py` + 3 lock tests. Structural only. |
+| Semantic verification | **NONE — gap quantified** (G6) | **EXP-005**: semantic-defect miss rate **1.00** (0/6 caught). Extension points listed in `EXP-005.md`; none built. |
+| Semantic-change crop strategy (`crop_strategy=`) | **experimental — behaviour measured** (G6) | **EXP-003b**: tight/expanded/mask_aware on the demo pair, 3-way agreement 4/6 regions; `expanded` provisional default (not changed in code). Not a learned VLM. |
 | Constrained router (`satquery_core.routing`) | **INTEGRATED** (G4) | deterministic; now called by `POST /analyze`; 8 tests + `ROUTING_SPEC.md` |
 | `POST /analyze` unified layer | **INTEGRATED** (G4) | `test_analyze_api.py` (13) — interpret→validate→route→specialist→aggregate; observable routing info; VQA blocked, bad pair blocked |
-| `COMPOSED_SEMANTIC_CHANGE_BASELINE` (capability C) | **INTEGRATED — experimental baseline** (G4) | `test_semantic_change_baseline.py` (5); mask→components→crop-tag→rule description; disclaimed; failure cases logged (tags noisy on tiny crops) |
+| `COMPOSED_SEMANTIC_CHANGE_BASELINE` (capability C) | **INTEGRATED — experimental baseline** (G4; crop strategy measured G6) | `test_semantic_change_baseline.py` (7); mask→components→crop-tag→rule description; disclaimed; `crop_strategy` ∈ {tight,expanded,mask_aware} — EXP-003b |
 | Geospatial safeguards (EXP-007) | **VALIDATED** (G4) | 15/15 stress cases pass; `docs/research/EXP-007.md`; not weakened |
-| Confidence methodology | **NONE** (by design) | nothing emits a confidence value; `CONFIDENCE_PLAN.md` defines the prerequisites |
-| Semantic verification | **NONE** | verifier is structural only |
+| Confidence methodology | **NONE** (by design) | nothing emits a confidence value; `CONFIDENCE_PLAN.md` — EXP-C1/C2 specified, blocked |
 | Learned semantic change / temporal VLM | **NONE** | only the composed baseline exists (not learned, not validated) |
 | Agentic (LLM) router / true `/analyze` planning | **DESIGNED** | deterministic `/analyze` is the substrate; LLM intent step = EXP-006 |
 

@@ -29,18 +29,55 @@ Reporting a number now would be fabrication.
 
 ## Experiments required before any confidence is reported
 
-| ID | Question | Needs |
-|----|----------|-------|
-| **EXP-005** | Can structural + agreement checks detect wrong/unsupported answers better than a score threshold? | a curated set of query+image cases with known correct/incorrect answers |
-| **EXP-C1** (new, later) | Is a model score calibrated after temperature/isotonic scaling? (ECE before/after) | a labelled calibration split per task (RSVQA-LR, LEVIR-CD, …) |
-| **EXP-C2** (new, later) | Does optical↔SAR (or CROMA↔DOFA) disagreement correlate with error? | EXP-004 Run 2 data + both encoders' predictions |
+| ID | Question | Needs | Status |
+|----|----------|-------|--------|
+| **EXP-005** | Does the structural verifier detect defects, and what does it miss? | curated `(result, evidence, context)` corpus | **RUN (G6)** — structural detection P/R/F1 = 1.00 on n=24; **semantic-defect miss rate = 1.00** (`EXP-005.md`). → verifier `status` is usable as a *structural* band only; a semantic verifier is still required for a correctness signal. |
+| **EXP-C1** | Is a model score calibrated after temperature / isotonic scaling? (ECE before → after; reliability diagram) | a labelled calibration split per task (RSVQA-LR yes/no, LEVIR-CD, …) + a model that emits a score | **BLOCKED** — no VQA model reproduced (EXP-002 artifact acquisition); RemoteCLIP margin is the only score available and it is over *supplied prompts*. Spec below. |
+| **EXP-C2** | Does optical↔SAR (or CROMA↔DOFA) disagreement correlate with error? | EXP-004 Run 2 data + both encoders' predictions on the same split | **BLOCKED** — EXP-004 Run 2 needs the S1+S2 dataset (remote box). Spec below. |
+
+### EXP-C1 spec (ready to run once a scored model exists)
+
+1. Inputs: a task with a labelled test split and a model that emits a per-answer
+   score `s` (RSVQA-LR yes/no + the EXP-002 winner's answer probability; or
+   RemoteCLIP top-1 margin on a scene-label set).
+2. Split the labelled set 50/50 into **calibration** and **evaluation**.
+3. On calibration: fit **temperature scaling** (1-param) and **isotonic
+   regression** (non-parametric) mapping `s → p̂`.
+4. On evaluation: compute **ECE** (15 bins), **Brier score**, and a **reliability
+   diagram**, for raw `s`, temperature-scaled, isotonic.
+5. Report the three ECEs + the diagram. Decision: a score is "calibrated enough
+   to surface" only if post-calibration **ECE ≤ 0.05** and the reliability
+   diagram is monotone. Record split ids, seed, hardware, date.
+6. Output: `docs/research/EXP-C1.md` + `evaluation/reports/expc1_*.json`. Still no
+   production number until the "definition of done" (below) is fully met.
+
+### EXP-C2 spec (ready to run once EXP-004 Run 2 has predictions)
+
+1. Take the EXP-004 Run 2 evaluation split (real S1+S2, one task).
+2. For each sample record: optical-only prediction, CROMA-joint prediction,
+   DOFA-fused prediction, and the ground-truth label.
+3. Define **disagreement** = (pred_optical ≠ pred_joint) and the softmax-margin
+   gap between the two heads.
+4. Measure: P(error | disagree) vs P(error | agree); AUROC of "disagreement
+   flag" as an error detector; does routing "disagree → abstain/re-check" raise
+   selective accuracy at fixed coverage?
+5. Output: `docs/research/EXP-C2.md` + `evaluation/reports/expc2_*.json`.
 
 ## What ships in the interim
 
 - `score` fields stay, each with an explicit `score_meaning` string.
 - `verification.status` (structural) is the only "is this trustworthy?" signal, and
-  its `notes` say it is not a semantic judgement.
+  its `notes` say it is not a semantic judgement. **EXP-005 (G6) confirms this is
+  a structural band only** — it catches 100 % of the structural defects in the
+  curated corpus and 0 % of the semantic ones.
 - `/analyze` aggregates evidence + verification; it does **not** synthesize a number.
+
+## G6 status (2026-09-01)
+
+**No confidence number is emitted anywhere.** EXP-005 is done (structural only).
+EXP-C1 and EXP-C2 are specified and **blocked on the same artifacts as EXP-002 /
+EXP-004 Run 2** (a scored VQA model; a real S1+S2 split) — both need the remote
+GPU box. The "definition of done" below is unchanged; 0 of its 4 conditions are met.
 
 ## Definition of done for "confidence"
 

@@ -14,6 +14,14 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
+**G6 (2026-09-01):** model discovery is **stopped** — the hierarchy below is
+frozen. G6 ran the local, unblocked experiments (EXP-005 verifier: structural
+P/R/F1 = 1.00 / semantic miss 1.00; EXP-003b semantic-change crop strategies:
+agreement 4/6). EXP-002 / EXP-004 Run 2 / EXP-008 stay blocked on the remote GPU
+box (`docs/deployment/REMOTE_GPU_SETUP.md`). Scorecard:
+`docs/research/G6_CAPABILITY_CLOSURE.md` (4/8 exit criteria met, 4 blocked on
+provisioning only).
+
 Current (post-G5A): 4 models REPRODUCED behind the standard `SpecialistAdapter`
 contract. **ChangeFormer + RemoteCLIP INTEGRATED**, now reachable through the
 unified **`POST /analyze`** (deterministic interpret → route → dispatch →

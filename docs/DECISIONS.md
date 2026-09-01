@@ -5,6 +5,68 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-014 — G6 capability closure: 4/8 exit criteria met locally; A/B/D/E blocked solely on remote-GPU provisioning; EXP-005 + crop-strategy experiment RAN
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G6 = "stop searching for models, acquire evidence, measure, select,
+  integrate, then build the agentic experience." Executed against commit 275cd09.
+  No new repos, no architecture change, no frontend, no fabricated metrics, no
+  confidence number.
+- **What ran locally (real):**
+  - **Phase 8 / EXP-005 — structural verifier detection.** Curated 24-case corpus
+    (CLEAN 6 / STRUCTURAL 8 / SEMANTIC 6 / INSUFFICIENT 4). `verify()` on it:
+    **precision 1.00, recall 1.00, F1 1.00** for structural-defect detection
+    (TP 8, FP 0, TN 12, FN 0); **semantic-defect miss rate 1.00** — the
+    structural verifier catches none of the structurally-clean-but-wrong cases,
+    by design. Semantic-verifier extension points documented (not built).
+    `docs/research/EXP-005.md`; `evaluation/scripts/exp005_verifier_detection.py`;
+    3 lock tests. Structural verification → **VALIDATED (structural)**, now with a
+    number.
+  - **Phase 7 / EXP-003b — semantic-change crop strategy.** Added
+    `run_composed_semantic_change(..., crop_strategy=)` with `tight` (default,
+    unchanged) / `expanded` (75% context pad) / `mask_aware` (context pad +
+    non-changed pixels dimmed 0.35×). 3-way run on the demo LEVIR pair (6 regions,
+    CPU, ~45 s/strategy): **cross-strategy agreement 4/6 regions**; `expanded` and
+    `mask_aware` rescued a `tight` miss on the largest region; `mask_aware`
+    collapses toward one label (monoculture risk — logged as a failure mode).
+    Provisional default = `expanded`, **not changed in code** (one demo pair is
+    insufficient). `docs/research/EXP-003.md`; harness
+    `evaluation/scripts/exp003b_semantic_change_crops.py`; 2 tests (1 fast, 1 slow).
+  - **Phase 9 / Confidence** — `CONFIDENCE_PLAN.md`: EXP-C1 (temperature/isotonic
+    calibration, ECE ≤ 0.05 gate) and EXP-C2 (optical↔SAR disagreement as an
+    error detector) fully specified. **No confidence number emitted.**
+  - **Phase 5 / EXP-004 Run 2 dataset decision** — smallest valid real S1+S2 set
+    chosen: **DFC2020 `ROIs0000_validation` raw GeoTIFF (≈1.5–2 GB), subsample
+    400 train / 200 eval by patch id** — official split, per-file, bounded
+    acquisition. `EXP-004.md`.
+  - **Phase 6 / EXP-008 method lock** — linear probe / LoRA / MLP-head fallback
+    defined exactly; a linear probe is never called fine-tuning. `EXP-008.md`.
+  - **Phase 1** — `docs/deployment/REMOTE_GPU_SETUP.md`: turnkey runbook (sizing,
+    one-time setup, artifact acquisition, experiment commands, a `record` block).
+    Box values `<PENDING>` — provisioning needs a cloud account and is not a code
+    task.
+- **Decision — G6 exit criteria: 4/8 met (C, F, G, H); 4 blocked (A, B, D, E),
+  every one solely on artifact/dataset acquisition** (the 6-times-failed multi-GB
+  download from this Windows host, now across 2 HF namespaces). No criterion is
+  blocked by a capability gap, a design flaw, or a measured model failure.
+  `docs/research/G6_CAPABILITY_CLOSURE.md` is the scorecard.
+  - **No production A/B model selected, no adapter written, `/analyze` routing
+    unchanged** (`NO_VQA_SPECIALIST`) — unchanged from ADR-013, for the same
+    reason (no measurement).
+  - **The remote GPU box is now the one blocking action** for capability closure.
+    Order once it exists: EXP-002 (+ EarthDial/GeoChat references) → integrate the
+    winner → EXP-004 Run 2 → EXP-008 → EXP-C1 → then EXP-006 (agentic planning).
+- **Consequence (doc + local eval + one additive service param; 97/97 tests, was
+  92):** new `evaluation/scripts/{exp005_verifier_detection,exp003b_semantic_change_crops}.py`,
+  `docs/deployment/REMOTE_GPU_SETUP.md`, `docs/research/{EXP-003,EXP-005,G6_CAPABILITY_CLOSURE}.md`,
+  `packages/evidence/tests/test_exp005_verifier_detection.py`; `crop_strategy`
+  param + 2 tests on `semantic_change_baseline.py` (default preserves behaviour);
+  updated `EXP-002.md`, `EXP-004.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`,
+  `MODEL_TOURNAMENT.md`, `EVIDENCE_LEDGER.md`, `CAPABILITY_GAP_MATRIX.md`,
+  `PROJECT_STATUS.md`, `19_EXPERIMENT_REGISTRY.md`. No new deps, no new repos, no
+  confidence value.
+
 ## ADR-013 — G5A A/B reproduction gate: local reproduction BLOCKED (6th artifact-acquisition failure) → remote reference gate OPEN; no production A/B model selected
 
 - **Date:** 2026-09-01

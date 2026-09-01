@@ -11,6 +11,7 @@ from app.services.semantic_change_baseline import (
     ComposedSemanticChangeResult,
     run_composed_semantic_change,
 )
+from app.services import semantic_change_baseline as _scb
 
 _REPO = Path(__file__).resolve().parents[3]
 _CF = _REPO / ("models/cache/changeformer/CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw"
@@ -49,6 +50,25 @@ def test_composed_baseline_happy_path():
     assert "not calibrated" in r.provenance["note"] or "not calibrated labels" in r.provenance["note"]
     # no confidence field anywhere
     assert "confidence" not in r.model_dump()
+
+
+def test_crop_strategy_default_is_tight_and_signature_accepts_it():
+    import inspect
+
+    sig = inspect.signature(run_composed_semantic_change)
+    assert sig.parameters["crop_strategy"].default == "tight"
+    # the literal type advertises exactly the three strategies
+    assert set(_scb.CropStrategy.__args__) == {"tight", "expanded", "mask_aware"}
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not _ENV, reason="changeformer/remoteclip/demo absent")
+def test_crop_strategy_threads_into_provenance():
+    r = run_composed_semantic_change(_DEMO / "t1.tif", _DEMO / "t2.tif", checkpoint_dir=_CF,
+                                     crop_strategy="expanded", max_regions=2)
+    assert r.ok is True
+    assert r.provenance["crop_strategy"] == "expanded"
+    assert any("region_crop[expanded]" in s for s in r.provenance["stages"])
 
 
 @pytest.mark.slow

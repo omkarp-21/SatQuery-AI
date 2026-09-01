@@ -169,21 +169,22 @@ what we measured, what we decided.
   Record exactly which patches.
 - DECISION: _pending_.
 
-## EXP-005 — Unverified answer vs verified answer
+## EXP-005 — Structural verifier detection
 
-- Status: PLANNED
+- Status: **RUN — structural part done (2026-09-01, G6). `docs/research/EXP-005.md`.**
 - Hypothesis: H4
-- Question: Does the verification layer detect unsupported or contradictory model
-  outputs better than chance (and better than a confidence threshold)?
-- Models / methods: verifier design TBD (consistency checks, independent-method
-  cross-check, optical↔SAR agreement) in `packages/evidence` (verification stage).
-- Dataset: a curated set of query+image cases with **known** correct/incorrect
-  model answers (hand-labelled), in `evaluation/cases/`.
-- Metric: detection precision / recall of "answer is wrong or unsupported";
-  false-flag rate on correct answers.
-- Baseline: no verifier (accept all) and a naive confidence-threshold rule.
-- Result: _not measured_.
-- DECISION: _pending_.
+- Question: Does `verify()` detect structural defects, and what does it miss?
+- Method: 24-case curated corpus (CLEAN 6 / STRUCTURAL 8 / SEMANTIC 6 /
+  INSUFFICIENT 4) exercising every rule in `verifier.py`.
+  `evaluation/scripts/exp005_verifier_detection.py` + 3 lock tests.
+- Result: **structural-defect detection precision / recall / F1 = 1.00**
+  (TP 8, FP 0, TN 12, FN 0; 4 INSUFFICIENT correct). **Semantic-defect miss rate
+  = 1.00** (0/6 structurally-clean-but-wrong cases flagged) — by design.
+- DECISION: structural verifier = **VALIDATED (structural)**, with a number.
+  Semantic verifier still required (extension points documented). Confidence:
+  EXP-C1/C2 specified in `CONFIDENCE_PLAN.md`, blocked on a scored A/B model.
+- Caveat: n=24, author-curated → grow with real `/analyze` failures before
+  quoting outside `EXP-005.md`.
 
 ## EXP-006 — LLM-only routing vs constrained deterministic/agentic routing
 
@@ -228,9 +229,9 @@ what we measured, what we decided.
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
 | EXP-002 | single-image VLM A/B gate — **RSCoVLM-3B** primary / TinyRS-2B fallback / Qwen2-VL-2B control (local); EarthDial-4B + GeoChat-7B reference (remote) | selection | **BLOCKED** — G5A ran the gate; weights unfetchable (**6 dl attempts**, fresh org same failure); RSVQA-LR/DIOR-RSVG unfetchable; **remote reference gate OPEN (ADR-013)**; harness + frozen samples committed | — |
-| EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
+| EXP-003 | temporal-language — composed baseline vs remote VLMs (a); crop strategy (b) | selection (→H2) | **EXP-003b RUN** (crop strategy: agreement 4/6, `expanded` provisional); EXP-003a BLOCKED (remote) | `EXP-003.md` |
 | **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | Run 1 (synthetic sanity) done; **Run 2 BLOCKED** — no acquirable S1+S2 set | — |
-| EXP-005 | unverified vs verified | H4 | PLANNED | — |
+| EXP-005 | structural verifier detection | H4 | **RUN (structural)** — P/R/F1 = 1.00 on n=24; semantic miss rate 1.00 | `EXP-005.md` |
 | EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
 | EXP-007 | geospatial safeguard stress test | H5 | **RUN — 15/15 pass** (`EXP-007.md`) | KEEP the gate |
 | EXP-008 | RS adaptation probe (req. E) | n/a | **BLOCKED** on EXP-004 Run 2 | — |
