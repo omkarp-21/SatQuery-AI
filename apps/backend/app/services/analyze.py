@@ -27,10 +27,11 @@ from satquery_core.routing import RoutingRequest, route
 from satquery_evidence import EvidenceItem, VerificationResult
 from satquery_geospatial import check_pair_compatibility, read_raster_meta, validate_geotiff
 
+from app.services.failure_aware import ResolutionInfo, derive_resolution
 from app.services.multimodal_slice import run_joint_representation
 from app.services.scene_slice import run_scene
 from app.services.semantic_change_baseline import run_composed_semantic_change
-from app.services.temporal_slice import run_change_slice
+from app.services.temporal_slice import run_change_fallback, run_change_slice
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _CF_CKPT = _REPO_ROOT / ("models/cache/changeformer/CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw"
@@ -86,6 +87,7 @@ class AnalyzeResult(BaseModel):
     result: dict[str, Any] | None = None  # the sub-service's structured output
     evidence: list[EvidenceItem] = []
     verification: VerificationResult | None = None
+    resolution: ResolutionInfo | None = None  # failure-aware post-execution qualifier (G8)
     provenance: dict[str, Any] = {}
     errors: list[str] = []
 
@@ -170,6 +172,8 @@ def run_analyze(
         return AnalyzeResult(**base, errors=[decision.reason])
 
     # --- dispatch ---
+    sem_vr = None
+    fallback_used: str | None = None
     try:
         if decision.code == "SINGLE_IMAGE_SCENE":
             prompts = ctx.get("prompts") or ["urban area", "farmland", "forest", "water body",
@@ -179,8 +183,16 @@ def run_analyze(
         elif decision.code == "TEMPORAL" and interp.intent == "semantic-change":
             sub = run_composed_semantic_change(paths[0], paths[1], checkpoint_dir=_CF_CKPT)
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
+            sem_vr = sub.semantic_verification
         elif decision.code == "TEMPORAL":
             sub = run_change_slice(paths[0], paths[1], checkpoint_dir=_CF_CKPT, strict=True)
+            # failure-aware single-step fallback: the pair is already co-registered
+            # here (mis-registration is caught earlier as VALIDATION_FAILED), so any
+            # failure of run_change_slice means the ChangeFormer env is unavailable.
+            if not sub.ok:
+                fb = run_change_fallback(paths[0], paths[1])
+                if fb.ok:
+                    sub, fallback_used = fb, "image_difference_fallback"
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
         elif decision.code == "MULTIMODAL_REPR":
             opt = next((p for p in paths if p.suffix.lower() in (".npy",)), paths[0])
@@ -193,20 +205,28 @@ def run_analyze(
     except Exception as exc:  # noqa: BLE001 - sanitized
         return AnalyzeResult(**base, errors=[f"specialist execution failed: {type(exc).__name__}"])
 
+    resolution = derive_resolution(
+        sub_ok=bool(payload.get("ok", True)), verification=vr,
+        semantic_verification=sem_vr, fallback_used=fallback_used,
+    )
+
     agg_prov = {
         "layer": "analyze",
         "interpretation": interp.model_dump(),
         "routing": info.model_dump(),
         "pair_co_registered": pair_ok,
+        "resolution": resolution.model_dump(),
         "sub_service_provenance": prov,
         "orchestration_runtime_s": round(time.time() - started, 3),
         "note": ("multimodal path is representation-level only; VQA has no specialist; "
-                 "no confidence value is produced"),
+                 "no confidence value is produced; `resolution` is a deterministic "
+                 "failure-aware qualifier, not a confidence"),
     }
     return AnalyzeResult(
         ok=bool(payload.get("ok", True)),
         query=query, interpretation=interp, routing=info,
         metadata_valid=metadata_valid, validation_errors=val_errors,
-        result=payload, evidence=list(ev), verification=vr, provenance=agg_prov,
+        result=payload, evidence=list(ev), verification=vr, resolution=resolution,
+        provenance=agg_prov,
         errors=list(payload.get("errors", []) or []),
     )

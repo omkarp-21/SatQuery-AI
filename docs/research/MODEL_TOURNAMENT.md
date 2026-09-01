@@ -14,12 +14,13 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
-**G6–G7 (2026-09-01):** model discovery is **stopped** — the hierarchy below is
-frozen (roles, not the *stack* — the stack cannot freeze until A/B/D/E are
-measured, ADR-015). Local unblocked work done: EXP-005 structural verifier
-(P/R/F1 = 1.00, n=24); EXP-003b crop strategies (agreement 4/6); **EXP-005b
-model-independent semantic verifier (P/R/F1 = 1.00, n=34, INTEGRATED)**.
-EXP-002 / EXP-004 Run 2 / EXP-008 stay blocked on the remote GPU box
+**G6–G8 (2026-09-01):** model discovery is **stopped** — roles below are frozen;
+the *stack* cannot freeze until A/B/D/E are measured (ADR-015/016). Local
+unblocked work done: EXP-005 structural verifier (P/R/F1 = 1.00, n=24); EXP-003b
+crop strategies (agreement 4/6); EXP-005b model-independent semantic verifier
+(P/R/F1 = 1.00, n=34, INTEGRATED); **G8: failure-aware routing INTEGRATED**
+(`derive_resolution` 6 qualifiers + `image_difference_fallback`, 10 tests).
+EXP-002 / EXP-004 Run 2 / EXP-008 / EXP-C1/C2 stay blocked on the remote GPU box
 (`docs/deployment/REMOTE_GPU_SETUP.md`). Scorecards:
 `docs/research/G6_CAPABILITY_CLOSURE.md`, `docs/sih/evidence/README.md`.
 

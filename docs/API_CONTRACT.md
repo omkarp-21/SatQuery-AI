@@ -133,11 +133,35 @@ LLM**) → input validation → `satquery_core.routing.route()` → dispatch to 
   "result": { "...the sub-service's structured output (ChangeSliceResult / SceneResult / ComposedSemanticChangeResult / JointReprResult)..." },
   "evidence": [ { "evidence_type": "change-mask", ... }, { "evidence_type": "ranking", ... } ],
   "verification": { "status": "SUPPORTED", "checks": [ ... ] },
+  "resolution": { "qualifier": "RESULT_OK", "answer_surfaced": true, "disputed": false,
+                  "reasons": [], "fallback_used": null,
+                  "structural_status": "SUPPORTED", "semantic_status": "COHERENT",
+                  "note": "deterministic post-execution qualifier ... NOT a confidence value" },
   "provenance": { "layer": "analyze", "interpretation": {...}, "routing": {...},
-                  "sub_service_provenance": {...},
-                  "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced" }
+                  "resolution": {...}, "sub_service_provenance": {...},
+                  "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced; `resolution` is a deterministic failure-aware qualifier, not a confidence" }
 }
 ```
+
+**`resolution`** *(G8 — failure-aware routing, `docs/research/FAILURE_AWARE_ROUTING.md`)* —
+a deterministic post-execution qualifier: a pure function of `verify()` +
+`verify_semantic()` + the sub-service ok/degraded flags. **Not a confidence value.**
+
+| `qualifier` | trigger | `answer_surfaced` |
+|-------------|---------|:-----------------:|
+| `RESULT_OK` | structural SUPPORTED, semantic COHERENT / not-enough | true |
+| `RESULT_STRUCTURAL_FAIL` | `verify()` == CONTRADICTED | **false** (answer withheld; `reasons` = failed checks) |
+| `RESULT_SEMANTIC_INCOHERENT` | `verify_semantic()` == INCOHERENT | **false** (`disputed: true`) |
+| `RESULT_UNVERIFIED` | no applicable checks either way | true (flagged) |
+| `SPECIALIST_DEGRADED` | a declared fallback produced the result | true (`fallback_used` set) |
+| `SPECIALIST_FAILED` | sub-service `ok:false` and no fallback helped | **false** |
+
+**Single-step fallback (deterministic, no loop):** for the `TEMPORAL` change path,
+if the ChangeFormer adapter cannot run, `/analyze` falls back **once** to
+`image_difference_fallback` (abs mean-RGB difference + fixed threshold; same
+geospatial gate). The result then carries `resolution.qualifier ==
+"SPECIALIST_DEGRADED"` and `provenance.sub_service_provenance.is_fallback == true`.
+The fallback is **not** ChangeFormer quality and says so in its `score_meaning`.
 
 **Deterministic routing outcomes** (observable, in `routing.routing_code`):
 

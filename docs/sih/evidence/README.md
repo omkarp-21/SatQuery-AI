@@ -8,7 +8,7 @@
 > Status vocabulary: `TRACEABLE` (source or experiment recorded) ·
 > `PARTIAL` (some support, gap noted) · `BLOCKED` (needs the remote GPU box) ·
 > `TODO` (not yet collected).
-> Date: **2026-09-01 (G7)**.
+> Date: **2026-09-01 (G8)**.
 
 ## The three numbers rule applies here
 
@@ -84,7 +84,7 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 | Deterministic router: 6 rules, registry-driven, no LLM, 8 tests | `ROUTING_SPEC.md`; `packages/core/src/satquery_core/routing/` | TRACEABLE |
 | Observable routing info in every `/analyze` response | `docs/API_CONTRACT.md` | TRACEABLE |
 | VQA never routed to RemoteCLIP (`NO_VQA_SPECIALIST`) | `analyze.py`; `test_analyze_api.py` | TRACEABLE |
-| Failure-aware routing design | `FAILURE_AWARE_ROUTING.md` | TRACEABLE (design) |
+| **Failure-aware routing IMPLEMENTED** — `derive_resolution()` (6 qualifiers, pure fn of `verify()` + `verify_semantic()` + sub status) + single-step `image_difference_fallback` | `FAILURE_AWARE_ROUTING.md`; `apps/backend/app/services/failure_aware.py`; `test_failure_aware.py` (10); `API_CONTRACT.md` `resolution` field | TRACEABLE |
 
 ## 9. Geospatial safeguards
 

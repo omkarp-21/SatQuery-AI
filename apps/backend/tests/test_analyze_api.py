@@ -84,6 +84,11 @@ def test_analyze_change_path_aggregates_evidence():
     assert b["provenance"]["layer"] == "analyze"
     assert "no confidence value" in b["provenance"]["note"]
     assert "confidence" not in b["result"].get("provenance", {})
+    # failure-aware routing (G8): a SUPPORTED result resolves to RESULT_OK, answer surfaced
+    assert b["resolution"]["qualifier"] == "RESULT_OK"
+    assert b["resolution"]["answer_surfaced"] is True
+    assert b["resolution"]["fallback_used"] is None
+    assert "NOT a confidence" in b["resolution"]["note"]
 
 
 @pytest.mark.slow

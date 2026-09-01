@@ -5,6 +5,58 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-016 — G8: failure-aware routing IMPLEMENTED (post-execution qualifier + single-step image-difference fallback); remote experiments still unrunnable in-session; stack NOT frozen
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G8 = provision the remote GPU lab and run the blocked batches
+  (A/B, optical-SAR, adaptation), then freeze. Provisioning is a human
+  infrastructure action (cloud account + billing + SSH) not performable in this
+  session — the same block as G5A/G6/G7. G8 executed the one substantial
+  **local, unblocked** phase: **Phase 10 — failure-aware routing.**
+- **Built (real, local — the design from ADR-015 / `FAILURE_AWARE_ROUTING.md`):**
+  - **`derive_resolution()`** (`apps/backend/app/services/failure_aware.py`) — a
+    **pure, deterministic** function of `verify().status` +
+    `verify_semantic().status` + the sub-service `ok`/fallback flags. Emits one
+    of six qualifiers — `RESULT_OK`, `RESULT_STRUCTURAL_FAIL` (answer withheld),
+    `RESULT_SEMANTIC_INCOHERENT` (answer disputed), `RESULT_UNVERIFIED`,
+    `SPECIALIST_DEGRADED`, `SPECIALIST_FAILED` — plus `answer_surfaced`. No LLM,
+    no loop, no recursion. **Not a confidence value.**
+  - Wired into `/analyze` as an **additive** `resolution` field on `AnalyzeResult`
+    (also mirrored in `provenance.resolution`). `/analyze`'s top-level `ok` is
+    **deliberately unchanged** — callers gate on `resolution.answer_surfaced`;
+    flipping `ok` on a failed verifier is a documented follow-up.
+  - **`run_change_fallback()`** (`temporal_slice.py`) — the registry-declared
+    trivial baseline for change-detection: abs mean-RGB difference + fixed
+    threshold (0.15), **same** `validate_geotiff` + `check_pair_compatibility`
+    gate, emits an `EvidenceItem` + `verify()` + provenance
+    (`model: "image_difference_fallback"`, `is_fallback: true`,
+    `score_meaning: "... NOT ChangeFormer quality"`). `/analyze`'s `TEMPORAL`
+    branch calls it **once** if `run_change_slice` fails (the pair is already
+    co-registered by that point), yielding `SPECIALIST_DEGRADED`.
+  - Tests: `apps/backend/tests/test_failure_aware.py` (10) — one per qualifier,
+    determinism, "not a confidence", fallback rejects a misregistered pair,
+    fallback produces a real mask + verification on the demo pair; plus a
+    `resolution` assertion added to `test_analyze_change_path_aggregates_evidence`.
+  - `docs/API_CONTRACT.md` documents the `resolution` field + the fallback;
+    `FAILURE_AWARE_ROUTING.md` marks steps 1/2/4/5 DONE, step 3 (`LOW_MARGIN`) and
+    the `independent_model`/`optical_sar` disagreement qualifiers TODO/BLOCKED.
+- **Still blocked (Phases 2–7, 9, 11 — provisioning only):** EXP-002 (A/B),
+  EXP-004 Run 2 (D), EXP-008 (E), EXP-C1/C2 (confidence). Harnesses committed and
+  dry-run-clean; runbook `docs/deployment/REMOTE_GPU_SETUP.md`.
+- **Decision — the model stack is NOT frozen** (Phase 11 precondition "A/B/D/E
+  measured" is unmet). G8 exit criteria: **F now fully met** ("deterministic
+  routing integrated **and** failure-aware routing integrated"); C, G, H unchanged
+  from G7; A, B, D, E blocked.
+- **Consequence (108 → 118 tests; one additive `/analyze` field, no contract
+  break, no `ok`-semantics change, no new deps, no new repos, no confidence
+  value):** new `apps/backend/app/services/failure_aware.py`,
+  `apps/backend/tests/test_failure_aware.py`; `run_change_fallback` appended to
+  `temporal_slice.py`; `resolution` field wired through `analyze.py`; updated
+  `API_CONTRACT.md`, `FAILURE_AWARE_ROUTING.md`, `PROJECT_STATUS.md`,
+  `EVIDENCE_LEDGER.md`, `CAPABILITY_GAP_MATRIX.md`, `MODEL_TOURNAMENT.md`,
+  `model_inventory.md`, `19_EXPERIMENT_REGISTRY.md`, `docs/sih/evidence/README.md`.
+
 ## ADR-015 — G7: model-independent semantic verifier built + measured; SIH evidence pack + failure-aware-routing design; model stack NOT frozen (A/B/D/E still unmeasured)
 
 - **Date:** 2026-09-01

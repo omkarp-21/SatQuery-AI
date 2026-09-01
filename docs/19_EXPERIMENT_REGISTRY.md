@@ -197,7 +197,12 @@ what we measured, what we decided.
 
 ## EXP-006 — LLM-only routing vs constrained deterministic/agentic routing
 
-- Status: PLANNED
+- Status: PLANNED (deferred until the capability stack is frozen).
+- **Substrate ready (G8):** deterministic router INTEGRATED + **failure-aware
+  routing INTEGRATED** — `derive_resolution()` (6 post-execution qualifiers,
+  pure fn of `verify()` + `verify_semantic()` + sub status) + single-step
+  `image_difference_fallback`. `docs/research/FAILURE_AWARE_ROUTING.md`. The LLM
+  intent step (mode b) plugs in on top of this.
 - Hypothesis: H2
 - Question: Does structured (rule-over-registry) routing improve correct tool
   selection and reduce invalid execution vs letting an LLM freely choose tools?

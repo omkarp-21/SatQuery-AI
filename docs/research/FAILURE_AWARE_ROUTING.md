@@ -1,11 +1,13 @@
 # Failure-Aware Routing (design)
 
-> Status: **design only (G7).** The deterministic router
-> (`packages/core/src/satquery_core/routing/`) is unchanged. This doc specifies
-> how routing + `/analyze` should **react to failure signals** — before, during,
-> and after specialist execution — so that a weak or unsupported answer is
-> *labelled or withheld*, never silently returned. No LLM. No confidence number.
-> Companion: `ROUTING_SPEC.md`, `EXP-005.md` (verifier), `CONFIDENCE_PLAN.md`.
+> Status: **G8 — post-execution qualifier + single-step fallback IMPLEMENTED**
+> (`apps/backend/app/services/failure_aware.py`, wired into `/analyze`;
+> `run_change_fallback` in `temporal_slice.py`; `apps/backend/tests/test_failure_aware.py`,
+> 10 tests). The deterministic router (`packages/core/src/satquery_core/routing/`)
+> is unchanged — this is an `/analyze`-layer aggregation, not a routing-rule
+> change. No LLM. No loop. No confidence number.
+> Companion: `ROUTING_SPEC.md`, `EXP-005.md` (verifier), `CONFIDENCE_PLAN.md`,
+> `docs/API_CONTRACT.md` (the `resolution` field).
 
 ## Principle
 
@@ -66,15 +68,21 @@ A fallback result is never presented as equivalent to the primary — it carries
 - Not silent suppression: a withheld answer always returns **why** (the failed
   checks), so the caller / UI can show the dispute.
 
-## Implementation order (after the model freeze)
+## Implementation status
 
-1. Add the post-execution qualifier to `/analyze`'s aggregation (pure function of
-   `verify()` + `verify_semantic()` + `AdapterResult.status`). ~30 lines, additive.
-2. Wire the single-step fallback walk in `analyze.py` dispatch.
-3. Add `LOW_MARGIN` advisory to the composed baseline regions.
-4. Tests: one per qualifier (contract), one fallback-path test per adapter with a
-   declared fallback.
-5. `docs/API_CONTRACT.md` — document the qualifier field + the `disputed` shape.
+| Step | State |
+|------|-------|
+| 1. post-execution qualifier in `/analyze` aggregation (pure fn of `verify()` + `verify_semantic()` + sub `ok`) | **DONE (G8)** — `derive_resolution()`, additive `resolution` field on `AnalyzeResult`; 6 qualifiers |
+| 2. single-step fallback in `analyze.py` dispatch | **DONE (G8)** — `TEMPORAL` path: ChangeFormer fail → one call to `run_change_fallback` (image-difference + threshold, same geo-gate) → `SPECIALIST_DEGRADED` |
+| 3. `LOW_MARGIN` advisory on composed-baseline regions | **TODO** — small, additive; do with the C work |
+| 4. tests | **DONE (G8)** — 10 (`test_failure_aware.py`): one per qualifier, determinism, "not a confidence", fallback rejects misregistered pair, fallback produces a mask + verification |
+| 5. `docs/API_CONTRACT.md` — qualifier + `disputed` shape | **DONE (G8)** |
+| `independent_model` / `optical_sar` disagreement qualifiers | **BLOCKED** — need EXP-002 + EXP-C2 |
 
-Blocked pieces (`independent-model` / `optical-SAR` disagreement qualifiers) wait
-for EXP-002 + EXP-C2.
+### `ok` semantics (deliberately unchanged in G8)
+
+`/analyze`'s top-level `ok` still mirrors the sub-service `ok`. A
+`RESULT_STRUCTURAL_FAIL` / `SPECIALIST_FAILED` sets `resolution.answer_surfaced =
+false` **without** flipping `ok` — callers gate on `resolution.answer_surfaced`.
+Flipping `ok` on a failed verifier is a follow-up (needs a contract note + a
+frontend that reads `resolution`).
