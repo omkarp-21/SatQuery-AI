@@ -33,6 +33,12 @@
 | **G3 · multimodal internal contract** | `run_joint_representation(optical, sar, model=croma\|dofa)` → `JointReprResult` (rep vectors + evidence + provenance + structural verify). **No `/fusion` endpoint** — representation-level only until EXP-004 Run 2. 4 tests. |
 | **G3 · adapter contract finalized** | `AdapterResult` now carries `status`, `timing_s`, `model_meta`. Registry entries got a `fallback` field. `docs/architecture/SPECIALIST_CONTRACT.md`, `docs/API_CONTRACT.md`. |
 | **G3 · tests** | **59 passed, 0 failed** (baseline was 33). No regressions. |
+| **G4 · `POST /analyze`** | Unified deterministic layer: query → `interpret_query` (keyword→intent, NO LLM) → validate (safeguards preserved) → `route()` → dispatch (scene / change / composed-semantic / joint-repr) → aggregate evidence + verification + provenance. Returns observable routing info (task, specialist, rule, code, inputs, order, status). VQA → `NO_VQA_SPECIALIST` (never routed to RemoteCLIP); misregistered pair → `VALIDATION_FAILED`. 13 tests. |
+| **G4 · COMPOSED_SEMANTIC_CHANGE_BASELINE** | `apps/backend/app/services/semantic_change_baseline.py` — ChangeFormer mask → `scipy.ndimage` connected components → per-region T2 crop → RemoteCLIP tagging (fixed RS-change vocab) → rule-assembled description + regions + evidence + provenance + `failures[]`. Explicit disclaimers ("NOT a temporal VLM / learned / validated"). On the demo pair: 0.41 ha over 6 regions, tags noisy on 8–32 px crops (documented failure mode). 5 tests. |
+| **G4 · EXP-007 geospatial stress** | `docs/research/EXP-007.md` — **15/15 safeguard cases pass** (CRS/transform/shape/res mismatch, missing CRS, invalid raster, bomb guard ×2, path traversal, NoData, `/change` gate). Safeguards **not weakened**. |
+| **G4 · confidence plan** | `docs/research/CONFIDENCE_PLAN.md` — candidate sources + required experiments (EXP-005, EXP-C1, EXP-C2). **No confidence number emitted anywhere.** |
+| **G4 · EXP-002 / EXP-004 Run 2 / EXP-008** | **BLOCKED — artifact/dataset acquisition fails from this host** (TinyRS 4 attempts <1 MB/s; DFC 11 GB / So2Sat 7 GB / EuroSAT-SAR 922 MB all too large). **Remote GPU now justified on infrastructure grounds.** |
+| **G4 · tests** | **92 passed, 0 failed** (baseline 59). No regressions. |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -162,20 +168,20 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **EXP-004 Run 2 (real)** — acquire a small labelled S1+S2 set (DFC2020 val split
-   ~1 GB carved from the 11 GB `.pt`, or a reBEN shard), run the 3-arm frozen-feature
-   linear probe → first **measured** SAR delta (gap D, H3); then EXP-008 (gap E) on
-   the winning encoder. **Local, no GPU.**
-2. **EXP-002 — get the artifacts** — TinyRS weights failed to download 3×; next
-   session use `hf_hub_download` per-file with `resume_download` on a stable
-   connection (or `hf transfer` / a mirror), then run the smoke + the RSVQA-LR /
-   DIOR-RSVG sample vs the fixed threshold. RSCoVLM-3B as the backup.
-3. **Build the confidence + verifier stub (gap H)** and wire RemoteCLIP into a
-   `/scene` or `/retrieve` endpoint — the second API surface, and the prerequisite
-   for constrained routing (Track 7 / EXP-006).
+1. **Provision one remote Linux GPU box (≥ 16 GB, good bandwidth)** — this unblocks
+   the entire measurement backlog at once: download DFC2020 → **EXP-004 Run 2**
+   (first measured SAR delta) → **EXP-008** (adaptation); download TinyRS + RSCoVLM
+   + GeoChat/GeoGround → **EXP-002** (VQA/grounding, gaps A/B). Local path for these
+   is exhausted (G4: every dataset/weight is multi-GB, network < 1 MB/s with drops).
+2. **EXP-005 (verifier detection) + confidence EXP-C1/C2 prep** — curate the
+   right/wrong answer set, run the deterministic verifier's detection precision/
+   recall; this is local and unblocks the `CONFIDENCE_PLAN.md` experiments.
+3. **`/analyze` hardening** — add the composed-semantic path failure-case corpus,
+   wire the router's `MULTIMODAL_REPR` path to real S1/S2 `.npy` inputs, and add a
+   `POST /analyze` OpenAPI example set for the PPT demo.
 
-Remote GPU: **still not justified** — EXP-004 Run 2 and EXP-002 both run on the
-laptop. Gate stays closed until EXP-002 measures the local VLMs below threshold.
+Remote GPU: **now justified — on infrastructure grounds** (artifact acquisition,
+not a measured local model failure). See `EXP-002.md`.
 
 ---
 
@@ -183,27 +189,29 @@ laptop. Gate stays closed until EXP-002 measures the local VLMs below threshold.
 
 | Dimension | Score | Δ (since G1) | Why |
 |-----------|:----:|:--:|-----|
-| Problem fit | 4 | — | requirements mapped (A–H); coherent system skeleton now |
+| Problem fit | 5 | +1 | one unified `/analyze` entrypoint maps queries → the A–H capabilities honestly |
 | Novelty | 2 | — | contribution areas named; none measured on a benchmark |
-| Technical depth | 8 | +1 | 2 APIs, standard adapter + evidence + verification + router contracts, 4 adapters, 59 tests |
-| Prototype completeness | 5 | +1 | 2 API surfaces (`/change`, `/scene`) + internal multimodal contract; no agent/UI |
+| Technical depth | 8 | — | `/analyze` unified layer + composed semantic baseline + EXP-007; 92 tests |
+| Prototype completeness | 6 | +1 | 3 endpoints (`/analyze`, `/change`, `/scene`) + composed-semantic + joint-repr; no agent/UI |
 | Accuracy | 1 | — | still only ChangeFormer reproduction (n=7); no benchmark |
-| Multimodal (optical–SAR) reasoning | 3 | — | joint-representation **contract + adapters + internal service**; no real task number (EXP-004 Run 2) |
-| Temporal reasoning | 5 | — | integrated behind adapter + `/change` + evidence + verification; language side unbuilt |
-| Geospatial integrity | 5 | — | live in both API paths; not yet stress-tested (EXP-007) |
-| Evidence / verification | 5 | +2 | `EvidenceItem` + deterministic `verify()` **implemented and wired into both slices**; semantic verification + confidence still NONE (by design) |
+| Multimodal (optical–SAR) reasoning | 3 | — | joint-representation contract; **EXP-004 Run 2 blocked (dataset unacquirable)** |
+| Temporal reasoning | 6 | +1 | mask integrated + **composed semantic-change baseline** (isolated, disclaimed); learned semantic still NONE |
+| Geospatial integrity | 6 | +1 | **EXP-007: 15/15 safeguard cases pass**; live in all 3 endpoints |
+| Evidence / verification | 5 | — | `EvidenceItem` + `verify()` wired into `/analyze` aggregation; semantic verification + confidence NONE (by design) |
 | UI / UX | 1 | — | skeleton + design skill |
-| Benchmark readiness | 2 | — | harnesses ready; real benchmarks still not acquired |
-| Feasibility | 8 | — | all local, CPU-only, no source edits; remote GPU still not needed |
+| Benchmark readiness | 2 | — | harnesses ready; **real datasets unacquirable from this host** (needs a better-connected machine) |
+| Feasibility | 7 | -1 | system is solid, but EXP-002/004/008 now need a remote box — local-only path is exhausted for those |
 | Impact | 4 | — | clear institutional relevance |
-| PPT quality | 3 | — | blueprint + story; two callable APIs now exist |
-| Demo quality | 2 | — | `/change` + `/scene` return real structured results; no UI |
+| PPT quality | 4 | +1 | one unified endpoint + a demonstrable analysis story; still no measured numbers |
+| Demo quality | 3 | +1 | `POST /analyze` runs a real query → routed specialist → structured evidence |
 
-**Read:** **G3 made SatQuery structurally real.** Two APIs (`/change`, `/scene`),
-an internal optical–SAR contract, and standard `SpecialistAdapter` / `EvidenceItem`
-/ `verify()` / router contracts — all deterministic, all CPU-only, **59 tests, no
-regressions**. Evidence/verification jumped from designed → implemented+wired.
-Still **no LLM agent, no UI, no confidence value (by design), and no *measured
-benchmark* number for A/D/E**. The intelligence stack is still being decided by
-experiments: EXP-002 (artifact-blocked), EXP-004 Run 2 (needs a small S1+S2 set),
-EXP-008. Next value: get those datasets/weights.
+**Read:** **G4 unified the system.** One deterministic `POST /analyze` entrypoint
+(interpret → validate → route → specialist → aggregate evidence/verification/
+provenance), a composed semantic-change baseline for C (isolated, honestly
+disclaimed), and EXP-007 proving the geospatial safeguards (15/15). **92 tests, no
+regressions.** But the intelligence-stack experiments are now **hard-blocked on
+data**: EXP-002 (TinyRS/RSCoVLM weights) and EXP-004 Run 2 / EXP-008 (real S1+S2)
+cannot be fetched from this host — every candidate is multi-GB and the network
+drops them. **A remote Linux GPU box is now justified** (bandwidth + GPU). Still
+**no LLM agent, no UI, no confidence value (by design), and no *measured
+benchmark* number for A/D/E.**

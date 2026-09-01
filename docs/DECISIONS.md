@@ -5,6 +5,51 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-010 — G4: unified `POST /analyze`, composed semantic-change baseline; measurement backlog now needs a remote box
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G4 = one unified deterministic analysis layer + real capability
+  proof. Experiments run in parallel.
+- **Built (deterministic, local, 92 tests, no regressions):**
+  - **`POST /analyze`** (`app.services.analyze` + `api/analyze.py`) — query →
+    `interpret_query` (keyword→intent, **no LLM**) → input validation (safeguards
+    preserved) → `satquery_core.routing.route()` → dispatch to
+    `run_scene` / `run_change_slice` / `run_composed_semantic_change` /
+    `run_joint_representation` → aggregate evidence + verification + provenance →
+    `AnalyzeResult` with **observable routing info** (selected task, specialists,
+    routing code + rule, required inputs, execution order, status). VQA →
+    `NO_VQA_SPECIALIST` (never RemoteCLIP); bad pair → `VALIDATION_FAILED`.
+  - **`COMPOSED_SEMANTIC_CHANGE_BASELINE`** — isolated, exact name, explicit
+    "NOT a temporal VLM / NOT learned / NOT validated" disclaimer. ChangeFormer
+    mask → `scipy.ndimage` components → per-region T2 crop → RemoteCLIP tagging →
+    rule-assembled description. `failures[]` logs per-region failure cases. On the
+    demo pair the tags are noisy on tiny crops — a **documented** failure mode,
+    which is the point of a baseline.
+  - **EXP-007** — `docs/research/EXP-007.md`, 15/15 geospatial safeguard cases
+    pass. Safeguards were **not** weakened.
+  - **`docs/research/CONFIDENCE_PLAN.md`** — candidate sources + the experiments
+    (EXP-005, EXP-C1, EXP-C2) required before any confidence number. **No
+    confidence is emitted anywhere.**
+- **Blocked (STOP CONDITIONS hit — reported, not concealed):**
+  - **EXP-002** — TinyRS weights failed a 4th download (`hf_transfer` + resume, 8
+    min → 134 MB; < 1 MB/s, drops). RSCoVLM-3B not attempted (larger, same infra).
+  - **EXP-004 Run 2** — no acquirable real S1+S2 set: DFC2020 `.pt` **11 GB**,
+    So2Sat **7 GB**, EuroSAT-SAR **922 MB** (SAR-only). Run 1 stays *machinery
+    validation only*.
+  - **EXP-008** — depends on EXP-004 Run 2.
+- **Decision:** **A remote Linux GPU box (≥ 16 GB, reliable bandwidth) is now
+  justified** — on *infrastructure* grounds (multi-GB artifact acquisition +
+  GPU for the 7B VLMs), not because local models were measured worse. It unblocks
+  EXP-002 + EXP-004 Run 2 + EXP-008 + GeoChat/GeoGround together. The
+  deterministic `/analyze` layer stands; the LLM planner and `/analyze`'s
+  multimodal real-data path remain future work.
+- **Consequence:** `apps/backend/app/api/analyze.py`, services `analyze.py` +
+  `semantic_change_baseline.py`; new tests `test_analyze_api.py`,
+  `test_semantic_change_baseline.py`, `test_exp007_geospatial_stress.py`; new docs
+  `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`; `scipy` added to `.venvs/satquery`.
+  No pipeline-architecture change, no rule change, no new repositories, no confidence.
+
 ## ADR-009 — G3: coherent system contracts — evidence, verification, router, `/scene`
 
 - **Date:** 2026-09-01

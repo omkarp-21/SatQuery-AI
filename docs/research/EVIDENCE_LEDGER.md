@@ -52,10 +52,14 @@
 | SpecialistAdapter interface | **INTEGRATED** | 4 adapters implement `validate/execute/normalize_output/provenance` + `run()`; `AdapterResult` carries status/timing/model_meta |
 | `EvidenceItem` + `Provenance` (`packages/evidence`) | **INTEGRATED** (G3) | 9 tests; wired into `/change`, `/scene`, multimodal |
 | Deterministic verifier (`verify()`) | **INTEGRATED** (G3) | structural checks only — SUPPORTED/CONTRADICTED/INSUFFICIENT/NA; `notes` say "not semantic" |
-| Constrained router (`satquery_core.routing`) | **INTEGRATED** (spec + code + 8 tests, G3) | deterministic rules; `docs/research/ROUTING_SPEC.md`; not yet called from an endpoint |
-| Confidence methodology | **NONE** (by design) | nothing emits a confidence value; `EvidenceItem` has no confidence field |
+| Constrained router (`satquery_core.routing`) | **INTEGRATED** (G4) | deterministic; now called by `POST /analyze`; 8 tests + `ROUTING_SPEC.md` |
+| `POST /analyze` unified layer | **INTEGRATED** (G4) | `test_analyze_api.py` (13) — interpret→validate→route→specialist→aggregate; observable routing info; VQA blocked, bad pair blocked |
+| `COMPOSED_SEMANTIC_CHANGE_BASELINE` (capability C) | **INTEGRATED — experimental baseline** (G4) | `test_semantic_change_baseline.py` (5); mask→components→crop-tag→rule description; disclaimed; failure cases logged (tags noisy on tiny crops) |
+| Geospatial safeguards (EXP-007) | **VALIDATED** (G4) | 15/15 stress cases pass; `docs/research/EXP-007.md`; not weakened |
+| Confidence methodology | **NONE** (by design) | nothing emits a confidence value; `CONFIDENCE_PLAN.md` defines the prerequisites |
 | Semantic verification | **NONE** | verifier is structural only |
-| Agentic (LLM) router / `POST /analyze` | **DESIGNED** | `ROUTING_SPEC.md` §"not covered"; deterministic router is the current substrate |
+| Learned semantic change / temporal VLM | **NONE** | only the composed baseline exists (not learned, not validated) |
+| Agentic (LLM) router / true `/analyze` planning | **DESIGNED** | deterministic `/analyze` is the substrate; LLM intent step = EXP-006 |
 
 **Reminder:** no row here is VALIDATED for a *model on a task* — that needs a real
 benchmark under our evaluation (EXP-004 Run 2, EXP-002, EXP-003).

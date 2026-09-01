@@ -14,14 +14,15 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
-Current (post-G3): 4 models REPRODUCED, all behind the standard `SpecialistAdapter`
-contract (`docs/architecture/SPECIALIST_CONTRACT.md`). **ChangeFormer + RemoteCLIP
-INTEGRATED behind APIs** (`POST /change`, `POST /scene`), both emitting
-`EvidenceItem` + deterministic `verify()` + standardized provenance. CROMA/DOFA
-INTEGRATED as the internal `run_joint_representation()` contract (representation-level).
-A deterministic router (`satquery_core.routing`) chooses between them
-(`docs/research/ROUTING_SPEC.md`). Nothing is VALIDATED (no benchmark under our
-eval). Registry `model_registry.yaml` v2 + `fallback`. Ledger: `EVIDENCE_LEDGER.md`.
+Current (post-G4): 4 models REPRODUCED behind the standard `SpecialistAdapter`
+contract. **ChangeFormer + RemoteCLIP INTEGRATED**, now reachable through the
+unified **`POST /analyze`** (deterministic interpret → route → dispatch →
+aggregate). CROMA/DOFA INTEGRATED as `run_joint_representation()` (representation-
+level). A `COMPOSED_SEMANTIC_CHANGE_BASELINE` chains ChangeFormer + RemoteCLIP for
+capability C (experimental, disclaimed). Nothing is VALIDATED — and the
+model-selection experiments (EXP-002 VQA, EXP-004 Run 2 optical-SAR, EXP-008
+adaptation) are **BLOCKED on data acquisition from this host**; a remote Linux GPU
+box is now the path. Ledger: `EVIDENCE_LEDGER.md`. Confidence: `CONFIDENCE_PLAN.md`.
 
 ---
 

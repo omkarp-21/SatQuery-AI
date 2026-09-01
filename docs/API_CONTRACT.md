@@ -101,17 +101,58 @@ until EXP-004 Run 2 shows a task-level benefit.
 
 ---
 
-## Planned (not implemented): `POST /analyze`
+## `POST /analyze`  — unified deterministic analysis  *(G4, LIVE)*
 
-The future general entrypoint: natural-language query + image(s) → constrained
-router (`satquery_core.routing`) → specialist(s) → fusion → evidence → verification
-→ answer + provenance. **Not built** — needs ≥1 single-image specialist integrated
-and the composed-semantic-change baseline. Shape sketch:
+Natural-language query + 0–2 images → `interpret_query` (keyword→intent, **no
+LLM**) → input validation → `satquery_core.routing.route()` → dispatch to one of
+{`/scene` logic, `/change` logic, composed-semantic baseline, joint-representation}
+→ aggregate evidence + verification + provenance.
 
+**Request**
 ```json
-// request
-{ "query": "what changed between these dates?", "images": ["a.tif","b.tif"], "context": {} }
-// response
-{ "answer": "...", "route": { "code": "TEMPORAL", "specialists": ["changeformer"] },
-  "results": [ ... ], "evidence": [ ... ], "verification": { ... }, "provenance": { ... } }
+{ "query": "describe what kind of change happened",
+  "images": ["demo/temporal/t1.tif", "demo/temporal/t2.tif"],
+  "context": { "modalities": ["optical"], "prompts": ["..."] } }
 ```
+
+**Response `200` (`AnalyzeResult`)** — key fields:
+```json
+{
+  "ok": true,
+  "interpretation": { "intent": "semantic-change", "notes": ["matched semantic-change keywords"] },
+  "routing": {
+    "selected_task": "semantic-change",
+    "selected_specialists": ["changeformer"],
+    "routing_code": "TEMPORAL",
+    "routing_rule": "two images + a change intent -> the bi-temporal change specialist",
+    "required_inputs": ["geotiff-validate","pair-co-registration-assert"],
+    "execution_order": ["changeformer"],
+    "status": "routed"
+  },
+  "metadata_valid": true,
+  "result": { "...the sub-service's structured output (ChangeSliceResult / SceneResult / ComposedSemanticChangeResult / JointReprResult)..." },
+  "evidence": [ { "evidence_type": "change-mask", ... }, { "evidence_type": "ranking", ... } ],
+  "verification": { "status": "SUPPORTED", "checks": [ ... ] },
+  "provenance": { "layer": "analyze", "interpretation": {...}, "routing": {...},
+                  "sub_service_provenance": {...},
+                  "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced" }
+}
+```
+
+**Deterministic routing outcomes** (observable, in `routing.routing_code`):
+
+| Query / inputs | code | specialists | `ok` |
+|----------------|------|-------------|------|
+| 1 image + scene/retrieval intent | `SINGLE_IMAGE_SCENE` | `["remoteclip"]` | true |
+| 2 images + change intent | `TEMPORAL` | `["changeformer"]` | true |
+| 2 images + **semantic**-change intent | `TEMPORAL` (→ `COMPOSED_SEMANTIC_CHANGE_BASELINE`) | `["changeformer"]` | true |
+| 2 images optical + SAR (non-change) | `MULTIMODAL_REPR` | `["croma"]`/`["dofa"]` | true (representation-level) |
+| 1 image + VQA/grounding intent | `NO_VQA_SPECIALIST` | `[]` | **false** — never routed to RemoteCLIP |
+| invalid / misregistered pair | `VALIDATION_FAILED` | `[]` | **false** |
+| no rule matches | `NO_MATCH` | `[]` | **false** |
+
+Errors: `>2 images → 400`; traversal → `400`; missing file → `404`; pipeline error
+→ sanitized `500`.
+
+**Not yet:** an LLM intent-parsing step (EXP-006), the `MULTIMODAL_REPR` real-data
+`.npy` path, and any confidence value (`docs/research/CONFIDENCE_PLAN.md`).

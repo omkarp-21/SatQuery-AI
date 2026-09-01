@@ -70,11 +70,11 @@ what we measured, what we decided.
 
 ## EXP-002 — Candidate single-image RS-VLM comparison
 
-- Status: **TEST FURTHER — blocked on artifact acquisition** (`docs/research/EXP-002.md`).
-  `.venvs/tinyrs` + transformers 4.49 + hf_xet built; usability threshold fixed.
-  TinyRS weights failed to download 3× (`ChunkedEncodingError` ×2, DNS fail, hf_xet
-  inconclusive) over ~50 min. **N=0.** Not a capability/compute blocker. RSCoVLM-3B
-  not attempted. Next: `hf_hub_download` per-file + `resume_download` on a stable link.
+- Status: **BLOCKED — artifact acquisition (`docs/research/EXP-002.md`).** TinyRS
+  weight download failed **4 times** (G2.5–G4): `ChunkedEncodingError` ×2, DNS
+  failure, `hf_transfer`+resume (8 min → 134 MB, < 1 MB/s). **N=0.** RSCoVLM-3B not
+  attempted (larger file, same HF infra). **→ Remote Linux GPU box now justified**
+  on infrastructure grounds (bandwidth + GPU for the 7B VLMs).
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?
@@ -114,12 +114,12 @@ what we measured, what we decided.
 
 ## EXP-004 — Optical-only vs optical + SAR  ⭐ (G1.5, ADR-005)
 
-- Status: **PARTIAL** — `docs/research/EXP-004.md`. **Run 1 (controlled synthetic
-  sanity check) done 2026-09-01:** 3-arm frozen-feature linear probe on real CROMA +
-  DOFA encoders; a SAR-only signal is recovered by CROMA-`joint_GAP` and DOFA-fused
-  (bal-acc 1.00) and is at chance for optical-only (~0.49). Validates the machinery
-  + directional H3. **NOT a benchmark.** **Run 2 (real DFC2020/reBEN) pending** a
-  dataset download.
+- Status: **Run 1 done (synthetic sanity, NOT a benchmark); Run 2 BLOCKED**
+  (`docs/research/EXP-004.md`). Run 1: 3-arm frozen-feature linear probe on real
+  CROMA + DOFA — SAR-only signal recovered by fusion (1.00) vs chance for
+  optical-only (~0.49); machinery + directional H3 only. **Run 2 blocker (G4):** no
+  acquirable real S1+S2 set from this host — DFC `.pt` **11 GB**, So2Sat **7 GB**,
+  EuroSAT-SAR **922 MB** (SAR-only). Needs a better-connected machine.
 - Hypothesis: H3
 - Question: For suitable queries (built-up / informal-settlement classification),
   does a **joint optical+SAR** representation improve the result vs optical-only?
@@ -216,13 +216,13 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | RUNNING (setup); artifacts blocked, N=0 | TEST FURTHER |
+| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | **BLOCKED** — weights unfetchable (4 dl attempts); remote GPU justified | — |
 | EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
-| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **PARTIAL — Run 1 sanity done; Run 2 pending** | — |
+| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | Run 1 (synthetic sanity) done; **Run 2 BLOCKED** — no acquirable S1+S2 set | — |
 | EXP-005 | unverified vs verified | H4 | PLANNED | — |
 | EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
-| EXP-007 | geospatial validation on/off | H5 | PLANNED | — |
-| EXP-008 | RS adaptation probe on BigEarthNet v2 (req. E) | n/a | PLANNED (shares EXP-004 infra) | — |
+| EXP-007 | geospatial safeguard stress test | H5 | **RUN — 15/15 pass** (`EXP-007.md`) | KEEP the gate |
+| EXP-008 | RS adaptation probe (req. E) | n/a | **BLOCKED** on EXP-004 Run 2 | — |
 
 Hypothesis coverage: H1→EXP-001, H2→EXP-006 (informed by EXP-003), H3→EXP-004,
 H4→EXP-005, H5→EXP-007. Mandatory-capability coverage without a hypothesis:

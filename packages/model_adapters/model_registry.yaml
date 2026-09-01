@@ -99,9 +99,13 @@ excluded:
 
 routing:
   # rule-over-registry: modality + task -> allowed adapters. No LLM here.
+  # Deterministic rules + tests: packages/core/src/satquery_core/routing/, docs/research/ROUTING_SPEC.md
+  # Called by POST /analyze (G4).
   bitemporal_change_mask: [changeformer]
   single_image_scene_or_retrieval: [remoteclip]
-  optical_sar_representation: [croma, dofa]   # bake-off pending (EXP-004 Run 2)
-  single_image_vqa: []          # unresolved — EXP-002
-  single_image_grounding: []    # unresolved — EXP-002
-  bitemporal_semantic_change: []  # unresolved — EXP-003
+  optical_sar_representation: [croma, dofa]   # bake-off BLOCKED (EXP-004 Run 2 - no dataset)
+  single_image_vqa: []             # unresolved - EXP-002 BLOCKED (weights unfetchable); -> NO_VQA_SPECIALIST
+  single_image_grounding: []       # unresolved - EXP-002
+  bitemporal_semantic_change:      # composed baseline only (NOT learned / NOT validated)
+    composed_baseline: [changeformer, remoteclip]   # COMPOSED_SEMANTIC_CHANGE_BASELINE
+    learned_model: []              # unresolved - EXP-003 (needs a remote box)

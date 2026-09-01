@@ -4,10 +4,10 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01** (refreshed after **G2** — geospatial + temporal vertical
-> slices implemented; EXP-004 machinery validated). Experiment write-ups:
-> **`EXP-002.md`**, **`EXP-004.md`**. Candidate cards: **`MODEL_TOURNAMENT.md`**;
-> branching: **`EXPERIMENT_DECISION_TREE.md`**.
+> Date: **2026-09-01** (refreshed after **G4** — unified `/analyze`, composed
+> semantic-change baseline, EXP-007 15/15; EXP-002/004-Run2/008 **BLOCKED** on
+> data acquisition → **remote GPU box justified**). Experiment write-ups:
+> `EXP-002.md`, `EXP-004.md`, `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
 >
@@ -125,14 +125,14 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 | Gap | Status (post-G2) | Blocking? | Cheapest path to next evidence |
 |-----|--------|-----------|--------------------------------|
-| **D. Optical–SAR** | **REPRODUCED** + 3-arm probe machinery **validated** (EXP-004 Run 1, synthetic sanity) | mandatory + differentiation | EXP-004 **Run 2** on DFC2020 val split (11 GB, once) → first measured SAR delta — **local** |
-| **E. RS adaptation** | NONE (unblocked — encoders + probe harness ready) | mandatory | EXP-008 linear→LoRA on the EXP-004-winning encoder, same data — **local** |
-| **A. Single-image VQA** | DOCUMENTED (EXP-002 setup; TinyRS download flaky) | mandatory | finish TinyRS + RSCoVLM-3B (EXP-002) vs the fixed threshold — **local**; GeoChat only if both fail |
+| **D. Optical–SAR** | **REPRODUCED** + probe machinery validated (EXP-004 Run 1, synthetic); joint-repr contract in `/analyze` | mandatory + differentiation | **EXP-004 Run 2 BLOCKED** — no acquirable real S1+S2 set (DFC 11 GB / So2Sat 7 GB). Needs a remote box. |
+| **E. RS adaptation** | NONE — harness ready | mandatory | **EXP-008 BLOCKED** on EXP-004 Run 2. Needs a remote box. |
+| **A. Single-image VQA** | DOCUMENTED | mandatory | **EXP-002 BLOCKED** — TinyRS weights unfetchable (4 attempts, < 1 MB/s). **Remote GPU now justified.** |
 | **B. Extra single-image task** | PARTIAL — RemoteCLIP retrieval **integrated as `/scene`** (explicitly *not* captioning/grounding per PS) | mandatory | grounding via TinyRS/RSCoVLM (EXP-002) — **local**; GeoGround = remote backup |
-| **C. Semantic change (language)** | mask **INTEGRATED** in `POST /change` (G2.5); language NONE | mandatory | ChangeFormer mask → region-caption pipeline (EXP-003) — **local** |
-| **G. Geospatial validation** | **IMPLEMENTED + live in the API** (`validate_geotiff` + `check_pair_compatibility`, 13 tests; co-reg gate blocks bad pairs in `/change`) | mandatory + prerequisite | EXP-007 (gate ON/OFF stress set) — **local** |
+| **C. Semantic change (language)** | mask **INTEGRATED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE` built & wired into `/analyze`** (mask→components→crop-tag→rule description) — experimental, disclaimed, tags noisy on tiny crops; **learned** semantic change NONE | mandatory | improve the baseline (better crops / a captioner) + EXP-003 with a real VLM on a remote box |
+| **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) needs EXP-004 Run 2 data |
 | **H. Evidence/confidence/audit** | `EvidenceItem` + standardized `Provenance` + **deterministic `verify()` implemented & wired into both APIs**; **semantic** verification + confidence method still NONE (by design) | mandatory | add semantic checks + a documented/calibrated confidence source (EXP-005) — **local** |
-| **F. Agentic routing** | **deterministic router implemented** (`satquery_core.routing`, spec + 8 tests); LLM planner not built | mandatory | call the router from `/analyze`; add the LLM intent step (EXP-006) — **local** |
+| **F. Agentic routing** | **deterministic router implemented + called by `POST /analyze`** (spec + 8 tests, observable routing info in every response); LLM planner not built | mandatory | add the LLM intent-parsing step (EXP-006), schema-validated against the registry — **local** |
 
 ---
 
