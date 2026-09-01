@@ -5,6 +5,70 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-015 — G7: model-independent semantic verifier built + measured; SIH evidence pack + failure-aware-routing design; model stack NOT frozen (A/B/D/E still unmeasured)
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G7 = provision the remote GPU lab, run the blocked experiments,
+  select + integrate winners, **freeze the model stack**. The provisioning step is
+  a human infrastructure action (cloud account + billing + SSH) that this session
+  cannot perform; the runbook (`docs/deployment/REMOTE_GPU_SETUP.md`) is ready.
+  So G7 executed the phases that are **local and unblocked**.
+- **Built + measured (real, local):**
+  - **EXP-005b — model-independent semantic verifier.** New
+    `verify_semantic(result, evidence, context)`
+    (`packages/evidence/src/satquery_evidence/semantic_verifier.py`): deterministic,
+    no model call. Six checks — claim↔evidence number, claim↔evidence label,
+    temporal-direction on swapped pairs, region-in-bounds / valid lon-lat,
+    whole-scene region, region-areas-vs-total. Declares the checks it **cannot**
+    do (`independent_model_agreement`, `optical_sar_agreement`,
+    `grounding_roundtrip`) in `coverage_unavailable`.
+    Curated 34-case corpus (COHERENT 8 / INCOHERENT 10 / BEYOND_SCOPE 6 /
+    NOT_ENOUGH 4): **precision / recall / F1 = 1.00** for model-independent
+    incoherence detection (TP 10, FP 0, TN 14, FN 0); **BEYOND_SCOPE miss rate
+    1.00** (label-correctness errors — need an independent model, as expected).
+    `evaluation/scripts/exp005b_semantic_verifier.py` + 9 lock tests.
+    Same caveat as EXP-005: curated, proves the checks fire on their target
+    classes, **not** a real-world coverage rate.
+  - **Integrated** into `COMPOSED_SEMANTIC_CHANGE_BASELINE` as an **additive**
+    `semantic_verification` field (`ComposedSemanticChangeResult`) — no `/analyze`
+    contract change beyond the optional field. On the demo pair its own output is
+    `COHERENT`.
+- **Designed / collected (no code):**
+  - `docs/research/FAILURE_AWARE_ROUTING.md` — post-execution routing qualifiers
+    (`RESULT_STRUCTURAL_FAIL`, `RESULT_SEMANTIC_INCOHERENT`, `RESULT_UNVERIFIED`,
+    `SPECIALIST_DEGRADED`, `LOW_MARGIN`) as pure functions of `verify()` +
+    `verify_semantic()` + `AdapterResult.status`; single-step registry-driven
+    fallback ladder. Implementation deferred to after the model freeze.
+  - `docs/sih/evidence/` — SIH evidence pack: 13-topic traceability index, every
+    claim tagged TRACEABLE / PARTIAL / BLOCKED, three-numbers rule enforced.
+    `docs/sih/evidence/demos/` — **real** captured outputs for DEMO 2 (`/change`),
+    DEMO 4 (misregistered pair rejected), DEMO 5 (evidence + structural + semantic
+    verification); DEMO 1 (VQA) and DEMO 3 (optical-SAR) written as explicit
+    BLOCKED placeholders — **no fabricated demo output**.
+  - `model_registry.yaml` — the 4 integrated models gained `paper`,
+    `quantization`, `memory`, and a split `benchmark` (authors') vs
+    `our_measured_result` (ours) per Phase 11.
+- **Decision — the model stack is NOT frozen.** Phase 10's freeze precondition is
+  "A/B/D/E have measurements". They do not (EXP-002 / EXP-004 Run 2 / EXP-008 all
+  blocked on the remote box). Freezing now would freeze an unmeasured stack. The
+  freeze happens in the session that runs the remote experiments.
+- **G7 exit criteria: 4/8 met (C, F, G, H) — unchanged from G6 count, but H
+  strengthened:** structural verifier VALIDATED (EXP-005) **plus** a
+  model-independent semantic verifier MEASURED + INTEGRATED (EXP-005b). A, B, D, E
+  remain blocked solely on provisioning.
+- **Consequence (108/108 tests, was 97; one additive service field, no contract
+  break, no new deps, no new repos, no confidence value):** new
+  `packages/evidence/src/satquery_evidence/semantic_verifier.py` (+ `__init__`
+  exports), `evaluation/scripts/{exp005b_semantic_verifier,capture_demo_evidence}.py`,
+  `packages/evidence/tests/test_semantic_verifier.py` (9),
+  `docs/research/FAILURE_AWARE_ROUTING.md`, `docs/sih/evidence/**`;
+  `semantic_verification` field + 2 tests on `semantic_change_baseline.py`;
+  updated `EXP-002.md` (Phase 3 table), `EXP-005.md` (EXP-005b),
+  `CONFIDENCE_PLAN.md`, `model_registry.yaml`, `EVIDENCE_LEDGER.md`,
+  `CAPABILITY_GAP_MATRIX.md`, `MODEL_TOURNAMENT.md`, `model_inventory.md`,
+  `PROJECT_STATUS.md`, `19_EXPERIMENT_REGISTRY.md`, `REMOTE_GPU_SETUP.md`.
+
 ## ADR-014 — G6 capability closure: 4/8 exit criteria met locally; A/B/D/E blocked solely on remote-GPU provisioning; EXP-005 + crop-strategy experiment RAN
 
 - **Date:** 2026-09-01

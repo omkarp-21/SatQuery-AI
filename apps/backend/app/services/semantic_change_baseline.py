@@ -30,7 +30,15 @@ import rasterio
 from pydantic import BaseModel
 from scipy import ndimage
 
-from satquery_evidence import EvidenceItem, Provenance, VerificationResult, new_evidence_id, verify
+from satquery_evidence import (
+    EvidenceItem,
+    Provenance,
+    SemanticVerificationResult,
+    VerificationResult,
+    new_evidence_id,
+    verify,
+    verify_semantic,
+)
 from satquery_model_adapters import AdapterRequest, RemoteClipAdapter
 
 from app.services.temporal_slice import run_change_slice
@@ -82,6 +90,7 @@ class ComposedSemanticChangeResult(BaseModel):
     description: str | None = None
     evidence: list[EvidenceItem] = []
     verification: VerificationResult | None = None
+    semantic_verification: SemanticVerificationResult | None = None
     provenance: dict[str, Any] = {}
 
 
@@ -229,12 +238,23 @@ def run_composed_semantic_change(
         "model_modalities": ["optical-bitemporal"],
         "pair_co_registered": change.pair.co_registered if change.pair else None,
     })
+    # EXP-005b - model-independent semantic-coherence checks over the assembled
+    # description + evidence (claim<->number/label, region geometry, area sums).
+    # Not a real-world correctness judgement; see verify_semantic() docstring.
+    scene_px = int(m1.width * m1.height) if (m1 and m1.width and m1.height) else None
+    sem_vr = verify_semantic(
+        {"description": description, "regions": [r.model_dump() for r in regions],
+         "changed_area_ha": st.changed_area_ha},
+        all_ev,
+        {"image_shape": ((m1.height, m1.width) if (m1 and m1.height and m1.width) else None),
+         "scene_pixels": scene_px, "changed_area_ha": st.changed_area_ha},
+    )
 
     prov = {
         "baseline": BASELINE_NAME,
         "crop_strategy": crop_strategy,
         "stages": ["run_change_slice", "connected_components", f"region_crop[{crop_strategy}]",
-                   "remoteclip_tagging", "rule_assemble", "evidence", "verify"],
+                   "remoteclip_tagging", "rule_assemble", "evidence", "verify", "verify_semantic"],
         "change_slice_provenance": change.provenance,
         "remoteclip": Provenance.from_adapter(
             (region_evidence[0].provenance if region_evidence else {"model": "remoteclip"}),
@@ -251,5 +271,5 @@ def run_composed_semantic_change(
         mask_path=change.mask_path,
         changed_fraction=st.changed_fraction, changed_area_ha=st.changed_area_ha,
         regions=regions, description=description,
-        evidence=all_ev, verification=vr, provenance=prov,
+        evidence=all_ev, verification=vr, semantic_verification=sem_vr, provenance=prov,
     )

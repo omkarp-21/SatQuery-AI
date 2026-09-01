@@ -4,7 +4,7 @@
 > reached, with the artifact that proves it. Never promote a row without a real
 > run. Levels: `PAPER-REPORTED < DOCUMENTED < REPRODUCED < MEASURED < INTEGRATED
 > < VALIDATED`.
-> Updated: **2026-09-01 (G6)**.
+> Updated: **2026-09-01 (G7)**.
 
 ## Level definitions
 
@@ -54,7 +54,8 @@
 | SpecialistAdapter interface | **INTEGRATED** | 4 adapters implement `validate/execute/normalize_output/provenance` + `run()`; `AdapterResult` carries status/timing/model_meta |
 | `EvidenceItem` + `Provenance` (`packages/evidence`) | **INTEGRATED** (G3) | 9 tests; wired into `/change`, `/scene`, multimodal |
 | Deterministic verifier (`verify()`) — structural | **VALIDATED (structural)** (G6) | **EXP-005**: structural-defect detection **P/R/F1 = 1.00** on a curated n=24 corpus (TP 8/FP 0/TN 12/FN 0); `evaluation/scripts/exp005_verifier_detection.py` + 3 lock tests. Structural only. |
-| Semantic verification | **NONE — gap quantified** (G6) | **EXP-005**: semantic-defect miss rate **1.00** (0/6 caught). Extension points listed in `EXP-005.md`; none built. |
+| Semantic verifier (`verify_semantic()`) — model-independent | **MEASURED + INTEGRATED (experimental)** (G7) | **EXP-005b**: internal-incoherence detection **P/R/F1 = 1.00** on a curated n=34 corpus (TP 10/FP 0/TN 14/FN 0); 6 model-independent checks; wired into `COMPOSED_SEMANTIC_CHANGE_BASELINE` (`semantic_verification` field). `evaluation/scripts/exp005b_semantic_verifier.py` + 9 lock tests. |
+| Semantic verification — label correctness | **NONE — residual gap sized** (G7) | **EXP-005b**: BEYOND_SCOPE miss rate **1.00** (6/6). Needs `independent_model_agreement` (EXP-002) + `optical_sar_agreement` (EXP-C2). `coverage_unavailable` names them. |
 | Semantic-change crop strategy (`crop_strategy=`) | **experimental — behaviour measured** (G6) | **EXP-003b**: tight/expanded/mask_aware on the demo pair, 3-way agreement 4/6 regions; `expanded` provisional default (not changed in code). Not a learned VLM. |
 | Constrained router (`satquery_core.routing`) | **INTEGRATED** (G4) | deterministic; now called by `POST /analyze`; 8 tests + `ROUTING_SPEC.md` |
 | `POST /analyze` unified layer | **INTEGRATED** (G4) | `test_analyze_api.py` (13) — interpret→validate→route→specialist→aggregate; observable routing info; VQA blocked, bad pair blocked |

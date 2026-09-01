@@ -2,7 +2,7 @@
 
 > Living status file (see `chatgpt.context.md` §24). Update every significant
 > session. No fabricated numbers — "not measured" is the honest value until a real
-> run exists. Last updated: **2026-09-01 (G6)**. Tests: **97 passed, 0 failed**.
+> run exists. Last updated: **2026-09-01 (G7)**. Tests: **108 passed, 0 failed**.
 
 ---
 
@@ -39,6 +39,7 @@
 | **G4 · confidence plan** | `docs/research/CONFIDENCE_PLAN.md` — candidate sources + required experiments (EXP-005, EXP-C1, EXP-C2). **No confidence number emitted anywhere.** |
 | **G4 · EXP-002 / EXP-004 Run 2 / EXP-008** | **BLOCKED — artifact/dataset acquisition fails from this host** (TinyRS 4 attempts <1 MB/s; DFC 11 GB / So2Sat 7 GB / EuroSAT-SAR 922 MB all too large). **Remote GPU now justified on infrastructure grounds.** |
 | **G4 · tests** | **92 passed, 0 failed** (baseline 59). No regressions. |
+| **G7 — semantic verifier + evidence pack (partial)** | Remote-lab provisioning is a human infra action (not doable in-session); runbook ready. **Ran locally:** **EXP-005b** — new model-independent `verify_semantic()` (6 checks: claim↔number, claim↔label, temporal direction on swapped pairs, region-in-bounds/lon-lat, whole-scene region, area arithmetic; declares 3 model-dependent checks unavailable). Curated 34-case corpus → **precision/recall/F1 = 1.00** for internal-incoherence detection (TP 10/FP 0/TN 14/FN 0); **BEYOND_SCOPE miss rate 1.00** (label-correctness needs an independent model). Wired into `COMPOSED_SEMANTIC_CHANGE_BASELINE` as an additive `semantic_verification` field. `docs/research/EXP-005.md` §EXP-005b, 9 lock tests. **Also:** `docs/research/FAILURE_AWARE_ROUTING.md` (design — post-execution routing qualifiers + fallback ladder), `docs/sih/evidence/` (13-topic traceability pack + **real** captured DEMO 2/4/5 outputs; DEMO 1/3 explicit BLOCKED placeholders, no fake output), `model_registry.yaml` enriched (paper / quantization / memory / benchmark-vs-our-measured split). **Model stack NOT frozen** — A/B/D/E still unmeasured. **108/108 tests** (was 97). ADR-015. |
 | **G6 — capability closure (partial)** | Model discovery **stopped**; hierarchy frozen. **Ran locally:** (1) **EXP-005** — structural verifier detection **precision/recall/F1 = 1.00** on a curated 24-case corpus (TP 8/FP 0/TN 12/FN 0); **semantic-defect miss rate = 1.00** (`docs/research/EXP-005.md`, 3 lock tests). (2) **EXP-003b** — added `crop_strategy` ∈ {tight,expanded,mask_aware} to the composed baseline; 3-way run on the demo pair → **agreement 4/6 regions**, `expanded` rescued a `tight` miss, `mask_aware` monoculture risk logged (`docs/research/EXP-003.md`, default unchanged in code). **Docs/specs:** `docs/deployment/REMOTE_GPU_SETUP.md` (turnkey runbook), `CONFIDENCE_PLAN.md` (EXP-C1/C2 specified, **no number**), `EXP-004.md` (smallest valid dataset = DFC2020 val ROIs raw ~1.5–2 GB), `EXP-008.md` (linear-probe/LoRA definitions locked), `docs/research/G6_CAPABILITY_CLOSURE.md` (scorecard: **4/8 exit criteria met** — C,F,G,H; A,B,D,E blocked **only** on remote-GPU provisioning). **97/97 tests pass** (was 92). No product-code behaviour change (crop default preserved), no new deps, no new repos, no confidence value. ADR-014. |
 | **G5A — A/B reproduction gate** | **Ran. LOCAL REPRODUCTION BLOCKED — 6th documented artifact-acquisition failure** (bounded Qwen2-VL-2B download, fresh `Qwen/` HF org: config landed instantly, both `.safetensors` shards stuck at **0 bytes** for the 8-min window — same signature as the 5 prior TinyRS attempts → host↔HF-CDN path is the blocker). RSVQA-LR + DIOR-RSVG also unfetchable. **N=0, no numbers fabricated.** Delivered ready-to-run: `evaluation/datasets/{rsvqa_lr,dior_rsvg}_sample.json` (frozen deterministic 40-Q / 25-expr selection specs) + `evaluation/scripts/exp002_ab_gate.py` (full measurement harness — compiles; `--resolve` → clean `DATASET_MISSING`). **Remote reference gate OPEN (ADR-013).** No production A/B model selected, no adapter written (would be fabrication), `/analyze` routing unchanged (`NO_VQA_SPECIALIST`, never RemoteCLIP). 92/92 tests unchanged — doc + eval-scaffold only, no product code. Three-numbers table in `EXP-002.md` + `EVIDENCE_LEDGER.md`. |
 | **Model hierarchy — role labels (ADR-012)** | "GeoChat = ceiling" retired. Roles: **LOCAL A/B PRIMARY** RSCoVLM-3B · **FALLBACK** TinyRS-2B · **GENERIC CONTROL** Qwen2-VL-2B · **TEMPORAL** ChangeFormer · **OPTICAL-SAR PRIMARY** CROMA · **CHALLENGER** DOFA · **GROUNDING REFERENCE** GeoGround · **AUXILIARY** RemoteCLIP · **PRIMARY HIGH-CAPABILITY REFERENCE** EarthDial (REFERENCE CANDIDATE — checkpoints verified to exist, weights licence unconfirmed, 4B, not reproduced) · **SECONDARY / HISTORICAL REFERENCE** GeoChat (not on the critical path; local-run inability is **not** a blocker) · **RESEARCH REFERENCE** SARLANG-1M. Nothing is a "ceiling" until reproduced + measured. Docs: `MODEL_TOURNAMENT.md` (authoritative), `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`, ADR-012. **No new repos, no code, no artifacts downloaded.** |
@@ -199,9 +200,11 @@ reproduction / SatQuery.
    failure corpus, `MULTIMODAL_REPR` real `.npy` path, OpenAPI examples) rides
    along.
 
-~~EXP-005 (verifier detection)~~ — **done in G6**: structural P/R/F1 = 1.00 (n=24),
-semantic miss rate 1.00 (`EXP-005.md`). EXP-C1/C2 now specified in
-`CONFIDENCE_PLAN.md`, blocked on the A/B model.
+~~EXP-005 verifier~~ — **done**: structural P/R/F1 = 1.00 (G6, n=24); model-independent
+semantic verifier P/R/F1 = 1.00 (G7/EXP-005b, n=34), INTEGRATED into the composed
+baseline. Residual label-correctness gap → EXP-002 + EXP-C2. `FAILURE_AWARE_ROUTING.md`
+design is ready; implementation queued **after the model freeze**. EXP-C1/C2 specified,
+blocked on the A/B model.
 
 Remote GPU: **the one blocking action for capability closure.** 4/8 G6 exit
 criteria are met locally; A/B/D/E are blocked solely on provisioning
@@ -221,7 +224,7 @@ criteria are met locally; A/B/D/E are blocked solely on provisioning
 | Multimodal (optical–SAR) reasoning | 3 | — | joint-representation contract; **EXP-004 Run 2 blocked (dataset unacquirable)** |
 | Temporal reasoning | 6 | +1 | mask integrated + **composed semantic-change baseline** (isolated, disclaimed); learned semantic still NONE |
 | Geospatial integrity | 6 | +1 | **EXP-007: 15/15 safeguard cases pass**; live in all 3 endpoints |
-| Evidence / verification | 6 | +1 | `EvidenceItem` + `verify()` in all 3 APIs; **EXP-005 (G6): structural verifier detection P/R/F1 = 1.00 (n=24), semantic miss rate 1.00** → structural = VALIDATED, semantic gap quantified; confidence NONE (EXP-C1/C2 specified) |
+| Evidence / verification | 7 | +1 | `verify()` in all 3 APIs; **EXP-005 structural P/R/F1 = 1.00 (n=24)**; **EXP-005b (G7): model-independent semantic verifier P/R/F1 = 1.00 (n=34), INTEGRATED into the composed baseline**; residual label-correctness gap needs EXP-002/EXP-C2; confidence NONE (EXP-C1/C2 specified) |
 | UI / UX | 1 | — | skeleton + design skill |
 | Benchmark readiness | 2 | — | harnesses ready; **real datasets unacquirable from this host** (needs a better-connected machine) |
 | Feasibility | 7 | -1 | system is solid, but EXP-002/004/008 now need a remote box — local-only path is exhausted for those |

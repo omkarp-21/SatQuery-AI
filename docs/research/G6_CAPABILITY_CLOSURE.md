@@ -19,7 +19,7 @@
 | **5. EXP-004 Run 2** | ✘ BLOCKED | **smallest valid dataset chosen** — DFC2020 `ROIs0000_validation` raw, ≈1.5–2 GB, 400/200 subsample (`EXP-004.md`). Acquisition needs the box. |
 | **6. EXP-008** | ✘ BLOCKED (on 5) | method definitions locked (linear probe ≠ LoRA ≠ fine-tune), hyperparameter record spec written (`EXP-008.md`) |
 | **7. Semantic-change crops** | ✔ **RAN** | `crop_strategy` ∈ {tight, expanded, mask_aware} added to the composed baseline; 3-way run on the demo pair: **agreement 4/6 regions**; `expanded`/`mask_aware` rescued a `tight` miss; `mask_aware` monoculture risk logged. `EXP-003.md` §EXP-003b. Not a learned VLM. |
-| **8. EXP-005 verifier** | ✔ **RAN** | structural-defect detection **P/R/F1 = 1.00** on a curated n=24 corpus; **semantic-defect miss rate = 1.00**. Semantic-verifier extension points documented. `EXP-005.md`. 3 lock tests. |
+| **8. EXP-005 verifier** | ✔ **RAN (G6 + G7)** | G6: structural detection **P/R/F1 = 1.00** (n=24). **G7/EXP-005b: model-independent semantic verifier built + measured — P/R/F1 = 1.00 (n=34), INTEGRATED** into the composed baseline; label-correctness residual gap sized (BEYOND_SCOPE miss 1.00). `EXP-005.md`. 12 lock tests total. |
 | **9. Confidence** | ✔ doc only | `CONFIDENCE_PLAN.md`: EXP-C1 (calibration) + EXP-C2 (disagreement) fully specified; both blocked on the same artifacts as EXP-002 / EXP-004 Run 2. **No number emitted.** |
 | **10. Status** | ✔ | this file + the 8 docs listed in the brief updated; ADR-014 |
 
@@ -36,7 +36,7 @@
 | **E** | adaptation = MEASURED before/after | NONE — blocked on D; method definitions locked | ✘ (blocked) |
 | **F** | deterministic routing = INTEGRATED; LLM planning deferred | deterministic router **INTEGRATED** in `/analyze` (8 tests); LLM planning **deferred** | ✔ |
 | **G** | geospatial validation = VALIDATED structural | **VALIDATED (structural)** — EXP-007 15/15; live in 3 endpoints | ✔ |
-| **H** | evidence+provenance INTEGRATED; structural verification VALIDATED; semantic experimental; confidence only after calibration | evidence + provenance **INTEGRATED**; structural verifier now **MEASURED** (EXP-005, P/R/F1=1.00) → **VALIDATED (structural)**; semantic verification = **experimental / extension points only**; confidence = **none** (EXP-C1/C2 specified, blocked) | ✔ |
+| **H** | evidence+provenance INTEGRATED; structural verification VALIDATED; semantic experimental; confidence only after calibration | evidence + provenance **INTEGRATED**; structural verifier **VALIDATED (structural)** (EXP-005, P/R/F1=1.00); **model-independent semantic verifier MEASURED + INTEGRATED** (G7/EXP-005b, P/R/F1=1.00, n=34); label-correctness gap sized; confidence = **none** (EXP-C1/C2 specified, blocked) | ✔ |
 
 **4 / 8 criteria met (C, F, G, H). 4 blocked (A, B, D, E) — every one solely on
 artifact/dataset acquisition, i.e. the remote GPU box.** No criterion is blocked

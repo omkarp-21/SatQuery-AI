@@ -1,10 +1,13 @@
 # Remote GPU Research Lab — setup runbook
 
-> **Status: TEMPLATE — NOT YET PROVISIONED (2026-09-01).** Every value marked
-> `<PENDING>` is filled in *on the box*, by running the `record` block at the
-> bottom and pasting its output here. Nothing in G6 Phases 2/3/4/5/6 can be
-> **MEASURED** until this is done — they are BLOCKED only on this provisioning
-> step, not on capability or code (harnesses are committed and dry-run-clean).
+> **Status: TEMPLATE — NOT YET PROVISIONED (2026-09-01, re-confirmed at G7).**
+> Every value marked `<PENDING>` is filled in *on the box*, by running the
+> `record` block at the bottom and pasting its output here. **Provisioning is a
+> human infrastructure action** (cloud account + billing + SSH key) — it is the
+> single blocker for G7 exit criteria A, B, D, E. All harnesses are committed and
+> dry-run-clean: `exp002_ab_gate.py`, `exp004_run2_probe.py` (written on the box
+> against the DFC2020 layout), `exp008_adaptation.py`, plus `exp005*` /
+> `exp003b*` which already ran locally.
 
 ## Purpose & boundaries
 

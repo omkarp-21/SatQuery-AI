@@ -4,10 +4,10 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01** (refreshed after **G5A** — A/B reproduction gate ran and
-> hit the 6th artifact-acquisition failure; roles frozen ADR-011/012; **remote
-> reference gate OPEN ADR-013**. Earlier: G4 unified `/analyze`, composed
-> semantic-change baseline, EXP-007 15/15). Experiment write-ups:
+> Date: **2026-09-01** (refreshed after **G7** — model-independent semantic
+> verifier built + MEASURED, P/R/F1 = 1.00 on n=34, INTEGRATED; SIH evidence pack
+> started; model stack NOT frozen. Earlier: G6 EXP-005 + crop strategy; G5A A/B
+> gate blocked ×6; roles frozen ADR-011/012). Experiment write-ups:
 > `EXP-002.md`, `EXP-004.md`, `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
@@ -132,7 +132,7 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 | **B. Extra single-image task** | PARTIAL — RemoteCLIP retrieval **integrated as `/scene`** (explicitly *not* captioning/grounding per PS); **G5A: grounding N=0, BLOCKED** | mandatory | grounding via **RSCoVLM-3B** / TinyRS-2B / Qwen2-VL-2B on the frozen DIOR-RSVG sample — **remote gate** (ADR-013); **GeoGround = GROUNDING REFERENCE** |
 | **C. Semantic change (language)** | mask **INTEGRATED + MEASURED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE`** wired into `/analyze` — experimental, disclaimed. **G6 EXP-003b: crop strategy measured** (tight/expanded/mask_aware; agreement 4/6 on the demo pair; `expanded` provisional default). **Learned** semantic change NONE. | mandatory | EXP-003a with a real VLM (**EarthDial**, native temporal+change) on the remote box; then set the crop default with a labelled caption metric |
 | **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) needs EXP-004 Run 2 data |
-| **H. Evidence/confidence/audit** | `EvidenceItem` + standardized `Provenance` + `verify()` wired into all 3 APIs. **G6: EXP-005 RAN** — structural verifier detection **P/R/F1 = 1.00** (n=24 curated), **semantic miss rate 1.00**. Semantic verification = extension points only. Confidence = NONE (EXP-C1/C2 specified, blocked). | mandatory | build a semantic verifier + run EXP-C1 (calibration) — both need the A/B model (remote box) |
+| **H. Evidence/confidence/audit** | `EvidenceItem` + `Provenance` + `verify()` in all 3 APIs. **EXP-005 (G6):** structural detection **P/R/F1 = 1.00** (n=24). **EXP-005b (G7):** model-independent `verify_semantic()` — **P/R/F1 = 1.00** (n=34), **INTEGRATED** into the composed baseline; residual label-correctness gap (BEYOND_SCOPE miss 1.00) needs a second model. Confidence = NONE (EXP-C1/C2 specified, blocked). | mandatory | `independent_model_agreement` + `optical_sar_agreement` semantic checks (need EXP-002 / EXP-C2, remote box); then EXP-C1 calibration |
 | **F. Agentic routing** | **deterministic router implemented + called by `POST /analyze`** (spec + 8 tests, observable routing info in every response); LLM planner not built | mandatory | add the LLM intent-parsing step (EXP-006), schema-validated against the registry — **local** |
 
 ---

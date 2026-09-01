@@ -19,6 +19,11 @@
 | **INTEGRATED** | Runs inside the SatQuery pipeline via an adapter, with provenance. |
 | **VALIDATED** | End-to-end in the pipeline, verified, with provenance. |
 
+> **G7 (2026-09-01):** no inventory change — model discovery is stopped, the
+> stack is NOT frozen (A/B/D/E unmeasured, ADR-015). G7 built a model-independent
+> semantic verifier (EXP-005b, P/R/F1 = 1.00 on n=34, INTEGRATED into the composed
+> baseline) and started the SIH evidence pack (`docs/sih/evidence/`).
+>
 > **Model hierarchy (ADR-011/012) — role labels, not a quality ranking.** LOCAL
 > A/B PRIMARY = **RSCoVLM-3B**; LOCAL A/B FALLBACK = **TinyRS-2B**; GENERIC CONTROL
 > = **Qwen2-VL-2B**; TEMPORAL = **ChangeFormer**; OPTICAL-SAR PRIMARY = **CROMA**;

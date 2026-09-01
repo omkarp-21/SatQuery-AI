@@ -72,12 +72,16 @@ Reporting a number now would be fabrication.
   curated corpus and 0 % of the semantic ones.
 - `/analyze` aggregates evidence + verification; it does **not** synthesize a number.
 
-## G6 status (2026-09-01)
+## G6–G7 status (2026-09-01)
 
-**No confidence number is emitted anywhere.** EXP-005 is done (structural only).
-EXP-C1 and EXP-C2 are specified and **blocked on the same artifacts as EXP-002 /
-EXP-004 Run 2** (a scored VQA model; a real S1+S2 split) — both need the remote
-GPU box. The "definition of done" below is unchanged; 0 of its 4 conditions are met.
+**No confidence number is emitted anywhere.** EXP-005 (structural verifier) and
+**EXP-005b (model-independent semantic verifier)** are done — both give a
+**status band**, not a probability. `verify_semantic().status` ∈ {COHERENT,
+INCOHERENT, NOT_ENOUGH_EVIDENCE} joins `verify().status` as a calibration input
+for EXP-C1 (a second structural/coherence signal). EXP-C1 and EXP-C2 remain
+**blocked on the same artifacts as EXP-002 / EXP-004 Run 2** (a scored VQA model;
+a real S1+S2 split). The "definition of done" below is unchanged; 0 of its 4
+conditions are met.
 
 ## Definition of done for "confidence"
 

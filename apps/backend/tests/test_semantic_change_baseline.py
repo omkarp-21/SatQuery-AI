@@ -61,6 +61,26 @@ def test_crop_strategy_default_is_tight_and_signature_accepts_it():
     assert set(_scb.CropStrategy.__args__) == {"tight", "expanded", "mask_aware"}
 
 
+def test_result_model_exposes_semantic_verification_field():
+    # additive field (EXP-005b) - present, optional, defaults to None
+    assert "semantic_verification" in ComposedSemanticChangeResult.model_fields
+    assert ComposedSemanticChangeResult(ok=False).semantic_verification is None
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not _ENV, reason="changeformer/remoteclip/demo absent")
+def test_semantic_verification_runs_on_happy_path():
+    r = run_composed_semantic_change(_DEMO / "t1.tif", _DEMO / "t2.tif", checkpoint_dir=_CF,
+                                     max_regions=3)
+    assert r.ok is True
+    assert r.semantic_verification is not None
+    assert r.semantic_verification.status in (
+        "COHERENT", "INCOHERENT", "NOT_ENOUGH_EVIDENCE", "NOT_APPLICABLE")
+    # the composed baseline's own assembled description should be internally coherent
+    assert r.semantic_verification.status in ("COHERENT", "NOT_ENOUGH_EVIDENCE")
+    assert "verify_semantic" in r.provenance["stages"]
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(not _ENV, reason="changeformer/remoteclip/demo absent")
 def test_crop_strategy_threads_into_provenance():

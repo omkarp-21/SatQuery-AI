@@ -180,11 +180,20 @@ what we measured, what we decided.
 - Result: **structural-defect detection precision / recall / F1 = 1.00**
   (TP 8, FP 0, TN 12, FN 0; 4 INSUFFICIENT correct). **Semantic-defect miss rate
   = 1.00** (0/6 structurally-clean-but-wrong cases flagged) — by design.
-- DECISION: structural verifier = **VALIDATED (structural)**, with a number.
-  Semantic verifier still required (extension points documented). Confidence:
-  EXP-C1/C2 specified in `CONFIDENCE_PLAN.md`, blocked on a scored A/B model.
-- Caveat: n=24, author-curated → grow with real `/analyze` failures before
-  quoting outside `EXP-005.md`.
+- **EXP-005b (G7): model-independent semantic verifier built + measured.**
+  `verify_semantic()` — 6 checks (claim↔number, claim↔label, temporal direction,
+  region geometry, whole-scene region, area arithmetic). Curated n=34 corpus →
+  **P/R/F1 = 1.00** for internal-incoherence detection (TP 10/FP 0/TN 14/FN 0);
+  **BEYOND_SCOPE residual miss rate 1.00** (label-correctness needs a second
+  model). INTEGRATED into `COMPOSED_SEMANTIC_CHANGE_BASELINE`.
+  `evaluation/scripts/exp005b_semantic_verifier.py` + 9 lock tests.
+- DECISION: structural verifier = **VALIDATED (structural)**; semantic verifier =
+  **MEASURED + INTEGRATED (experimental, model-independent subset)**. Remaining:
+  `independent_model_agreement` + `optical_sar_agreement` (EXP-002 / EXP-C2).
+  Confidence: EXP-C1/C2 specified in `CONFIDENCE_PLAN.md`, blocked on a scored model.
+- Caveat: both corpora are n≈30, author-curated → prove the checks fire on their
+  target defect classes, **not** a real-world coverage rate. Grow with real
+  `/analyze` failures before quoting outside `EXP-005.md`.
 
 ## EXP-006 — LLM-only routing vs constrained deterministic/agentic routing
 
@@ -231,7 +240,7 @@ what we measured, what we decided.
 | EXP-002 | single-image VLM A/B gate — **RSCoVLM-3B** primary / TinyRS-2B fallback / Qwen2-VL-2B control (local); EarthDial-4B + GeoChat-7B reference (remote) | selection | **BLOCKED** — G5A ran the gate; weights unfetchable (**6 dl attempts**, fresh org same failure); RSVQA-LR/DIOR-RSVG unfetchable; **remote reference gate OPEN (ADR-013)**; harness + frozen samples committed | — |
 | EXP-003 | temporal-language — composed baseline vs remote VLMs (a); crop strategy (b) | selection (→H2) | **EXP-003b RUN** (crop strategy: agreement 4/6, `expanded` provisional); EXP-003a BLOCKED (remote) | `EXP-003.md` |
 | **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | Run 1 (synthetic sanity) done; **Run 2 BLOCKED** — no acquirable S1+S2 set | — |
-| EXP-005 | structural verifier detection | H4 | **RUN (structural)** — P/R/F1 = 1.00 on n=24; semantic miss rate 1.00 | `EXP-005.md` |
+| EXP-005 | verifier detection — structural (a) + model-independent semantic (b) | H4 | **RUN** — 005a structural P/R/F1 = 1.00 (n=24); 005b semantic P/R/F1 = 1.00 (n=34), INTEGRATED; label-correctness gap remains | `EXP-005.md` |
 | EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
 | EXP-007 | geospatial safeguard stress test | H5 | **RUN — 15/15 pass** (`EXP-007.md`) | KEEP the gate |
 | EXP-008 | RS adaptation probe (req. E) | n/a | **BLOCKED** on EXP-004 Run 2 | — |

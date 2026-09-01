@@ -1,0 +1,8 @@
+{
+  "demo": "DEMO 1 - single-image question (VQA)",
+  "status": "BLOCKED",
+  "reason": "no VQA specialist reproduced - EXP-002 artifact acquisition failed 6x from this host. Harness evaluation/scripts/exp002_ab_gate.py + frozen RSVQA-LR sample are ready; runs on the remote GPU box.",
+  "no_fake_output": true,
+  "_captured": "2026-09-01T10:29:01Z",
+  "_note": "REAL output of the committed pipeline on the bundled demo pair. Not edited."
+}

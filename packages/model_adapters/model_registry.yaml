@@ -14,6 +14,7 @@ models:
   remoteclip:
     adapter: satquery_model_adapters.remoteclip:RemoteClipAdapter
     source_repo: https://github.com/ChenDelong1999/RemoteCLIP
+    paper: "RemoteCLIP: A Vision Language Foundation Model for Remote Sensing (IEEE TGRS 2024)"
     commit: a6a4787507e441f444c20404c90dd18520a8960d
     license: Apache-2.0
     capabilities: [zero-shot-classification, retrieval, embedding]
@@ -23,9 +24,13 @@ models:
     environment: ".venvs/remoteclip (open-clip-torch 3.3.0, torch 2.13 cpu)"
     checkpoint: "models/cache/remoteclip/RemoteCLIP-ViT-B-32.pt (605,208,421 B)"
     hardware: "CPU ok; ~0.6 GB weights; fits 4 GB GPU trivially"
+    quantization: "not needed (fp32 CPU fits)"
     latency: "~150 ms/query (CPU, warm, 1 img + ~4 prompts)"
+    memory: "~1.6 GB RSS (CPU)"
     params: "151.3 M"
-    evidence_level: reproduced   # official example correct (airport 97.8%); no benchmark
+    benchmark: "authors: RSITMD/RSICD retrieval SOTA-class (2024) — NOT reproduced by us"
+    our_measured_result: "official example correct (airport 97.8% top-1, n=1); latency ~150 ms — reproduction, not a benchmark"
+    evidence_level: integrated   # runs via RemoteClipAdapter + /scene, with provenance
     status: KEEP
     fallback: "none (auxiliary; not on the mandatory-capability critical path)"
     note: "NOT a VQA model. Retrieval / zero-shot / embedding index only."
@@ -33,6 +38,7 @@ models:
   changeformer:
     adapter: satquery_model_adapters.changeformer:ChangeFormerAdapter
     source_repo: https://github.com/wgcban/ChangeFormer
+    paper: "A Transformer-Based Siamese Network for Change Detection (IGARSS 2022)"
     commit: afd1b7ed640aa265a2c730de958416ae7356a2f9
     license: MIT
     capabilities: [change-detection]
@@ -42,10 +48,13 @@ models:
     environment: ".venvs/changeformer (torch 2.5.1 cpu, numpy 1.23.5, opencv/tifffile) — no source edits"
     checkpoint: "models/cache/changeformer/CD_ChangeFormerV6_LEVIR_.../best_ckpt.pt (492 MB)"
     hardware: "CPU ok; ~1 GB RAM; <0.6 GB VRAM on GPU"
+    quantization: "not needed (41 M params, fp32 CPU)"
     latency: "~790 ms / 256^2 pair (CPU)"
+    memory: "~1.0 GB RSS (CPU)"
     params: "41.0 M"
+    benchmark: "authors (checkpoint log.txt): overall acc 0.9495 on LEVIR-CD test — their number, NOT ours"
+    our_measured_result: "change-IoU 0.832 / F1 0.908 on 7 bundled LEVIR-CD samples (n=7, CPU, 2026-09-01) — reproduction, NOT a benchmark; integrated: /change changed_fraction 0.2526 on the demo pair"
     evidence_level: integrated   # runs in the temporal slice via subprocess adapter, with provenance
-    measured: "change-IoU 0.832 / F1 0.908 on 7 bundled LEVIR-CD samples (n=7, reproduction — NOT a benchmark)"
     status: KEEP
     fallback: "image-difference + threshold (trivial baseline) if the adapter env is unavailable"
     note: "Mask only — no semantic classes, no language, no SAR. score = coverage, NOT a confidence."
@@ -53,6 +62,7 @@ models:
   croma:
     adapter: satquery_model_adapters.croma:CromaAdapter
     source_repo: https://github.com/antofuller/CROMA
+    paper: "CROMA: Remote Sensing Representations with Contrastive Radar-Optical Masked Autoencoders (NeurIPS 2023)"
     commit: 59505a6bcadbf36ba20767270154bf9f3067c5e7
     license: MIT
     capabilities: [embedding, representation]
@@ -62,8 +72,12 @@ models:
     environment: ".venvs/croma (torch 2.13 cpu, einops)"
     checkpoint: "models/cache/croma/CROMA_base.pt (777,563,846 B)"
     hardware: "CPU ok; ~1.1-1.8 GB RSS; fits 4 GB GPU"
+    quantization: "not needed (194 M, fp32 CPU)"
     latency: "~340 ms/sample (joint forward, CPU)"
+    memory: "~1.1-1.8 GB RSS (CPU)"
     params: "194.4 M"
+    benchmark: "authors: SOTA-class linear-probe on BigEarthNet / DFC2020 (2023) — NOT reproduced by us"
+    our_measured_result: "official example reproduced (joint SAR+optical embeddings, shapes+finite); EXP-004 Run 1 synthetic control: SAR-only signal recovered 1.00 vs optical-only 0.49 — SANITY, not a benchmark"
     evidence_level: reproduced   # official example; probe machinery validated on synthetic control (EXP-004 Run 1)
     status: KEEP FOR TOURNAMENT   # primary optical-SAR candidate; adopt pending EXP-004 Run 2
     fallback: "dofa (the other optical-SAR encoder) - decide in EXP-004 Run 2"
@@ -72,6 +86,7 @@ models:
   dofa:
     adapter: satquery_model_adapters.dofa:DofaAdapter
     source_repo: https://github.com/zhu-xlab/DOFA
+    paper: "Neural Plasticity-Inspired Multimodal Foundation Model for Earth Observation (DOFA, 2024)"
     commit: 0cfb7e1099f4d4c4022946ff7862c7cd7b8411b9
     license: MIT
     capabilities: [embedding, representation]
@@ -81,8 +96,12 @@ models:
     environment: ".venvs/dofa (torch 2.13 cpu, timm==0.9.2)"
     checkpoint: "models/cache/dofa/DOFA_ViT_base_e100.pth (447,669,164 B)"
     hardware: "CPU ok; ~1.3 GB RSS; fits 4 GB GPU"
+    quantization: "not needed (111 M, fp32 CPU)"
     latency: "~120 ms/sample (CPU)"
+    memory: "~1.3 GB RSS (CPU)"
     params: "111.3 M"
+    benchmark: "authors: competitive with sensor-specific FMs on GEO-Bench (2024) — NOT reproduced by us"
+    our_measured_result: "forward_features reproduced for S1 (2ch) + S2 (12ch), finite (B,768); EXP-004 Run 1 synthetic: S2+S1 fused recovers SAR signal 1.00 vs optical-only 0.50 — SANITY"
     evidence_level: reproduced
     status: KEEP FOR TOURNAMENT   # CROMA challenger; decide in EXP-004 Run 2
     fallback: "croma"
