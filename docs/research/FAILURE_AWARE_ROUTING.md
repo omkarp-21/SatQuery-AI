@@ -74,7 +74,7 @@ A fallback result is never presented as equivalent to the primary — it carries
 |------|-------|
 | 1. post-execution qualifier in `/analyze` aggregation (pure fn of `verify()` + `verify_semantic()` + sub `ok`) | **DONE (G8)** — `derive_resolution()`, additive `resolution` field on `AnalyzeResult`; 6 qualifiers |
 | 2. single-step fallback in `analyze.py` dispatch | **DONE (G8)** — `TEMPORAL` path: ChangeFormer fail → one call to `run_change_fallback` (image-difference + threshold, same geo-gate) → `SPECIALIST_DEGRADED` |
-| 3. `LOW_MARGIN` advisory on composed-baseline regions | **TODO** — small, additive; do with the C work |
+| 3. `LOW_MARGIN` advisory on composed-baseline regions | **DONE (G9)** — `ChangeRegion.tag_margin` / `.low_margin` (rank-1 minus rank-2 < 0.05); `/analyze` counts them → `resolution.advisories` (non-blocking; the answer is still surfaced) |
 | 4. tests | **DONE (G8)** — 10 (`test_failure_aware.py`): one per qualifier, determinism, "not a confidence", fallback rejects misregistered pair, fallback produces a mask + verification |
 | 5. `docs/API_CONTRACT.md` — qualifier + `disputed` shape | **DONE (G8)** |
 | `independent_model` / `optical_sar` disagreement qualifiers | **BLOCKED** — need EXP-002 + EXP-C2 |

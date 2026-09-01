@@ -76,6 +76,21 @@ def test_qualifier_is_not_a_confidence():
     assert "NOT a confidence" in r.note
 
 
+def test_low_margin_is_advisory_not_blocking():
+    vr = verify({}, [_mask_ev(0.25)], {"pair_co_registered": True})
+    r = derive_resolution(sub_ok=True, verification=vr, low_margin_regions=3)
+    # RESULT_OK is unchanged; the answer is still surfaced; the flag is an advisory
+    assert r.qualifier == "RESULT_OK"
+    assert r.answer_surfaced is True
+    assert r.advisories and "LOW_MARGIN: 3 region" in r.advisories[0]
+
+
+def test_no_low_margin_means_no_advisory():
+    vr = verify({}, [_mask_ev(0.25)], {"pair_co_registered": True})
+    r = derive_resolution(sub_ok=True, verification=vr, low_margin_regions=0)
+    assert r.advisories == []
+
+
 # ---------- image-difference fallback ----------
 def test_fallback_rejects_misregistered_pair():
     from app.services.temporal_slice import run_change_fallback

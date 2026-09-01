@@ -156,6 +156,12 @@ a deterministic post-execution qualifier: a pure function of `verify()` +
 | `SPECIALIST_DEGRADED` | a declared fallback produced the result | true (`fallback_used` set) |
 | `SPECIALIST_FAILED` | sub-service `ok:false` and no fallback helped | **false** |
 
+`resolution.advisories[]` — non-blocking flags that never withhold an answer.
+Currently: `LOW_MARGIN: N region tag(s) with rank-1 margin < 0.05` (composed
+semantic-change baseline; per-region `tag_margin` / `low_margin` are on each
+`ChangeRegion`). `RESULT_OK` with a `LOW_MARGIN` advisory still surfaces the
+answer — the weak tags are flagged, not dropped.
+
 **Single-step fallback (deterministic, no loop):** for the `TEMPORAL` change path,
 if the ChangeFormer adapter cannot run, `/analyze` falls back **once** to
 `image_difference_fallback` (abs mean-RGB difference + fixed threshold; same

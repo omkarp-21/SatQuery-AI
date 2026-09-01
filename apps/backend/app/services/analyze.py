@@ -174,6 +174,7 @@ def run_analyze(
     # --- dispatch ---
     sem_vr = None
     fallback_used: str | None = None
+    low_margin_n = 0
     try:
         if decision.code == "SINGLE_IMAGE_SCENE":
             prompts = ctx.get("prompts") or ["urban area", "farmland", "forest", "water body",
@@ -184,6 +185,7 @@ def run_analyze(
             sub = run_composed_semantic_change(paths[0], paths[1], checkpoint_dir=_CF_CKPT)
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
             sem_vr = sub.semantic_verification
+            low_margin_n = sum(1 for r in sub.regions if r.low_margin)
         elif decision.code == "TEMPORAL":
             sub = run_change_slice(paths[0], paths[1], checkpoint_dir=_CF_CKPT, strict=True)
             # failure-aware single-step fallback: the pair is already co-registered
@@ -208,6 +210,7 @@ def run_analyze(
     resolution = derive_resolution(
         sub_ok=bool(payload.get("ok", True)), verification=vr,
         semantic_verification=sem_vr, fallback_used=fallback_used,
+        low_margin_regions=low_margin_n,
     )
 
     agg_prov = {

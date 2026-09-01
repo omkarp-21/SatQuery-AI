@@ -4,7 +4,7 @@
 > reached, with the artifact that proves it. Never promote a row without a real
 > run. Levels: `PAPER-REPORTED < DOCUMENTED < REPRODUCED < MEASURED < INTEGRATED
 > < VALIDATED`.
-> Updated: **2026-09-01 (G8)**.
+> Updated: **2026-09-01 (G9)**.
 
 ## Level definitions
 
@@ -58,7 +58,7 @@
 | Semantic verification — label correctness | **NONE — residual gap sized** (G7) | **EXP-005b**: BEYOND_SCOPE miss rate **1.00** (6/6). Needs `independent_model_agreement` (EXP-002) + `optical_sar_agreement` (EXP-C2). `coverage_unavailable` names them. |
 | Semantic-change crop strategy (`crop_strategy=`) | **experimental — behaviour measured** (G6) | **EXP-003b**: tight/expanded/mask_aware on the demo pair, 3-way agreement 4/6 regions; `expanded` provisional default (not changed in code). Not a learned VLM. |
 | Constrained router (`satquery_core.routing`) | **INTEGRATED** (G4) | deterministic; called by `POST /analyze`; 8 tests + `ROUTING_SPEC.md` |
-| Failure-aware routing (`derive_resolution` + `image_difference_fallback`) | **INTEGRATED** (G8) | pure deterministic qualifier (6 states) fn of `verify()` + `verify_semantic()` + sub status; single-step fallback; additive `resolution` field on `/analyze`; 10 tests; `FAILURE_AWARE_ROUTING.md`, `API_CONTRACT.md`. No loop, no confidence. |
+| Failure-aware routing (`derive_resolution` + `image_difference_fallback`) | **INTEGRATED** (G8; `LOW_MARGIN` advisory G9) | pure deterministic qualifier (6 states) fn of `verify()` + `verify_semantic()` + sub status; single-step fallback; non-blocking `advisories` (`LOW_MARGIN`); additive `resolution` field on `/analyze`; 13 tests; `FAILURE_AWARE_ROUTING.md`, `API_CONTRACT.md`. No loop, no confidence. |
 | `POST /analyze` unified layer | **INTEGRATED** (G4) | `test_analyze_api.py` (13) — interpret→validate→route→specialist→aggregate; observable routing info; VQA blocked, bad pair blocked |
 | `COMPOSED_SEMANTIC_CHANGE_BASELINE` (capability C) | **INTEGRATED — experimental baseline** (G4; crop strategy measured G6) | `test_semantic_change_baseline.py` (7); mask→components→crop-tag→rule description; disclaimed; `crop_strategy` ∈ {tight,expanded,mask_aware} — EXP-003b |
 | Geospatial safeguards (EXP-007) | **VALIDATED** (G4) | 15/15 stress cases pass; `docs/research/EXP-007.md`; not weakened |

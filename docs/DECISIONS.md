@@ -5,6 +5,39 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-017 — G9: `LOW_MARGIN` advisory added to failure-aware routing; remote batches (A/B/D/E) still blocked on human provisioning; stack NOT frozen — the loop stops here until a machine exists
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G9 repeated the G5A–G8 request: provision a remote GPU, run the
+  blocked batches, freeze the stack. **Provisioning a cloud GPU machine is not an
+  action this session can perform** — it needs a cloud account, billing, and SSH
+  keys held by the user. This has been the identical blocker for five gates. All
+  local, unblocked work is done (G6 EXP-005 + crop strategy; G7 EXP-005b semantic
+  verifier + evidence pack; G8 failure-aware routing). G9's only remaining
+  unblocked item was `LOW_MARGIN` (Phase 9), which needs no second model.
+- **Built (real, local):** `ChangeRegion.tag_margin` / `.low_margin` (RemoteCLIP
+  rank-1 minus rank-2 similarity < 0.05) on the composed semantic-change baseline;
+  `derive_resolution(..., low_margin_regions=N)` emits a non-blocking
+  `resolution.advisories` entry (`LOW_MARGIN: N region tag(s) ...`). The answer is
+  still surfaced — weak tags are flagged, not dropped. 3 new tests
+  (`test_failure_aware.py`, `test_semantic_change_baseline.py`). `API_CONTRACT.md`
+  + `FAILURE_AWARE_ROUTING.md` updated (step 3 DONE).
+- **Still blocked — provisioning only:** EXP-002 (A/B), EXP-004 Run 2 (D),
+  EXP-008 (E), EXP-C1/C2 (confidence), the `independent_model` / `optical_sar`
+  disagreement qualifiers, and the model freeze (Phase 11 precondition unmet).
+- **Decision — stop re-running the remote-execution loop in-session.** Producing
+  another "still blocked" gate report adds no evidence. The next move is the
+  user's: provision one Linux GPU box per `docs/deployment/REMOTE_GPU_SETUP.md`
+  and run the three committed batch scripts. Everything downstream (selection,
+  adapter integration, freeze, EXP-C1) is then a single focused session.
+- **Consequence (118 → 121 tests; two additive `ChangeRegion` fields + one
+  `ResolutionInfo` field, no contract break, no new deps/repos, no confidence
+  value):** `semantic_change_baseline.py`, `failure_aware.py`, `analyze.py`;
+  `test_failure_aware.py` (+3), `test_semantic_change_baseline.py` (+1);
+  `API_CONTRACT.md`, `FAILURE_AWARE_ROUTING.md`, `PROJECT_STATUS.md`,
+  `EVIDENCE_LEDGER.md`.
+
 ## ADR-016 — G8: failure-aware routing IMPLEMENTED (post-execution qualifier + single-step image-difference fallback); remote experiments still unrunnable in-session; stack NOT frozen
 
 - **Date:** 2026-09-01

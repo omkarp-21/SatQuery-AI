@@ -30,6 +30,7 @@ class ResolutionInfo(BaseModel):
     answer_surfaced: bool
     disputed: bool = False
     reasons: list[str] = []
+    advisories: list[str] = []  # non-blocking flags (e.g. LOW_MARGIN) - never withhold on these
     fallback_used: str | None = None
     structural_status: str | None = None
     semantic_status: str | None = None
@@ -45,11 +46,18 @@ def derive_resolution(
     verification: VerificationResult | None,
     semantic_verification: SemanticVerificationResult | None = None,
     fallback_used: str | None = None,
+    low_margin_regions: int = 0,
 ) -> ResolutionInfo:
     v = verification.status if verification else None
     s = semantic_verification.status if semantic_verification else None
+    advisories: list[str] = []
+    if low_margin_regions > 0:
+        advisories.append(
+            f"LOW_MARGIN: {low_margin_regions} region tag(s) with rank-1 margin < 0.05 "
+            "- treat those tags as weak"
+        )
     common: dict[str, Any] = {"structural_status": v, "semantic_status": s,
-                              "fallback_used": fallback_used}
+                              "fallback_used": fallback_used, "advisories": advisories}
 
     if not sub_ok and not fallback_used:
         return ResolutionInfo(qualifier="SPECIALIST_FAILED", answer_surfaced=False,

@@ -62,6 +62,7 @@ _MIN_REGION_PX = 64  # ignore specks
 CropStrategy = Literal["tight", "expanded", "mask_aware"]
 _CONTEXT_PAD_FRAC = 0.75          # pad each side by 75% of the bbox extent
 _MASK_AWARE_DIM = 0.35           # multiply non-changed pixels by this in mask_aware mode
+_LOW_MARGIN = 0.05              # rank-1 minus rank-2 similarity below this -> low_margin advisory
 
 
 class ChangeRegion(BaseModel):
@@ -72,6 +73,8 @@ class ChangeRegion(BaseModel):
     bbox_lonlat: tuple[float, float, float, float] | None = None
     top_tag: str | None = None
     tag_ranking: list[list[Any]] = []
+    tag_margin: float | None = None   # rank-1 minus rank-2 similarity
+    low_margin: bool = False          # tag_margin < _LOW_MARGIN (advisory, not a confidence)
 
 
 class ComposedSemanticChangeResult(BaseModel):
@@ -187,6 +190,11 @@ def run_composed_semantic_change(
                                             context={"task": "zero-shot-classification"}))
                 reg.top_tag = res.answer["top_label"]
                 reg.tag_ranking = res.answer["ranking"][:3]
+                if len(reg.tag_ranking) >= 2:
+                    reg.tag_margin = round(
+                        float(reg.tag_ranking[0][1]) - float(reg.tag_ranking[1][1]), 4
+                    )
+                    reg.low_margin = reg.tag_margin < _LOW_MARGIN
                 region_evidence.append(EvidenceItem(
                     evidence_id=new_evidence_id("ev-region"),
                     source_model="remoteclip", task="zero-shot-classification",

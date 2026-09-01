@@ -67,6 +67,17 @@ def test_result_model_exposes_semantic_verification_field():
     assert ComposedSemanticChangeResult(ok=False).semantic_verification is None
 
 
+def test_change_region_has_low_margin_advisory_fields():
+    from app.services.semantic_change_baseline import ChangeRegion
+
+    reg = ChangeRegion(region_id=1, area_px=100, bbox_pixel=(0, 0, 10, 10))
+    assert reg.low_margin is False and reg.tag_margin is None  # advisory defaults
+    reg.tag_ranking = [["a", 0.9], ["b", 0.88]]
+    # the field is populated by the service; here we just confirm the schema carries it
+    assert "tag_margin" in ChangeRegion.model_fields
+    assert "low_margin" in ChangeRegion.model_fields
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(not _ENV, reason="changeformer/remoteclip/demo absent")
 def test_semantic_verification_runs_on_happy_path():
