@@ -5,6 +5,53 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-011 — Lightweight Model Replacement Audit: RSCoVLM-3B is the primary single-image arm; EarthDial-4B replaces TEOChat as the remote SAR/temporal VLM
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** Audit — can the heavyweight critical-path RS-VLMs (GeoChat 7B,
+  TEOChat 7B) be replaced by lighter, more reproducible models without losing
+  mandatory SIH capability (single-image VQA / grounding / captioning, RS
+  adaptation, 4 GB feasibility)? Scope-guarded: no architecture change, no new
+  repos cloned, only five named candidates inspected (RSCoVLM, SkyEyeGPT,
+  EarthDial, Qwen2-VL, ISRO-GeoNLI), compared vs TinyRS + GeoChat. Capabilities
+  taken from released artifacts / model cards only — **not** paper titles. No
+  bulk checkpoint downloads. Full write-up: `docs/research/LIGHTWEIGHT_AUDIT.md`.
+- **Findings (all still #1 DOCUMENTED — no #2 reproduction produced):**
+  - **RSCoVLM** (`Qingyun/rscovlm`, VisionXLab) — RS multi-task VLM (VQA +
+    grounding + captioning), **MIT** code / CC-BY-4.0 data, released **3B** + 7B
+    (card: "3B outperforms 7B"), active repo (~35 commits, arXiv 2511.21272).
+    Fits 4 GB **only at 4-bit** (quantisation undocumented). → **primary** arm.
+  - **EarthDial** (`akshaydudhane/EarthDial_4B_*`) — InternVL2 + Phi-3-Mini
+    **4B**, **MIT code + weights**, natively adds **SAR + bi/multi-temporal +
+    grounding + captioning**. Too heavy for 4 GB fp16. → replaces **TEOChat** as
+    the first VLM to run on a remote box for the C/D-language arms (also lifts
+    TEOChat's non-commercial-licence problem).
+  - **Qwen2-VL-2B-Instruct** — Apache-2.0, native bbox grounding, runs anywhere
+    at 4-bit. → the **generic control** (value-of-RS-adaptation baseline), not an
+    RS answer.
+  - **SkyEyeGPT** — ~7B, released weights but **no inference recipe** (README
+    "coming soon"), licence unstated. → **BLOCKED**.
+  - **ISRO-GeoNLI** — a FastAPI **wrapper** over Qwen3-VL + SAM3, 36 GB+ VRAM, no
+    own checkpoint. → **REJECT** (reference architecture only; ≈ what `/analyze`
+    already is).
+  - **TinyRS-2B** — stays the **fallback** (smaller, surer 4 GB fit); weight
+    download **BLOCKED** from this host (5th attempt in the audit: 11/12 files,
+    the 4.4 GB shard again did not complete).
+- **Decision:** revise the **EXP-002** candidate set — primary **RSCoVLM-3B**,
+  fallback **TinyRS-2B**, control **Qwen2-VL-2B**, ceiling **GeoChat** (+
+  **EarthDial-4B** on the remote box). Attempt the local **4-bit** RSCoVLM-3B /
+  TinyRS-2B path *first* (one bounded download each) before renting a GPU — the
+  blocker is download reliability, not compute. Nothing enters
+  `model_registry.yaml` `models:` until a #2 reproduction clears the EXP-002
+  threshold (VQA bal-acc ≥ 0.60, grounding acc@0.5 ≥ 0.30, CPU ≤ 45 s/query).
+- **Consequence:** `docs/research/LIGHTWEIGHT_AUDIT.md` (new); `EXP-002.md`
+  candidate set + attempt log updated; `model_registry.yaml` `excluded:` block
+  rewritten with measured statuses (`rscovlm`, `earthdial_4b`, `qwen2_vl_2b`,
+  `skyeyegpt`, `isro_geonli`; `rscovlm_3b` key renamed `rscovlm`). No code, no
+  architecture change, no new repositories, no confidence value, no fabricated
+  numbers.
+
 ## ADR-010 — G4: unified `POST /analyze`, composed semantic-change baseline; measurement backlog now needs a remote box
 
 - **Date:** 2026-09-01

@@ -39,6 +39,7 @@
 | **G4 · confidence plan** | `docs/research/CONFIDENCE_PLAN.md` — candidate sources + required experiments (EXP-005, EXP-C1, EXP-C2). **No confidence number emitted anywhere.** |
 | **G4 · EXP-002 / EXP-004 Run 2 / EXP-008** | **BLOCKED — artifact/dataset acquisition fails from this host** (TinyRS 4 attempts <1 MB/s; DFC 11 GB / So2Sat 7 GB / EuroSAT-SAR 922 MB all too large). **Remote GPU now justified on infrastructure grounds.** |
 | **G4 · tests** | **92 passed, 0 failed** (baseline 59). No regressions. |
+| **Lightweight Model Replacement Audit** | `docs/research/LIGHTWEIGHT_AUDIT.md` (ADR-011). 5 candidates inspected from released artifacts (not paper titles), compared vs TinyRS + GeoChat. **RSCoVLM-3B** (MIT, `Qingyun/rscovlm`, RS multi-task VQA+grounding+caption) → **primary** EXP-002 arm; **TinyRS-2B** fallback; **Qwen2-VL-2B** generic control; **EarthDial-4B** (MIT weights, +SAR +temporal) replaces TEOChat as the remote SAR/temporal VLM; **SkyEyeGPT** BLOCKED (no inference recipe); **ISRO-GeoNLI** REJECT (wrapper, 36 GB). All still **#1 DOCUMENTED** — no reproduction. TinyRS download failed a **5th** time (11/12 files; 4.4 GB shard incomplete). `model_registry.yaml` `excluded:` block updated. **No new repos, no code, no fabricated numbers.** |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -102,8 +103,12 @@ A/D/E.**
   the first candidate to evaluate; DOFA alt; MaRS watch-item (release unverified).
 - ~~BigEarthNet access~~ → **reBEN / BigEarthNet v2** on Zenodo `10891137` (S1+S2,
   19-class multilabel, 549 k patches — use a **subset**).
-- ~~Best grounding / lightweight VQA model~~ → **TinyRS** (Qwen2-VL-2B, Apache-2.0,
-  HF) as the local option; GeoChat/TEOChat need a GPU box.
+- ~~Best grounding / lightweight VQA model~~ → **RSCoVLM-3B** (MIT, `Qingyun/rscovlm`,
+  RS multi-task) is the primary local arm at 4-bit; **TinyRS-2B** fallback;
+  **Qwen2-VL-2B** generic control; **EarthDial-4B** (MIT weights, +SAR +temporal)
+  for the remote box in place of TEOChat; GeoChat = ceiling. See
+  `docs/research/LIGHTWEIGHT_AUDIT.md` (ADR-011). Still #1 DOCUMENTED — EXP-002
+  reproduction pending (blocked on multi-GB download from this host).
 - ~~GPU environment decision~~ → **one cloud Linux GPU ≥16 GB** (24 ideal) unblocks
   GeoChat + TEOChat + (with conda) Change-Agent. Don't provision until EXP-004/EXP-E
   (local) are done.

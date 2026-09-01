@@ -71,18 +71,26 @@ what we measured, what we decided.
 ## EXP-002 — Candidate single-image RS-VLM comparison
 
 - Status: **BLOCKED — artifact acquisition (`docs/research/EXP-002.md`).** TinyRS
-  weight download failed **4 times** (G2.5–G4): `ChunkedEncodingError` ×2, DNS
-  failure, `hf_transfer`+resume (8 min → 134 MB, < 1 MB/s). **N=0.** RSCoVLM-3B not
-  attempted (larger file, same HF infra). **→ Remote Linux GPU box now justified**
-  on infrastructure grounds (bandwidth + GPU for the 7B VLMs).
+  weight download failed **5 times** (G2.5–G4 + the Lightweight Model Replacement
+  Audit): `ChunkedEncodingError` ×2, DNS failure, `hf_transfer`+resume (8 min →
+  134 MB), and (audit, 2026-09-01) `snapshot_download` 240 s → 11/12 files, the
+  4.4 GB shard again incomplete. **N=0.** **→ Remote Linux GPU box justified** on
+  infrastructure grounds; but attempt the local 4-bit path first (blocker is
+  download reliability, not compute).
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?
-- Models / methods (G1.6): **TinyRS / TinyRS-R1** (`aybora/Qwen2-VL-TinyRS*`, 2B,
-  Apache-2.0) **vs RSCoVLM-3B** (Qwen2.5-VL-3B, MIT) — both **local**, 4-bit/CPU.
-  Remote arm (only if both fail the threshold): **GeoChat** on a rented GPU ≥16 GB.
-  RemoteCLIP zero-shot as the scene-classification reference. RS-MoE **excluded** —
-  no released weights.
+- Models / methods (**revised by the Lightweight Model Replacement Audit,
+  2026-09-01 — `docs/research/LIGHTWEIGHT_AUDIT.md`, ADR-011**):
+  **PRIMARY = RSCoVLM-3B** (`Qingyun/rscovlm`, Qwen2.5-VL-3B, MIT code / CC-BY-4.0
+  data — RS multi-task VQA + grounding + captioning; 4 GB only at 4-bit).
+  **FALLBACK = TinyRS-2B** (`aybora/Qwen2-VL-TinyRS`, Apache-2.0; surer 4 GB fit;
+  download BLOCKED). **CONTROL = Qwen2-VL-2B-Instruct** (Apache-2.0, generic,
+  native bbox grounding — value-of-RS-adaptation baseline). **CEILING = GeoChat**
+  (+ **EarthDial-4B**, `akshaydudhane/EarthDial_4B_*`, MIT code+weights, +SAR
+  +temporal) on a rented GPU ≥16 GB. **Rejected:** SkyEyeGPT (no inference recipe),
+  ISRO-GeoNLI (wrapper, 36 GB), RS-MoE (no weights). RemoteCLIP zero-shot as the
+  scene-classification reference.
 - Dataset: an **RSVQA-LR** sample for VQA; a **DIOR-RSVG** sample for grounding
   (capability B). Held-out; check overlap with each model's instruction data.
 - Metric: VQA accuracy; grounding acc@IoU0.5; measured p50/p95 latency (4-bit CPU
@@ -216,7 +224,7 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | **BLOCKED** — weights unfetchable (4 dl attempts); remote GPU justified | — |
+| EXP-002 | single-image VLM bake-off — **RSCoVLM-3B** primary / TinyRS-2B fallback / Qwen2-VL-2B control (local), GeoChat + EarthDial-4B ceiling (remote) | selection | **BLOCKED** — weights unfetchable (5 dl attempts); candidate set revised by the Lightweight Audit (ADR-011); try local 4-bit first | — |
 | EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
 | **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | Run 1 (synthetic sanity) done; **Run 2 BLOCKED** — no acquirable S1+S2 set | — |
 | EXP-005 | unverified vs verified | H4 | PLANNED | — |
