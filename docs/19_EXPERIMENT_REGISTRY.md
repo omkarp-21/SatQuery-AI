@@ -1,10 +1,10 @@
 # SatQuery Experiment Registry
 
 > Status: **Active — binding** · Owner: _TBD_ · Last updated: 2026-09-01
-> Every experiment gets an ID. Nothing here is measured yet — all entries are
-> **PLANNED**. Results are filled in only from real runs (see
-> [`18_RESEARCH_TO_ACCURACY.md`](18_RESEARCH_TO_ACCURACY.md) and
-> `docs/11_EVALUATION_PLAN.md`). Do not invent numbers.
+> No experiment has a **benchmark** result yet. EXP-004 Run 1 is a *synthetic
+> sanity check* (labelled as such); ChangeFormer's IoU 0.83 (n=7) is a
+> *reproduction sanity*, not a benchmark. Results are filled only from real runs
+> (see [`18_RESEARCH_TO_ACCURACY.md`](18_RESEARCH_TO_ACCURACY.md)). Do not invent numbers.
 > The canonical set of seven experiments is defined in `chatgpt.context.md` §11.
 
 ## Why this file exists
@@ -70,9 +70,11 @@ what we measured, what we decided.
 
 ## EXP-002 — Candidate single-image RS-VLM comparison
 
-- Status: **RUNNING (setup)** — `docs/research/EXP-002.md`. `.venvs/tinyrs` +
-  transformers 4.49 built; usability threshold fixed; TinyRS weight download flaky
-  (HF `ChunkedEncodingError`), resuming. **N=0.** RSCoVLM-3B not started.
+- Status: **TEST FURTHER — blocked on artifact acquisition** (`docs/research/EXP-002.md`).
+  `.venvs/tinyrs` + transformers 4.49 + hf_xet built; usability threshold fixed.
+  TinyRS weights failed to download 3× (`ChunkedEncodingError` ×2, DNS fail, hf_xet
+  inconclusive) over ~50 min. **N=0.** Not a capability/compute blocker. RSCoVLM-3B
+  not attempted. Next: `hf_hub_download` per-file + `resume_download` on a stable link.
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?
@@ -214,7 +216,7 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | **RUNNING (setup, N=0)** | — |
+| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | RUNNING (setup); artifacts blocked, N=0 | TEST FURTHER |
 | EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
 | **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **PARTIAL — Run 1 sanity done; Run 2 pending** | — |
 | EXP-005 | unverified vs verified | H4 | PLANNED | — |

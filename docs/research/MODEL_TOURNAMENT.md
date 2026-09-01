@@ -14,11 +14,14 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
-Current: 4 models REPRODUCED (RemoteCLIP, ChangeFormer, CROMA, DOFA). ChangeFormer
-has one MEASURED point (n=7) **and is now INTEGRATED** — it runs inside the G2
-temporal vertical slice via a subprocess adapter with provenance
-(`apps/backend/app/services/temporal_slice.py`). Not yet VALIDATED (no benchmark
-under our eval).
+Current (post-G2.5): 4 models REPRODUCED (RemoteCLIP, ChangeFormer, CROMA, DOFA),
+**all 4 now behind the standard `SpecialistAdapter` interface** (`validate / execute /
+normalize_output / provenance`) with subprocess isolation + smoke tests.
+**ChangeFormer + RemoteCLIP are INTEGRATED** — ChangeFormer runs inside `POST /change`
+(`apps/backend/app/api/change.py` → `run_change_slice`); RemoteCLIP `run()` works via
+its adapter. CROMA/DOFA adapters return embeddings (need a downstream head). Nothing
+is VALIDATED (no benchmark under our eval). Registry: `model_registry.yaml` v2,
+measured facts. Full ledger: `EVIDENCE_LEDGER.md`.
 
 ---
 

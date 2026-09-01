@@ -5,6 +5,51 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-008 — G2.5: standard SpecialistAdapter interface, 4 adapters, measured-facts registry, `POST /change` API
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G2.5 = "transform validated research components into the beginnings
+  of a real SatQuery system." Tracks: adapters (4), registry, first API; plus
+  EXP-002 / EXP-004 Run 2 / EXP-008.
+- **Built:**
+  - **`SpecialistAdapter` interface** (`packages/model_adapters/base.py`) — class
+    facts (`name/version/source_repo/license/capabilities/modalities`) + the four
+    methods `validate() / execute() / normalize_output() / provenance()` + a `run()`
+    template. `_bridge.py` centralizes the subprocess plumbing.
+  - **4 adapters** — ChangeFormer, RemoteCLIP, CROMA, DOFA — each `execute()`s a
+    `scripts/research/*_infer.py` bridge inside its own `.venvs/<model>`; **no
+    research-repo import in product code**. Smokes pass (RemoteCLIP → airport
+    0.989; CROMA/DOFA → dim-768; ChangeFormer via the API path).
+  - **`model_registry.yaml` v2** — measured facts per model (env, checkpoint size,
+    latency, params, licence, `evidence_level`, `status`) + `ADAPTERS` map +
+    `routing` table (rule-over-registry; VQA/grounding/semantic-change rows empty
+    and honest).
+  - **`POST /change`** (`apps/backend/app/api/change.py`, wired into `main.py`) —
+    `{t1_path,t2_path}` → validate → co-reg gate → ChangeFormer adapter → mask →
+    area/bbox/centroid → provenance → JSON. Path-traversal + 404 + 503 guards.
+    `test_change_api.py`. **33/33 tests pass.**
+  - **`docs/research/EVIDENCE_LEDGER.md`** — one row per model×claim at its highest
+    real level.
+- **Not completed (honest):**
+  - **EXP-002** — TinyRS weights failed to download 3× (`ChunkedEncodingError`
+    ×2, DNS fail ×1, hf_xet inconclusive) over ~50 min. **TEST FURTHER — blocked
+    on artifact acquisition**, not capability/compute. RSCoVLM-3B not attempted
+    (same HF infra, larger file).
+  - **EXP-004 Run 2** — needs a small labelled S1+S2 set; the smallest preprocessed
+    real option (`DFC_preprocessed.pt`) is 11 GB. Run 1 (synthetic sanity) stands.
+  - **EXP-008** — gated on EXP-004 Run 2 picking an encoder.
+- **Decisions:** subprocess-adapter pattern is the standard for every research
+  model; the registry stores only measured facts; the co-reg gate is a hard
+  precondition (`strict=True` default) in both the slice and the API; **no
+  confidence value is emitted anywhere** until a method is chosen and calibrated;
+  **remote GPU still not justified** — nothing this session needed it; **no new
+  repositories, no agent, no polished frontend.**
+- **Consequence:** new `.venvs/{satquery,tinyrs}`; `apps/backend/app/api/change.py`,
+  `packages/model_adapters/{base,_bridge,changeformer,remoteclip,croma,dofa}.py`,
+  3 new bridge scripts, tests. FastAPI ≥0.115 `include_router` is lazy — routes
+  resolve via TestClient though `app.routes` shows `_IncludedRouter`.
+
 ## ADR-007 — G2: geospatial + temporal vertical slices; ChangeFormer adapter via subprocess; EXP-004 machinery validated on a synthetic control
 
 - **Date:** 2026-09-01

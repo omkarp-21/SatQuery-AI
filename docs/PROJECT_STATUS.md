@@ -20,7 +20,12 @@
 | **G2 · Track C — geospatial vertical slice** | `packages/geospatial/{raster,validation,errors}.py` + 13 passing tests. `validate_geotiff` (format/dims/CRS/transform/bounds/bands/NoData) + `check_pair_compatibility` (co-registration gate). `.venvs/satquery`. |
 | **G2 · Track D — temporal vertical slice (real end-to-end)** | `scripts/research/changeformer_infer.py` bridge + real `ChangeFormerAdapter` (subprocess to `.venvs/changeformer`, no repo import) + `apps/backend/app/services/temporal_slice.py`. T1/T2 GeoTIFF → validate → co-reg → ChangeFormer → mask → area/bbox/centroid → `ChangeSliceResult` + provenance. Demo pair `data/demo/temporal/`; 4 fast + 2 slow tests pass; changed_fraction **0.2526** matches G1 `demo_LEVIR.py`. Misregistered pairs blocked by the gate. **No confidence value produced.** |
 | **G2 · Track B — EXP-004 controlled sanity check** | `docs/research/EXP-004.md`. 3-arm probe on real CROMA + DOFA encoders (synthetic paired S1/S2, N=240/160, seed 20260901, CPU): SAR-only signal recovered by CROMA-joint & DOFA-fused (1.00), at chance for optical-only (~0.49). **Directional H3 signal — NOT a benchmark** (no S1+S2 labelled set: DFC2020 = 11 GB). |
-| **G2 · Track A — EXP-002 setup** | `docs/research/EXP-002.md`. `.venvs/tinyrs` + transformers 4.49 built; TinyRS weights downloading; usability threshold fixed. **N=0** — no VQA/grounding numbers yet. |
+| **G2 · Track A — EXP-002 setup** | `docs/research/EXP-002.md`. `.venvs/tinyrs` + transformers 4.49 built; usability threshold fixed. **N=0.** |
+| **G2.5 · adapters** | Standard `SpecialistAdapter` interface (`validate / execute / normalize_output / provenance` + `run()` template). Real adapters for **ChangeFormer, RemoteCLIP, CROMA, DOFA** — all subprocess to `.venvs/<model>` via `scripts/research/*_infer.py`; no research-repo imports. Smoke tests pass (RemoteCLIP → airport 0.989; CROMA/DOFA → dim-768 embeddings). |
+| **G2.5 · model registry** | `packages/model_adapters/model_registry.yaml` v2 — measured facts per model (env, checkpoint size, latency, params, licence, **evidence_level**, status). `ADAPTERS` name→class map + `routing` table (rule-over-registry). |
+| **G2.5 · first API — `POST /change`** | `apps/backend/app/api/change.py` wired into `main.py`. `{t1_path,t2_path}` → validate → co-reg gate → ChangeFormer adapter → mask → area/bbox/centroid → provenance → JSON. Path-traversal + 404 + model-unavailable guards. `test_change_api.py`: happy path 200 + structured body; **33/33 tests pass**. |
+| **G2.5 · EXP-002** | **TEST FURTHER — blocked on artifact acquisition.** 3 download attempts (2× `ChunkedEncodingError`, 1 DNS fail, hf_xet inconclusive) over ~50 min; TinyRS safetensors never completed. Not a capability/compute blocker. |
+| **G2.5 · EVIDENCE_LEDGER.md** | new — one row per model×claim at its highest real level. |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -28,9 +33,12 @@
 | Package skeletons (`pyproject.toml`, src layout) + adapter stubs | `python -m py_compile` passes; adapters raise `NotImplementedError` |
 | `model_registry.yaml` with capability + routing entries | file present; dotted paths resolve to `satquery_model_adapters.*` |
 
-**First real end-to-end backend path exists** (G2 Track D: GeoTIFF pair → validated
-→ ChangeFormer via adapter → change mask + spatial stats + provenance). Still **no
-agent, no UI, no confidence value, and no measured optical–SAR / VQA task number.**
+**First SatQuery API exists** — `POST /change` (GeoTIFF pair → validated → co-reg
+gate → ChangeFormer adapter → mask → area/bbox → provenance → JSON), 4 models
+behind a standard `SpecialistAdapter` interface, registry with measured facts.
+Still **no agent, no UI, no confidence value, and no *measured benchmark* number for
+A/D/E.**
+
 
 ---
 
@@ -117,7 +125,9 @@ reproduction / SatQuery.
 | RemoteCLIP-ViT-B-32 zero-shot | correct (97.8% top-1) | `assets/airport.jpg` | n=1 | 2026-09-01 | **reproduction** | official example; not a benchmark |
 | RemoteCLIP inference latency | ~150 ms/query | — | — | 2026-09-01 | measured (host) | CPU, warm, ViT-B-32, 1 img + ~4 prompts |
 | ChangeFormer inference latency | ~790 ms / 256² pair | — | — | 2026-09-01 | measured (host) | CPU; ~1–2 OOM faster expected on GPU |
-| **Temporal slice e2e (demo pair)** | changed_fraction **0.2526**, area 4138 m² / 0.414 ha | LEVIR sample `test_2_0000_0000` wrapped as EPSG:32650 GeoTIFF pair | n=1 pair | 2026-09-01 | **integrated (SatQuery path)** | matches G1 `demo_LEVIR.py` (25.3%); via `run_change_slice` + real adapter; **not a benchmark** |
+| **Temporal slice / `POST /change` e2e (demo pair)** | changed_fraction **0.2526**, area 4138 m² / 0.414 ha, change bbox + centroid | LEVIR sample `test_2_0000_0000` wrapped as EPSG:32650 GeoTIFF pair | n=1 pair | 2026-09-01 | **integrated (SatQuery API path)** | matches G1 `demo_LEVIR.py` (25.3%); via `/change` → `run_change_slice` → `ChangeFormerAdapter`; **not a benchmark** |
+| RemoteCLIP adapter smoke (via `run()`) | top = "an airport", score 0.989 | `assets/airport.jpg`, 3 prompts | n=1 | 2026-09-01 | **reproduction (integrated path)** | score = softmax over given prompts, not calibrated |
+| CROMA / DOFA adapter smoke | dim-768 embeddings, finite | random tensors | n/a | 2026-09-01 | **reproduction (integrated path)** | representations only; no task metric |
 | **EXP-004 sanity: SAR-only signal recovery** | optical-only 0.485/0.502 (chance) · CROMA-joint 1.00 · DOFA-fused 1.00 | **synthetic** paired S1/S2, controlled injected signal | train 240 / test 160, seed 20260901 | 2026-09-01 | **sanity check — NOT a benchmark** | validates the 3-arm probe machinery + directional H3; real DFC2020/reBEN run pending |
 | CROMA-base reproduced | official example OK (joint SAR+optical embeddings, shapes correct, finite) | random S1/S2 tensors | n/a | 2026-09-01 | **reproduction** | CPU `.venvs/croma`; 194 M params; NOT measured on a task |
 | CROMA-base latency | ~340 ms/sample (joint forward) | — | — | 2026-09-01 | measured (host) | CPU, batch 8 |
@@ -145,16 +155,17 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **Finish EXP-004 Run 2 (real benchmark)** — download `DFC_preprocessed.pt`
-   *once* (11 GB, use the 8 874-patch **val split only**), run the same 3-arm
-   frozen-feature linear probe → first **measured** SAR delta (gap D, H3). Then
-   EXP-008 (gap E) on the winning encoder. **Local.**
-2. **Finish EXP-002** — TinyRS weight download is flaky; resume it, run a 3–5
-   question smoke, then the 30–50 RSVQA-LR + 20–30 DIOR-RSVG sample vs the fixed
-   usability threshold. RSCoVLM-3B next. Decide local VLM or open the remote gate.
-3. **Wrap RemoteCLIP + CROMA + DOFA as adapters** (ChangeFormer adapter done in
-   G2), populate `model_registry.yaml` with measured facts, and lift the temporal
-   slice into a `/change` endpoint. Prereq for V0 + EXP-006.
+1. **EXP-004 Run 2 (real)** — acquire a small labelled S1+S2 set (DFC2020 val split
+   ~1 GB carved from the 11 GB `.pt`, or a reBEN shard), run the 3-arm frozen-feature
+   linear probe → first **measured** SAR delta (gap D, H3); then EXP-008 (gap E) on
+   the winning encoder. **Local, no GPU.**
+2. **EXP-002 — get the artifacts** — TinyRS weights failed to download 3×; next
+   session use `hf_hub_download` per-file with `resume_download` on a stable
+   connection (or `hf transfer` / a mirror), then run the smoke + the RSVQA-LR /
+   DIOR-RSVG sample vs the fixed threshold. RSCoVLM-3B as the backup.
+3. **Build the confidence + verifier stub (gap H)** and wire RemoteCLIP into a
+   `/scene` or `/retrieve` endpoint — the second API surface, and the prerequisite
+   for constrained routing (Track 7 / EXP-006).
 
 Remote GPU: **still not justified** — EXP-004 Run 2 and EXP-002 both run on the
 laptop. Gate stays closed until EXP-002 measures the local VLMs below threshold.
@@ -165,25 +176,27 @@ laptop. Gate stays closed until EXP-002 measures the local VLMs below threshold.
 
 | Dimension | Score | Δ (since G1) | Why |
 |-----------|:----:|:--:|-----|
-| Problem fit | 4 | — | requirements mapped (A–H); first real path built (temporal) |
+| Problem fit | 4 | — | requirements mapped (A–H); first API path built |
 | Novelty | 2 | — | contribution areas named; none measured on a benchmark |
-| Technical depth | 6 | +1 | 4 models reproduced; **real geospatial + temporal vertical slice** with tests + provenance; EXP-004 harness runs |
-| Prototype completeness | 3 | +2 | one real end-to-end backend path (T1/T2 → validated → ChangeFormer → stats); no agent/UI |
+| Technical depth | 7 | +1 | standard adapter interface + 4 real adapters + registry + `/change` API; geospatial + temporal slices; 33 tests |
+| Prototype completeness | 4 | +1 | first API surface (`POST /change`) end-to-end; no agent/UI |
 | Accuracy | 1 | — | still only ChangeFormer reproduction (n=7); no benchmark |
-| Multimodal (optical–SAR) reasoning | 3 | +1 | CROMA/DOFA reproduced **+ 3-arm probe machinery validated**; SAR-only signal recovered by fusion (synthetic sanity, not benchmark) |
-| Temporal reasoning | 4 | +2 | **integrated** end-to-end: validated GeoTIFF pair → mask → area/bbox; matches G1 number; language side still unbuilt |
-| Geospatial integrity | 4 | +2 | `validate_geotiff` + `check_pair_compatibility` **implemented**, 13 tests; co-registration gate blocks bad pairs |
-| Evidence / verification | 2 | +1 | provenance threaded through the slice (checkpoint sha256, input digest, stages); verifier still unbuilt |
+| Multimodal (optical–SAR) reasoning | 3 | — | CROMA/DOFA **adapters built**; probe machinery validated on a synthetic control; no real task number |
+| Temporal reasoning | 5 | +1 | ChangeFormer **integrated behind an adapter + API**, provenance; language side still unbuilt |
+| Geospatial integrity | 5 | +1 | validation **live in the API path**; gate blocks misregistered pairs; not yet stress-tested (EXP-007) |
+| Evidence / verification | 3 | +1 | standard provenance block on every adapter result + the slice; verifier + confidence still NONE |
 | UI / UX | 1 | — | skeleton + design skill |
 | Benchmark readiness | 2 | — | harnesses ready; real benchmarks still not acquired |
-| Feasibility | 7 | — | 4-model local stack + real slice, CPU-only, no source edits; remote GPU still not needed |
+| Feasibility | 8 | +1 | 4 adapters + API, CPU-only, no source edits; remote GPU still not needed |
 | Impact | 4 | — | clear institutional relevance |
-| PPT quality | 3 | — | blueprint + story; first demonstrable path exists now |
-| Demo quality | 1 | +1 | a runnable T1/T2→change path exists (CLI/service), not a UI |
+| PPT quality | 3 | — | blueprint + story; a callable API now exists |
+| Demo quality | 2 | +1 | `POST /change` returns a real structured result; no UI |
 
-**Read:** G2 delivered the **first real vertical-slice integration** — geospatial
-validation + a temporal end-to-end path (ChangeFormer behind a subprocess adapter,
-provenance, tests). EXP-004's machinery is validated (directional H3 signal on a
-synthetic control); EXP-002 is set up but download-blocked. Still **no agent, no
-UI, no confidence, and no *measured* benchmark number for A/D/E**. Next value:
-EXP-004 Run 2 + EXP-002 (both local), then the remaining adapters, then V0.
+**Read:** G2 built the vertical slices; **G2.5 turned them into a system skeleton** —
+a standard `SpecialistAdapter` interface with 4 real adapters (ChangeFormer,
+RemoteCLIP, CROMA, DOFA), a measured-facts registry, and the **first API
+(`POST /change`)**, all CPU-only, 33 tests green. EXP-002 is artifact-blocked
+(TinyRS download failed 3×); EXP-004 Run 2 needs a small labelled S1+S2 set. Still
+**no agent, no UI, no confidence value, and no *measured benchmark* number for
+A/D/E**. Next value: acquire the EXP-004/EXP-002 datasets/weights, then the
+verifier + a second API surface.

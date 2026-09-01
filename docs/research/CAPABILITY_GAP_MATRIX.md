@@ -129,9 +129,9 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 | **E. RS adaptation** | NONE (unblocked — encoders + probe harness ready) | mandatory | EXP-008 linear→LoRA on the EXP-004-winning encoder, same data — **local** |
 | **A. Single-image VQA** | DOCUMENTED (EXP-002 setup; TinyRS download flaky) | mandatory | finish TinyRS + RSCoVLM-3B (EXP-002) vs the fixed threshold — **local**; GeoChat only if both fail |
 | **B. Extra single-image task** | PARTIAL (RemoteCLIP retrieval only) | mandatory | grounding via TinyRS/RSCoVLM (EXP-002) — **local**; GeoGround = remote backup |
-| **C. Semantic change (language)** | mask **INTEGRATED** end-to-end (G2 temporal slice); language NONE | mandatory | ChangeFormer mask → region-caption pipeline (EXP-003) — **local** |
-| **G. Geospatial validation** | **IMPLEMENTED** (`validate_geotiff` + `check_pair_compatibility`, 13 tests; co-reg gate live in the slice) | mandatory + prerequisite | EXP-007 (gate ON/OFF stress set) — **local** |
-| **H. Evidence/confidence/audit** | provenance **threaded** through the temporal slice; verifier + confidence method NONE | mandatory | build `packages/evidence` verifier + EXP-005; pick a documented confidence source — **local** |
+| **C. Semantic change (language)** | mask **INTEGRATED** in `POST /change` (G2.5); language NONE | mandatory | ChangeFormer mask → region-caption pipeline (EXP-003) — **local** |
+| **G. Geospatial validation** | **IMPLEMENTED + live in the API** (`validate_geotiff` + `check_pair_compatibility`, 13 tests; co-reg gate blocks bad pairs in `/change`) | mandatory + prerequisite | EXP-007 (gate ON/OFF stress set) — **local** |
+| **H. Evidence/confidence/audit** | standard **provenance block** on every adapter result + the slice; verifier + confidence method NONE | mandatory | build the verifier + EXP-005; pick & calibrate a confidence source — **local** |
 | **F. Agentic routing** | DESIGNED | mandatory | our code, after the remaining adapters (EXP-006) — **local** |
 
 ---

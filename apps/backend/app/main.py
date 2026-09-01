@@ -9,6 +9,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.change import router as change_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,4 +32,4 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# TODO: app.include_router(...) from app.api once routes exist.
+app.include_router(change_router)

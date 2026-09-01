@@ -1,188 +1,114 @@
-"""ChangeFormer adapter — bi-temporal binary change **mask**.
+"""ChangeFormer adapter - bi-temporal binary change **mask**.
 
-What the upstream model does: given two co-registered RGB rasters (T1, T2), it
-predicts a per-pixel binary change mask (ChangeFormerV6, `wgcban/ChangeFormer`,
-MIT). Validated in `docs/research/runtime_validation.md` (IoU 0.83 / F1 0.91 on 7
-bundled LEVIR-CD samples — a sanity check, not a benchmark).
+Upstream: ChangeFormerV6 (`wgcban/ChangeFormer`, MIT). Reproduced + measured in
+`docs/research/runtime_validation.md` (IoU 0.83 / F1 0.91 on 7 bundled LEVIR-CD
+samples - a sanity check, not a benchmark).
 
-What it does NOT do: no semantic change classes, no captions, no VQA, no SAR.
-Requests for those raise ``UnsupportedTaskError`` — they are never approximated.
+Does NOT do: semantic change classes, captions, VQA, SAR. Those raise
+``UnsupportedTaskError`` - never approximated.
 
-Expected input: `AdapterRequest.images == [t1_path, t2_path]` (files readable as
-RGB; identical pixel dimensions). Co-registration is the caller's responsibility
-(see `satquery_geospatial.check_pair_compatibility`).
+Input:  ``AdapterRequest.images == [t1_path, t2_path]`` (RGB, identical dims;
+        co-registration is the caller's job - see `satquery_geospatial`).
+Output: answer  = {changed_fraction, changed_pixels, total_pixels}
+        artifacts = {mask_path, height, width}
+        score   = changed_fraction  - **pixel coverage, not a confidence.**
 
-Output schema: ``AdapterResult`` with
-    answer    = {"changed_fraction": float, "changed_pixels": int, "total_pixels": int}
-    artifacts = {"mask_path": str | None, "height": int, "width": int}
-    score     = changed_fraction (0..1) — a coverage ratio, **not** a confidence.
-    provenance = {model, version, checkpoint_dir, checkpoint_sha256, input_digest,
-                  device, runtime_s, bridge, timestamp}
-
-Confidence behaviour: this adapter reports **no calibrated confidence**. `score`
-is the fraction of pixels flagged changed. Do not present it as "confidence"
-(`.claude/rules/ai-models.md`).
-
-GPU requirements: none — runs CPU (~0.8 s / 256² pair). ~1 GB RAM.
-
-Isolation: inference runs in the `.venvs/changeformer` research env via
-`scripts/research/changeformer_infer.py`, invoked by subprocess with an explicit
-argument list + timeout. This product module never imports the research repo.
+Isolation: runs `scripts/research/changeformer_infer.py` inside `.venvs/changeformer`
+via subprocess. This module never imports the research repo.
 """
 
 from __future__ import annotations
 
-import hashlib
-import json
-import os
-import subprocess
+import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
 
-from .base import AdapterRequest, AdapterResult, ModelAdapter
+from ._bridge import bridge_script, run_bridge, sha256, venv_python
+from .base import AdapterRequest, NormalizedOutput, RawOutput, SpecialistAdapter
 from .errors import AdapterConfigError, AdapterExecutionError, UnsupportedTaskError
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-_DEFAULT_BRIDGE = _REPO_ROOT / "scripts" / "research" / "changeformer_infer.py"
-_DEFAULT_VENV_PY = _REPO_ROOT / ".venvs" / "changeformer" / "Scripts" / "python.exe"
 
-
-def _sha256(path: Path, cap: int = 64 * 1024 * 1024) -> str:
-    h = hashlib.sha256()
-    read = 0
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-            h.update(chunk)
-            read += len(chunk)
-            if read >= cap:  # cap for very large checkpoints — digest is a fingerprint
-                h.update(b"[capped]")
-                break
-    return h.hexdigest()
-
-
-class ChangeFormerAdapter(ModelAdapter):
+class ChangeFormerAdapter(SpecialistAdapter):
     name = "changeformer"
     version = "ChangeFormerV6@afd1b7e"
-    tasks = ("change-detection",)
+    source_repo = "https://github.com/wgcban/ChangeFormer"
+    license = "MIT"
+    capabilities = ("change-detection",)
     modalities = ("optical-bitemporal",)
 
-    def __init__(
-        self,
-        checkpoint: str,
-        device: str = "cpu",
-        *,
-        venv_python: str | None = None,
-        bridge_script: str | None = None,
-        timeout_s: float = 300.0,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(checkpoint=checkpoint, device=device, **kwargs)
+    def __init__(self, *, checkpoint: str, timeout_s: float = 300.0, **options) -> None:
+        super().__init__(checkpoint=checkpoint, timeout_s=timeout_s, **options)
         self.checkpoint_dir = Path(checkpoint)
-        self.venv_python = Path(
-            venv_python or os.environ.get("SATQUERY_CHANGEFORMER_VENV_PYTHON") or _DEFAULT_VENV_PY
-        )
-        self.bridge_script = Path(bridge_script or os.environ.get("SATQUERY_CHANGEFORMER_BRIDGE") or _DEFAULT_BRIDGE)
-        self.timeout_s = timeout_s
+        self._py = venv_python("changeformer", options.get("venv_python"))
+        self._script = bridge_script("changeformer_infer.py", options.get("bridge_script"))
 
-    def load(self) -> None:
-        """Verify the isolated env + checkpoint are present. Weights load in the subprocess."""
-        if not self.venv_python.exists():
-            raise AdapterConfigError(f"changeformer venv python not found: {self.venv_python}")
-        if not self.bridge_script.exists():
-            raise AdapterConfigError(f"bridge script not found: {self.bridge_script}")
-        ckpt = self.checkpoint_dir / "best_ckpt.pt"
-        if not ckpt.exists():
-            raise AdapterConfigError(f"checkpoint not found: {ckpt}")
-        self._model = "verified"
+    # --- interface ---
 
-    def predict(self, request: AdapterRequest) -> AdapterResult:
+    def validate(self, request: AdapterRequest) -> None:
         task = request.context.get("task", "change-detection")
-        if task not in self.tasks:
+        if task not in self.capabilities:
             raise UnsupportedTaskError(
-                f"changeformer supports {self.tasks}, not {task!r} — no approximation"
+                f"changeformer supports {self.capabilities}, not {task!r} - no approximation"
             )
         if len(request.images) != 2:
-            raise AdapterExecutionError(
-                f"changeformer needs exactly 2 images (T1, T2); got {len(request.images)}"
-            )
-        self.load()
-        t1, t2 = (Path(request.images[0]), Path(request.images[1]))
-        for p in (t1, t2):
-            if not p.exists():
+            raise AdapterExecutionError(f"changeformer needs 2 images (T1, T2); got {len(request.images)}")
+        for p in request.images:
+            if not Path(p).exists():
                 raise AdapterExecutionError(f"input not found: {p}")
+        if not (self.checkpoint_dir / "best_ckpt.pt").exists():
+            raise AdapterConfigError(f"checkpoint not found: {self.checkpoint_dir / 'best_ckpt.pt'}")
 
-        with tempfile.TemporaryDirectory() as td:
-            out_json = Path(td) / "result.json"
-            out_mask = Path(td) / "mask.png"
-            cmd = [
-                str(self.venv_python),
-                str(self.bridge_script),
-                "--a", str(t1),
-                "--b", str(t2),
-                "--checkpoint-dir", str(self.checkpoint_dir),
-                "--out-json", str(out_json),
-                "--out-mask", str(out_mask),
-            ]
-            t0 = time.time()
-            try:
-                proc = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=self.timeout_s, check=False
-                )
-            except subprocess.TimeoutExpired as exc:
-                raise AdapterExecutionError(f"changeformer timed out after {self.timeout_s}s") from exc
+    def execute(self, request: AdapterRequest) -> RawOutput:
+        self._artifact_dir = request.context.get("artifact_dir")
+        args = [
+            "--a", str(request.images[0]),
+            "--b", str(request.images[1]),
+            "--checkpoint-dir", str(self.checkpoint_dir),
+            "--out-mask", self._staged_mask_path(),
+        ]
+        payload, runtime = run_bridge(self._py, self._script, args, timeout_s=self.timeout_s)
+        return RawOutput(data=payload, runtime_s=payload.get("runtime_s", runtime))
 
-            if not out_json.exists():
-                raise AdapterExecutionError(
-                    f"bridge produced no output (rc={proc.returncode}): {proc.stderr[-800:]}"
-                )
-            data = json.loads(out_json.read_text())
-            if not data.get("ok"):
-                raise AdapterExecutionError(f"changeformer failed: {data.get('error')}")
+    def normalize_output(self, raw: RawOutput, request: AdapterRequest) -> NormalizedOutput:
+        d = raw.data
+        persisted = None
+        staged = getattr(self, "_staged_mask", None)
+        if staged and Path(staged).exists():
+            persisted = self._persist(staged)
+        return NormalizedOutput(
+            answer={
+                "changed_fraction": d["changed_fraction"],
+                "changed_pixels": d["changed_pixels"],
+                "total_pixels": d["total_pixels"],
+            },
+            score=d["changed_fraction"],
+            artifacts={"mask_path": persisted, "height": d["height"], "width": d["width"]},
+            score_meaning="fraction of pixels flagged changed - NOT a confidence",
+        )
 
-            # The temp dir vanishes when this block exits — copy the mask somewhere stable.
-            persisted_mask: str | None = None
-            if out_mask.exists():
-                persisted_mask = _persist_mask(out_mask, request.context.get("artifact_dir"))
+    def provenance(self, request, raw, timing):
+        prov = super().provenance(request, raw, timing)
+        ckpt = self.checkpoint_dir / "best_ckpt.pt"
+        prov.update(
+            checkpoint_sha256=sha256(ckpt),
+            input_digest=sha256(request.images[0])[:16] + ":" + sha256(request.images[1])[:16],
+            device="cpu",
+            bridge="scripts/research/changeformer_infer.py",
+        )
+        return prov
 
-            elapsed = round(time.time() - t0, 3)
-            ckpt = self.checkpoint_dir / "best_ckpt.pt"
-            return AdapterResult(
-                model=self.name,
-                answer={
-                    "changed_fraction": data["changed_fraction"],
-                    "changed_pixels": data["changed_pixels"],
-                    "total_pixels": data["total_pixels"],
-                },
-                score=data["changed_fraction"],  # coverage ratio, NOT confidence
-                artifacts={
-                    "mask_path": persisted_mask,
-                    "height": data["height"],
-                    "width": data["width"],
-                },
-                provenance={
-                    "model": self.name,
-                    "version": self.version,
-                    "checkpoint_dir": str(self.checkpoint_dir),
-                    "checkpoint_sha256": _sha256(ckpt),
-                    "input_digest": _sha256(t1)[:16] + ":" + _sha256(t2)[:16],
-                    "device": "cpu",
-                    "runtime_s": data.get("runtime_s", elapsed),
-                    "bridge": str(self.bridge_script.relative_to(_REPO_ROOT)),
-                    "python": str(self.venv_python),
-                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    "score_meaning": "fraction of pixels flagged changed — not a confidence",
-                },
-            )
+    # --- helpers ---
 
+    def _staged_mask_path(self) -> str:
+        self._staged = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
+        self._staged_mask = self._staged
+        return self._staged
 
-def _persist_mask(src: Path, artifact_dir: str | None) -> str:
-    """Copy the mask out of the (about-to-vanish) temp dir into a stable location."""
-    import shutil
-
-    dest_dir = Path(artifact_dir) if artifact_dir else Path(tempfile.mkdtemp(prefix="satquery_cf_"))
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / f"changeformer_mask_{int(time.time()*1000)}.png"
-    shutil.copyfile(src, dest)
-    return str(dest)
+    def _persist(self, src: str) -> str:
+        dest_dir = Path(self._artifact_dir) if self._artifact_dir else Path(tempfile.mkdtemp(prefix="satquery_cf_"))
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / f"changeformer_mask_{int(time.time()*1000)}.png"
+        shutil.copyfile(src, dest)
+        Path(src).unlink(missing_ok=True)
+        return str(dest)
