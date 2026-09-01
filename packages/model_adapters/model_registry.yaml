@@ -27,6 +27,7 @@ models:
     params: "151.3 M"
     evidence_level: reproduced   # official example correct (airport 97.8%); no benchmark
     status: KEEP
+    fallback: "none (auxiliary; not on the mandatory-capability critical path)"
     note: "NOT a VQA model. Retrieval / zero-shot / embedding index only."
 
   changeformer:
@@ -46,6 +47,7 @@ models:
     evidence_level: integrated   # runs in the temporal slice via subprocess adapter, with provenance
     measured: "change-IoU 0.832 / F1 0.908 on 7 bundled LEVIR-CD samples (n=7, reproduction — NOT a benchmark)"
     status: KEEP
+    fallback: "image-difference + threshold (trivial baseline) if the adapter env is unavailable"
     note: "Mask only — no semantic classes, no language, no SAR. score = coverage, NOT a confidence."
 
   croma:
@@ -64,6 +66,7 @@ models:
     params: "194.4 M"
     evidence_level: reproduced   # official example; probe machinery validated on synthetic control (EXP-004 Run 1)
     status: KEEP FOR TOURNAMENT   # primary optical-SAR candidate; adopt pending EXP-004 Run 2
+    fallback: "dofa (the other optical-SAR encoder) - decide in EXP-004 Run 2"
     note: "Representations only — needs a downstream head. Native joint radar-optical encoder."
 
   dofa:
@@ -82,6 +85,7 @@ models:
     params: "111.3 M"
     evidence_level: reproduced
     status: KEEP FOR TOURNAMENT   # CROMA challenger; decide in EXP-004 Run 2
+    fallback: "croma"
     note: "One wavelength-conditioned encoder for any sensor; fusion is a downstream choice."
 
 # --- not in the registry: no runnable adapter (blocked / rejected) ---

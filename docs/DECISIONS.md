@@ -5,6 +5,47 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-009 — G3: coherent system contracts — evidence, verification, router, `/scene`
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G3 = "move from isolated validated components to a real
+  vertical-slice application with a clean internal contract", while research
+  experiments continue in parallel.
+- **Built (all deterministic, CPU-only, 59 tests, no regressions):**
+  - **`packages/evidence`** — `EvidenceItem` (**no numeric confidence field, by
+    design**), `Provenance.from_adapter()` + `scrub()` (secret-key masking),
+    `verify(result, evidence, context) → VerificationResult` with statuses
+    `SUPPORTED / CONTRADICTED / INSUFFICIENT_EVIDENCE / NOT_APPLICABLE`. Checks are
+    **structural only** (input exists, modality supported, geospatial compat,
+    artifact present, output shape/range) — explicitly *not* semantic correctness.
+  - **`packages/core/routing`** — `RoutingRequest → RoutingDecision`, 6 ordered
+    deterministic rules, capabilities read from `model_registry.yaml`. Rule 5
+    (`NO_VQA_SPECIALIST`) is deliberately empty and honest. `docs/research/ROUTING_SPEC.md`.
+    **No LLM.**
+  - **`POST /scene`** — RemoteCLIP single-image slice (`app.services.scene_slice`),
+    wired into `main.py`. Zero-shot ranking + evidence + provenance + verification.
+    **Not a VQA endpoint** and the response says so.
+  - **`/change` upgraded** — emits `evidence[]` + `verification` + a `standardized`
+    provenance block; **all prior fields unchanged** (regression test pins
+    changed_fraction 0.2526).
+  - **Internal `run_joint_representation()`** — CROMA/DOFA joint-representation
+    contract. **No `/fusion` endpoint** — representation-level only until EXP-004
+    Run 2 shows a task benefit.
+  - **`AdapterResult`** gained `status`, `timing_s`, `model_meta`; registry entries
+    gained `fallback`. `docs/API_CONTRACT.md`, `docs/architecture/SPECIALIST_CONTRACT.md`.
+- **Alternatives considered:** emit a confidence number from adapter scores
+  (rejected — no calibration; `EvidenceItem` has no confidence field on purpose);
+  build a `/fusion` endpoint now (rejected — contract not proven useful);
+  make `verify()` attempt semantic checks (rejected — dishonest at this stage,
+  the `notes` field says so).
+- **Consequence:** `packages/evidence` + `packages/core/routing` are now real;
+  `apps/backend/app/api/scene.py` + services `scene_slice.py`, `multimodal_slice.py`;
+  `temporal_slice.py` extended. New docs: API_CONTRACT, SPECIALIST_CONTRACT,
+  ROUTING_SPEC. No pipeline-architecture change, no rule change. Research status
+  unchanged: EXP-002 artifact-blocked, EXP-004 Run 2 / EXP-008 pending a dataset.
+  Remote GPU still not justified.
+
 ## ADR-008 — G2.5: standard SpecialistAdapter interface, 4 adapters, measured-facts registry, `POST /change` API
 
 - **Date:** 2026-09-01

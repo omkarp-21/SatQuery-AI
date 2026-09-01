@@ -14,14 +14,14 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
-Current (post-G2.5): 4 models REPRODUCED (RemoteCLIP, ChangeFormer, CROMA, DOFA),
-**all 4 now behind the standard `SpecialistAdapter` interface** (`validate / execute /
-normalize_output / provenance`) with subprocess isolation + smoke tests.
-**ChangeFormer + RemoteCLIP are INTEGRATED** — ChangeFormer runs inside `POST /change`
-(`apps/backend/app/api/change.py` → `run_change_slice`); RemoteCLIP `run()` works via
-its adapter. CROMA/DOFA adapters return embeddings (need a downstream head). Nothing
-is VALIDATED (no benchmark under our eval). Registry: `model_registry.yaml` v2,
-measured facts. Full ledger: `EVIDENCE_LEDGER.md`.
+Current (post-G3): 4 models REPRODUCED, all behind the standard `SpecialistAdapter`
+contract (`docs/architecture/SPECIALIST_CONTRACT.md`). **ChangeFormer + RemoteCLIP
+INTEGRATED behind APIs** (`POST /change`, `POST /scene`), both emitting
+`EvidenceItem` + deterministic `verify()` + standardized provenance. CROMA/DOFA
+INTEGRATED as the internal `run_joint_representation()` contract (representation-level).
+A deterministic router (`satquery_core.routing`) chooses between them
+(`docs/research/ROUTING_SPEC.md`). Nothing is VALIDATED (no benchmark under our
+eval). Registry `model_registry.yaml` v2 + `fallback`. Ledger: `EVIDENCE_LEDGER.md`.
 
 ---
 

@@ -46,3 +46,26 @@ def test_misregistered_pair_is_blocked_when_strict():
     assert r.pair.co_registered is False
     assert any("co-registered" in e for e in r.errors)
     assert r.stats is None  # no inference was run
+
+
+@pytest.mark.slow
+def test_change_slice_emits_evidence_and_verification():
+    """G3 regression: existing /change behaviour + new evidence/verification fields."""
+    r = run_change_slice(_DEMO / "t1.tif", _DEMO / "t2.tif", checkpoint_dir=_CKPT)
+    assert r.ok is True
+    # existing behaviour unchanged
+    assert 0.24 < r.stats.changed_fraction < 0.27  # matches G1 demo_LEVIR.py (~0.253)
+    assert r.stats.changed_area_ha is not None
+    # new: structured evidence
+    assert len(r.evidence) == 1
+    ev = r.evidence[0]
+    assert ev.evidence_type == "change-mask"
+    assert ev.source_model == "changeformer"
+    assert ev.temporal_context and ev.temporal_context["relation"] == "T1 before T2"
+    assert "confidence" not in ev.model_dump()
+    # new: deterministic verification
+    assert r.verification.status == "SUPPORTED"
+    assert {"geospatial_compatibility"} <= {c.name for c in r.verification.checks}
+    # new: standardized provenance alongside the legacy block
+    assert r.provenance["standardized"]["model"] == "changeformer"
+    assert "checkpoint_sha256" in r.provenance["adapter_provenance"]

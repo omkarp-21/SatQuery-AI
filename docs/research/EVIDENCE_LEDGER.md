@@ -43,14 +43,19 @@
 
 | Component | Level | Proof |
 |-----------|:-----:|-------|
-| GeoTIFF validation (`validate_geotiff`) | **VALIDATED** | 13 tests; used live in `/change` and `run_change_slice` |
+| GeoTIFF validation (`validate_geotiff`) | **VALIDATED** | 13 tests; live in `/change` + `/scene` + slices |
 | Pair co-registration gate (`check_pair_compatibility`) | **VALIDATED** | tests + blocks misregistered pairs in the slice/API |
-| Temporal vertical slice (`run_change_slice`) | **INTEGRATED** | e2e tests; `POST /change` |
-| `POST /change` API | **INTEGRATED** | `test_change_api.py` — happy path 200 + structured JSON; traversal/404 guards |
-| SpecialistAdapter interface | **INTEGRATED** | 4 adapters (ChangeFormer, RemoteCLIP, CROMA, DOFA) implement `validate/execute/normalize_output/provenance` |
-| Confidence methodology | **NONE** | not built — nothing emits a confidence value |
-| Verifier | **NONE** | not built |
-| Agentic router | **DESIGNED** | `agent-orchestration` skill; no code |
+| Temporal vertical slice (`run_change_slice`) | **INTEGRATED** | e2e tests; `POST /change`; now emits evidence + verification |
+| `POST /change` API | **INTEGRATED** | `test_change_api.py` — 200 + structured JSON incl. evidence/verification; guards |
+| `POST /scene` API | **INTEGRATED** (G3) | `test_scene_api.py` — RemoteCLIP ranking + evidence + verification; NOT a VQA endpoint |
+| Multimodal joint-repr contract (`run_joint_representation`) | **INTEGRATED** (internal, G3) | `test_multimodal_slice.py`; representation-level only |
+| SpecialistAdapter interface | **INTEGRATED** | 4 adapters implement `validate/execute/normalize_output/provenance` + `run()`; `AdapterResult` carries status/timing/model_meta |
+| `EvidenceItem` + `Provenance` (`packages/evidence`) | **INTEGRATED** (G3) | 9 tests; wired into `/change`, `/scene`, multimodal |
+| Deterministic verifier (`verify()`) | **INTEGRATED** (G3) | structural checks only — SUPPORTED/CONTRADICTED/INSUFFICIENT/NA; `notes` say "not semantic" |
+| Constrained router (`satquery_core.routing`) | **INTEGRATED** (spec + code + 8 tests, G3) | deterministic rules; `docs/research/ROUTING_SPEC.md`; not yet called from an endpoint |
+| Confidence methodology | **NONE** (by design) | nothing emits a confidence value; `EvidenceItem` has no confidence field |
+| Semantic verification | **NONE** | verifier is structural only |
+| Agentic (LLM) router / `POST /analyze` | **DESIGNED** | `ROUTING_SPEC.md` §"not covered"; deterministic router is the current substrate |
 
 **Reminder:** no row here is VALIDATED for a *model on a task* — that needs a real
 benchmark under our evaluation (EXP-004 Run 2, EXP-002, EXP-003).

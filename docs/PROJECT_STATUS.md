@@ -26,6 +26,13 @@
 | **G2.5 · first API — `POST /change`** | `apps/backend/app/api/change.py` wired into `main.py`. `{t1_path,t2_path}` → validate → co-reg gate → ChangeFormer adapter → mask → area/bbox/centroid → provenance → JSON. Path-traversal + 404 + model-unavailable guards. `test_change_api.py`: happy path 200 + structured body; **33/33 tests pass**. |
 | **G2.5 · EXP-002** | **TEST FURTHER — blocked on artifact acquisition.** 3 download attempts (2× `ChunkedEncodingError`, 1 DNS fail, hf_xet inconclusive) over ~50 min; TinyRS safetensors never completed. Not a capability/compute blocker. |
 | **G2.5 · EVIDENCE_LEDGER.md** | new — one row per model×claim at its highest real level. |
+| **G3 · evidence + verification package** | `packages/evidence`: `EvidenceItem` (no confidence field, by design), standardized `Provenance.from_adapter` + `scrub()`, deterministic `verify()` → `SUPPORTED / CONTRADICTED / INSUFFICIENT_EVIDENCE / NOT_APPLICABLE` (structural checks only). 9 tests. |
+| **G3 · constrained router** | `packages/core/routing`: `RoutingRequest → RoutingDecision`, 6 deterministic rules, reads capabilities from the registry, honest `NO_VQA_SPECIALIST` code. `docs/research/ROUTING_SPEC.md`. 8 tests. **No LLM.** |
+| **G3 · `POST /scene`** | RemoteCLIP single-image slice — validate → adapter → ranking → EvidenceItem + Provenance + verification → JSON. Path guards. Explicitly not a VQA endpoint. 4 tests (1 slow). |
+| **G3 · `/change` upgraded** | now emits `evidence[]` (change-mask) + `verification` (SUPPORTED) + a `standardized` provenance block, **without changing existing fields** — regression test asserts changed_fraction 0.2526 unchanged. |
+| **G3 · multimodal internal contract** | `run_joint_representation(optical, sar, model=croma\|dofa)` → `JointReprResult` (rep vectors + evidence + provenance + structural verify). **No `/fusion` endpoint** — representation-level only until EXP-004 Run 2. 4 tests. |
+| **G3 · adapter contract finalized** | `AdapterResult` now carries `status`, `timing_s`, `model_meta`. Registry entries got a `fallback` field. `docs/architecture/SPECIALIST_CONTRACT.md`, `docs/API_CONTRACT.md`. |
+| **G3 · tests** | **59 passed, 0 failed** (baseline was 33). No regressions. |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
 | 6 research repos cloned into `external/research/` at pinned commits | `git -C <repo> rev-parse HEAD` matches `docs/research/model_inventory.md`; gitignored (`!!`) |
@@ -176,27 +183,27 @@ laptop. Gate stays closed until EXP-002 measures the local VLMs below threshold.
 
 | Dimension | Score | Δ (since G1) | Why |
 |-----------|:----:|:--:|-----|
-| Problem fit | 4 | — | requirements mapped (A–H); first API path built |
+| Problem fit | 4 | — | requirements mapped (A–H); coherent system skeleton now |
 | Novelty | 2 | — | contribution areas named; none measured on a benchmark |
-| Technical depth | 7 | +1 | standard adapter interface + 4 real adapters + registry + `/change` API; geospatial + temporal slices; 33 tests |
-| Prototype completeness | 4 | +1 | first API surface (`POST /change`) end-to-end; no agent/UI |
+| Technical depth | 8 | +1 | 2 APIs, standard adapter + evidence + verification + router contracts, 4 adapters, 59 tests |
+| Prototype completeness | 5 | +1 | 2 API surfaces (`/change`, `/scene`) + internal multimodal contract; no agent/UI |
 | Accuracy | 1 | — | still only ChangeFormer reproduction (n=7); no benchmark |
-| Multimodal (optical–SAR) reasoning | 3 | — | CROMA/DOFA **adapters built**; probe machinery validated on a synthetic control; no real task number |
-| Temporal reasoning | 5 | +1 | ChangeFormer **integrated behind an adapter + API**, provenance; language side still unbuilt |
-| Geospatial integrity | 5 | +1 | validation **live in the API path**; gate blocks misregistered pairs; not yet stress-tested (EXP-007) |
-| Evidence / verification | 3 | +1 | standard provenance block on every adapter result + the slice; verifier + confidence still NONE |
+| Multimodal (optical–SAR) reasoning | 3 | — | joint-representation **contract + adapters + internal service**; no real task number (EXP-004 Run 2) |
+| Temporal reasoning | 5 | — | integrated behind adapter + `/change` + evidence + verification; language side unbuilt |
+| Geospatial integrity | 5 | — | live in both API paths; not yet stress-tested (EXP-007) |
+| Evidence / verification | 5 | +2 | `EvidenceItem` + deterministic `verify()` **implemented and wired into both slices**; semantic verification + confidence still NONE (by design) |
 | UI / UX | 1 | — | skeleton + design skill |
 | Benchmark readiness | 2 | — | harnesses ready; real benchmarks still not acquired |
-| Feasibility | 8 | +1 | 4 adapters + API, CPU-only, no source edits; remote GPU still not needed |
+| Feasibility | 8 | — | all local, CPU-only, no source edits; remote GPU still not needed |
 | Impact | 4 | — | clear institutional relevance |
-| PPT quality | 3 | — | blueprint + story; a callable API now exists |
-| Demo quality | 2 | +1 | `POST /change` returns a real structured result; no UI |
+| PPT quality | 3 | — | blueprint + story; two callable APIs now exist |
+| Demo quality | 2 | — | `/change` + `/scene` return real structured results; no UI |
 
-**Read:** G2 built the vertical slices; **G2.5 turned them into a system skeleton** —
-a standard `SpecialistAdapter` interface with 4 real adapters (ChangeFormer,
-RemoteCLIP, CROMA, DOFA), a measured-facts registry, and the **first API
-(`POST /change`)**, all CPU-only, 33 tests green. EXP-002 is artifact-blocked
-(TinyRS download failed 3×); EXP-004 Run 2 needs a small labelled S1+S2 set. Still
-**no agent, no UI, no confidence value, and no *measured benchmark* number for
-A/D/E**. Next value: acquire the EXP-004/EXP-002 datasets/weights, then the
-verifier + a second API surface.
+**Read:** **G3 made SatQuery structurally real.** Two APIs (`/change`, `/scene`),
+an internal optical–SAR contract, and standard `SpecialistAdapter` / `EvidenceItem`
+/ `verify()` / router contracts — all deterministic, all CPU-only, **59 tests, no
+regressions**. Evidence/verification jumped from designed → implemented+wired.
+Still **no LLM agent, no UI, no confidence value (by design), and no *measured
+benchmark* number for A/D/E**. The intelligence stack is still being decided by
+experiments: EXP-002 (artifact-blocked), EXP-004 Run 2 (needs a small S1+S2 set),
+EXP-008. Next value: get those datasets/weights.

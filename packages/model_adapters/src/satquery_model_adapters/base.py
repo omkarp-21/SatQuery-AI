@@ -56,13 +56,16 @@ class NormalizedOutput:
 
 @dataclass
 class AdapterResult:
-    """Final result: normalized output + a provenance block."""
+    """Final result: structured output + provenance + status + timing + model metadata."""
 
     model: str
     answer: Any
     score: float | None = None
     artifacts: dict[str, Any] = field(default_factory=dict)
     provenance: dict[str, Any] = field(default_factory=dict)
+    status: str = "ok"  # ok | degraded | error
+    timing_s: float | None = None
+    model_meta: dict[str, Any] = field(default_factory=dict)  # name/version/license/caps/modalities
 
 
 class SpecialistAdapter(abc.ABC):
@@ -116,7 +119,8 @@ class SpecialistAdapter(abc.ABC):
         t0 = time.time()
         raw = self.execute(request)
         norm = self.normalize_output(raw, request)
-        prov = self.provenance(request, raw, {"total_s": round(time.time() - t0, 3)})
+        total_s = round(time.time() - t0, 3)
+        prov = self.provenance(request, raw, {"total_s": total_s})
         prov.setdefault("score_meaning", norm.score_meaning)
         return AdapterResult(
             model=self.name,
@@ -124,6 +128,9 @@ class SpecialistAdapter(abc.ABC):
             score=norm.score,
             artifacts=norm.artifacts,
             provenance=prov,
+            status="ok",
+            timing_s=raw.runtime_s if raw.runtime_s is not None else total_s,
+            model_meta=self.describe(),
         )
 
     # backward-compatible alias

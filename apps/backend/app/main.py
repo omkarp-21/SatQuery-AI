@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.change import router as change_router
+from app.api.scene import router as scene_router
 
 
 @asynccontextmanager
@@ -33,3 +34,4 @@ async def health() -> dict[str, str]:
 
 
 app.include_router(change_router)
+app.include_router(scene_router)

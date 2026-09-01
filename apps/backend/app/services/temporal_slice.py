@@ -24,6 +24,7 @@ import rasterio
 from pydantic import BaseModel
 from pyproj import Transformer
 
+from satquery_evidence import EvidenceItem, Provenance, VerificationResult, new_evidence_id, verify
 from satquery_geospatial import (
     PairCompatibility,
     RasterMeta,
@@ -56,6 +57,8 @@ class ChangeSliceResult(BaseModel):
     pair: PairCompatibility | None = None
     stats: ChangeStats | None = None
     mask_path: str | None = None
+    evidence: list[EvidenceItem] = []
+    verification: VerificationResult | None = None
     provenance: dict[str, Any] = {}
 
 
@@ -147,9 +150,44 @@ def run_change_slice(
                 cx, cy = tr.transform((bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2)
                 stats.change_centroid_lonlat = (round(cx, 6), round(cy, 6))
 
+    # --- structured evidence + deterministic verification ---
+    ev = EvidenceItem(
+        evidence_id=new_evidence_id("ev-change"),
+        source_model="changeformer",
+        task="change-detection",
+        modality="optical-bitemporal",
+        source_artifact=mask_path,
+        spatial_region=({"bbox_lonlat": list(stats.change_bbox_lonlat)}
+                        if stats.change_bbox_lonlat else None),
+        temporal_context={"t1": m1.path, "t2": m2.path, "relation": "T1 before T2"},
+        claim_supported=f"~{stats.changed_fraction:.1%} of pixels changed between T1 and T2",
+        evidence_type="change-mask",
+        payload={"mask_path": mask_path, "changed_fraction": stats.changed_fraction,
+                 "changed_area_ha": stats.changed_area_ha},
+        provenance=result.provenance,
+    )
+    vr = verify(
+        {"changed_fraction": stats.changed_fraction},
+        [ev],
+        {
+            "input_paths": [m1.path, m2.path],
+            "inputs_exist": {m1.path: True, m2.path: True},
+            "requested_modality": "optical-bitemporal",
+            "model_modalities": ["optical-bitemporal"],
+            "pair_co_registered": pair.co_registered,
+        },
+    )
+
+    std_prov = Provenance.from_adapter(
+        result.provenance, task="change-detection",
+        input_ids=[m1.path, m2.path],
+        preprocessing=["geotiff-validate", "pair-co-registration-assert", "to_tensor+normalize[0.5]"],
+    ).model_dump()
     provenance = {
         "slice": "temporal_vertical_slice",
-        "stages": ["validate_geotiff", "check_pair_compatibility", "changeformer_adapter", "spatial_stats"],
+        "stages": ["validate_geotiff", "check_pair_compatibility", "changeformer_adapter",
+                   "spatial_stats", "evidence", "verify"],
+        "standardized": std_prov,
         "t1": {"path": m1.path, "crs": m1.crs, "shape": [m1.height, m1.width]},
         "t2": {"path": m2.path, "crs": m2.crs, "shape": [m2.height, m2.width]},
         "co_registered": pair.co_registered,
@@ -172,5 +210,7 @@ def run_change_slice(
         pair=pair,
         stats=stats,
         mask_path=mask_path,
+        evidence=[ev],
+        verification=vr,
         provenance=provenance,
     )
