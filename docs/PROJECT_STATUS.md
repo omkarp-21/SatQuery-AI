@@ -39,6 +39,7 @@
 | **G4 · confidence plan** | `docs/research/CONFIDENCE_PLAN.md` — candidate sources + required experiments (EXP-005, EXP-C1, EXP-C2). **No confidence number emitted anywhere.** |
 | **G4 · EXP-002 / EXP-004 Run 2 / EXP-008** | **BLOCKED — artifact/dataset acquisition fails from this host** (TinyRS 4 attempts <1 MB/s; DFC 11 GB / So2Sat 7 GB / EuroSAT-SAR 922 MB all too large). **Remote GPU now justified on infrastructure grounds.** |
 | **G4 · tests** | **92 passed, 0 failed** (baseline 59). No regressions. |
+| **Model hierarchy — role labels (ADR-012)** | "GeoChat = ceiling" retired. Roles: **LOCAL A/B PRIMARY** RSCoVLM-3B · **FALLBACK** TinyRS-2B · **GENERIC CONTROL** Qwen2-VL-2B · **TEMPORAL** ChangeFormer · **OPTICAL-SAR PRIMARY** CROMA · **CHALLENGER** DOFA · **GROUNDING REFERENCE** GeoGround · **AUXILIARY** RemoteCLIP · **PRIMARY HIGH-CAPABILITY REFERENCE** EarthDial (REFERENCE CANDIDATE — checkpoints verified to exist, weights licence unconfirmed, 4B, not reproduced) · **SECONDARY / HISTORICAL REFERENCE** GeoChat (not on the critical path; local-run inability is **not** a blocker) · **RESEARCH REFERENCE** SARLANG-1M. Nothing is a "ceiling" until reproduced + measured. Docs: `MODEL_TOURNAMENT.md` (authoritative), `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`, ADR-012. **No new repos, no code, no artifacts downloaded.** |
 | **Lightweight Model Replacement Audit** | `docs/research/LIGHTWEIGHT_AUDIT.md` (ADR-011). 5 candidates inspected from released artifacts (not paper titles), compared vs TinyRS + GeoChat. **RSCoVLM-3B** (MIT, `Qingyun/rscovlm`, RS multi-task VQA+grounding+caption) → **primary** EXP-002 arm; **TinyRS-2B** fallback; **Qwen2-VL-2B** generic control; **EarthDial-4B** (MIT weights, +SAR +temporal) replaces TEOChat as the remote SAR/temporal VLM; **SkyEyeGPT** BLOCKED (no inference recipe); **ISRO-GeoNLI** REJECT (wrapper, 36 GB). All still **#1 DOCUMENTED** — no reproduction. TinyRS download failed a **5th** time (11/12 files; 4.4 GB shard incomplete). `model_registry.yaml` `excluded:` block updated. **No new repos, no code, no fabricated numbers.** |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
 | `chatgpt.context.md` committed as persistent strategic memory | this session; ADR-003 |
@@ -70,7 +71,7 @@ A/D/E.**
 
 | Blocker | Impact | Path forward |
 |---------|--------|--------------|
-| **GeoChat un-runnable on the dev host** — 7B merged model > 4 GB VRAM (RTX 3050 Ti); `deepspeed==0.9.5` fails to build on Windows; `bitsandbytes==0.41.0` Linux-only | No single-image VQA/grounding specialist locally; **EXP-001 blocked** | provision a Linux GPU ≥16 GB (cloud), then reproduce `geochat_demo.py` / `batch_geochat_*` |
+| **GeoChat un-runnable on the dev host** — 7B merged model > 4 GB VRAM (RTX 3050 Ti); `deepspeed==0.9.5` fails to build on Windows; `bitsandbytes==0.41.0` Linux-only | **Not a project blocker** (ADR-012) — GeoChat is now the *secondary / historical* reference. The A/B path is local: RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B. GeoChat + EarthDial are reproduced on a remote box as references only. | provision a Linux GPU ≥16 GB (cloud) *after* the local EXP-002 arms are measured, then reproduce `geochat_demo.py` / `batch_geochat_*` + EarthDial |
 | **Change-Agent un-runnable** — `mmcv==1.3.1` unbuildable (no wheels; ancient setup.py; needs CUDA toolkit + MSVC); internal `transformers` 4.33 vs ≥4.34 conflict | Temporal bake-off (EXP-003) can't include Change-Agent yet | Linux + conda + `mmcv` source build, or port to modern mmcv/mmseg |
 | **ChangeChat has no released weights** + no `requirements.txt` at pinned commit | Nothing to run — **REJECT for now** | revisit only on a weights + dependency release |
 | **No GPU-backed research env** (Windows 11, 4 GB laptop GPU, no conda/Docker/WSL) | CUDA-only stacks and 7B models can't run locally; CPU-only for the two that work | decide GPU path: cloud Linux box vs local WSL2+Docker+NVIDIA toolkit |
@@ -173,11 +174,15 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **Provision one remote Linux GPU box (≥ 16 GB, good bandwidth)** — this unblocks
-   the entire measurement backlog at once: download DFC2020 → **EXP-004 Run 2**
-   (first measured SAR delta) → **EXP-008** (adaptation); download TinyRS + RSCoVLM
-   + GeoChat/GeoGround → **EXP-002** (VQA/grounding, gaps A/B). Local path for these
-   is exhausted (G4: every dataset/weight is multi-GB, network < 1 MB/s with drops).
+1. **EXP-002 local arms first** — bounded download of **RSCoVLM-3B** (LOCAL A/B
+   PRIMARY) + retry TinyRS-2B; run @ 4-bit on the RTX 3050 Ti with **Qwen2-VL-2B**
+   as the GENERIC CONTROL; measure balanced acc / acc@IoU0.5 / latency vs the
+   EXP-002 threshold. **Then** provision one remote Linux GPU box (≥ 16 GB, good
+   bandwidth) to reproduce the **high-capability references** (EarthDial 4B,
+   GeoChat 7B, GeoGround) for the local-vs-reference comparison **and** to unblock
+   the multi-GB dataset backlog: DFC2020 → **EXP-004 Run 2** → **EXP-008**. The
+   remote box is *useful*, not on the A/B critical path; GeoChat's local-run
+   inability is **not** a blocker.
 2. **EXP-005 (verifier detection) + confidence EXP-C1/C2 prep** — curate the
    right/wrong answer set, run the deterministic verifier's detection precision/
    recall; this is local and unblocks the `CONFIDENCE_PLAN.md` experiments.

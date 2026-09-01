@@ -32,7 +32,7 @@ from the model card / repo, not the paper.
 | 4 | **SkyEyeGPT** (`ZhanYang-nwpu/SkyEyeGPT`) | RS VLM (MiniGPT-v2 / LLaMA-2) | **~7B** | **NOT stated** (no LICENSE; LLaMA-2 lineage) | HF `ZhanYang-nwpu/SkyEyeGPT` (May 2025) + `SkyEye-968k` dataset | **No** — README: inference tutorial *"coming soon"*; MiniGPT-v2 config wiring not provided | 7B → **no** | impractical | not documented | ~81 commits / moderate ★; weights up but **no inference recipe** | Yes — grounding / REC / captioning / VQA / UAV-video captioning | benchmark tables in README but **metrics not extractable**; no runnable path → **#1 DOCUMENTED, unverifiable** |
 | 5 | **ISRO-GeoNLI** (`Vijayavallabh/ISRO-GeoNLI`) | **Pipeline / wrapper, not a model** | n/a (wraps Qwen3-VL + SAM3) | pipeline MIT / Qwen3-VL Apache-2.0 / **SAM3 Meta licence (gated)** | **none of its own** | Yes as a service (FastAPI `/process`, `/query`) | **No** — README recommends **36 GB+ VRAM**, CUDA 12.4 | No | n/a | ~162 commits / ~2 ★; competition-submission style | captioning / grounding / VQA via the wrapped models | **no benchmark numbers**; not lightweight → **reference architecture only** |
 | — | **TinyRS / TinyRS-R1** (`aybora/TinyRS`) — *baseline* | RS VLM (Qwen2-VL-2B) | **2B** | code **Apache-2.0** / weights = Qwen2-VL-2B terms | `aybora/Qwen2-VL-TinyRS{,-CoT,-R1,-PRETRAIN}` (HF) | **Yes** — plain `transformers` generate; boxes-in-text grounding | fp16 ≈ 4.5 GB → **borderline**; 4-bit ≈ 1.8 GB → **fits** | Yes (slow) | via Qwen2-VL-2B lineage (community) | Apache-2.0 repo, GRSL 2025, arXiv 2505.12099; **weights download unreliable from this host (4 failed attempts)** | **Yes** — RS VQA / grounding / classification / open-QA; CoT + RL variants | #1 authors': base TinyRS **83.5 % VQA acc** (≈ GeoChat); R1 "matches/surpasses 7B RS models" — **unverified by us** |
-| — | **GeoChat** (`mbzuai-oryx/GeoChat`) — *remote ceiling* | RS VLM (LLaVA-1.5-7B) | **7B** | Apache¹ (no LICENSE file on weights) | `MBZUAI/geochat-7B` | Needs `deepspeed` / `bitsandbytes` — **unbuildable on Windows** (G1) | **No** | impractical | bnb 4-bit (Linux) | established; widely cited | Yes — RS VQA / grounding / region caption / scene | #1 authors': RSVQA-LR ~90 %; our reproduction **BLOCKED** (no GPU box) |
+| — | **GeoChat** (`mbzuai-oryx/GeoChat`) — *secondary / historical reference* | RS VLM (LLaVA-1.5-7B) | **7B** | Apache¹ (no LICENSE file on weights) | `MBZUAI/geochat-7B` | Needs `deepspeed` / `bitsandbytes` — **unbuildable on Windows** (G1) | **No** | impractical | bnb 4-bit (Linux) | established; widely cited | Yes — RS VQA / grounding / region caption / scene | #1 authors': RSVQA-LR ~90 %; our reproduction **BLOCKED** (no GPU box) |
 
 ### Per-candidate verification detail (the brief's checklist)
 
@@ -151,9 +151,15 @@ fallback that trades a little capability breadth for a certain memory fit.
 EarthDial-4B is the *capability* winner (adds SAR + temporal) but loses on local
 feasibility — it belongs on the remote box next to GeoChat, not on the 4 GB laptop.
 
+> **Role update (ADR-012).** "GeoChat = ceiling" is retired. **EarthDial** is now
+> the **PRIMARY HIGH-CAPABILITY REFERENCE** (REFERENCE CANDIDATE — not reproduced);
+> **GeoChat** is the **SECONDARY / HISTORICAL** reference and is **not** on the
+> critical path. Neither is a "ceiling" until reproduced + measured. Authoritative
+> hierarchy: `MODEL_TOURNAMENT.md`.
+
 ---
 
-## 5. Comparison against **GeoChat** (the reference ceiling)
+## 5. Comparison against the high-capability references (EarthDial, GeoChat)
 
 | Dimension | GeoChat 7B | RSCoVLM-3B | TinyRS-2B | EarthDial-4B |
 |-----------|-----------|-----------|-----------|--------------|
@@ -165,10 +171,11 @@ feasibility — it belongs on the remote box next to GeoChat, not on the 4 GB la
 | Extra modality | none | none | none | **SAR + temporal** |
 | Repro status here | **BLOCKED** (no GPU) | DOCUMENTED, repro pending | **BLOCKED** (download) | DOCUMENTED |
 
-**Read:** GeoChat remains the *accuracy ceiling and reference*, not the default.
-Two lighter models (RSCoVLM-3B, TinyRS-2B) are *plausible* local replacements for
-capabilities **A + B** at 4-bit — but **neither is yet reproduced**, so GeoChat
-stays the comparison target the moment a GPU box exists.
+**Read:** EarthDial and GeoChat are *references*, not the default and **not
+"ceilings"** (nothing is measured yet). Two lighter models (RSCoVLM-3B, TinyRS-2B)
+are *plausible* local replacements for capabilities **A + B** at 4-bit — but
+**neither is yet reproduced**, so the references stay the comparison target the
+moment a GPU box exists.
 
 ---
 
@@ -176,7 +183,7 @@ stays the comparison target the moment a GPU box exists.
 
 **Yes — but its role narrows.**
 
-- **Still required for:** (a) the GeoChat / SkyEyeGPT ceiling comparison (7B), (b)
+- **Still required for:** (a) the EarthDial (4B) / GeoChat / SkyEyeGPT (7B) reference comparison, (b)
   EarthDial-4B *full* evaluation at fp16 (SAR + temporal arms), (c) EXP-004 Run 2 /
   EXP-008 datasets (multi-GB S1+S2 — unrelated to this audit), (d) reliable
   bandwidth for **any** multi-GB checkpoint, which is the actual thing blocking
@@ -204,7 +211,7 @@ cheaper and, if it clears the usability threshold, defers the rental.
 | **A (primary)** | **RSCoVLM-3B** (MIT, `Qingyun/rscovlm`) | RS-domain VQA + grounding + captioning in one model | RTX 3050 Ti @ **4-bit** (fallback CPU) | reproduce → EXP-002 threshold |
 | **A (fallback)** | **TinyRS-2B** (Apache-2.0, `aybora/Qwen2-VL-TinyRS`) | smaller, certain 4 GB fit; RS VQA + grounding | RTX 3050 Ti @ 4-bit / CPU | download → smoke → EXP-002 |
 | **B (control)** | **Qwen2-VL-2B-Instruct** (Apache-2.0) | generic floor for VQA + grounding — measures "value of RS adaptation" | anywhere (4-bit / CPU / GGUF) | already runnable |
-| **Ceiling** | **GeoChat-7B** (+ optionally **EarthDial-4B** fp16) | reference upper bound; EarthDial adds the SAR + temporal arms | **remote** Linux GPU ≥ 16 GB | when a box is provisioned |
+| **High-capability reference** | **EarthDial-4B** (primary, REFERENCE CANDIDATE) + **GeoChat-7B** (secondary / historical) | local-vs-reference comparison; EarthDial adds the SAR + temporal arms; **not a "ceiling" until reproduced + measured** | **remote** Linux GPU ≥ 16 GB | after local EXP-002 arms are measured |
 | Rejected from stack | SkyEyeGPT (no inference path), ISRO-GeoNLI (wrapper, 36 GB) | — | — | — |
 
 Registry `excluded:` block updates (measured facts, statuses only — no capability
@@ -225,7 +232,7 @@ tinyrs:         { status: TEST FURTHER, reason: "EXP-002 fallback — 2B Apache-
 
 | Cap | Before this audit | After this audit | Evidence level |
 |-----|-------------------|------------------|----------------|
-| **A. Single-image VQA** | candidate = TinyRS (BLOCKED download) or GeoChat (remote) | **primary = RSCoVLM-3B** (MIT, released 3B, active repo), fallback TinyRS-2B, control Qwen2-VL-2B; GeoChat = ceiling | still **DOCUMENTED** — no #2 reproduction yet |
+| **A. Single-image VQA** | candidate = TinyRS (BLOCKED download) or GeoChat (remote) | **LOCAL A/B PRIMARY = RSCoVLM-3B** (MIT, released 3B, active repo), FALLBACK TinyRS-2B, GENERIC CONTROL Qwen2-VL-2B; references EarthDial (primary) + GeoChat (secondary) — no "ceiling" | still **DOCUMENTED** — no #2 reproduction yet |
 | **B. Grounding / captioning** | RemoteCLIP retrieval only (not PS-grounding); TinyRS DOCUMENTED | **primary = RSCoVLM-3B** (grounding is a first-class task; also does captioning), control = Qwen2-VL-2B native boxes | still **DOCUMENTED** |
 | SAR + temporal in a VLM (context, not audit scope) | TEOChat 7B (remote, non-commercial) | **EarthDial-4B** is a lighter, **MIT-weights**, SAR+temporal+grounding option for the remote box — replaces TEOChat as the first VLM to try for C/D-language | DOCUMENTED |
 

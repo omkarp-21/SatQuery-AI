@@ -5,6 +5,62 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-012 — Model hierarchy: role labels replace "ceiling"; EarthDial = primary high-capability reference (REFERENCE CANDIDATE), GeoChat demoted to secondary/historical
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** After ADR-011 the single-image candidate set was revised but the
+  docs still carried the conceptual label **"GeoChat = ceiling"**. "Ceiling"
+  implies a *measured* upper bound; nothing here is reproduced, so the label
+  overclaims. This ADR replaces the ad-hoc labels with an explicit **role
+  hierarchy** and swaps the primary high-capability reference. **No new
+  repositories. No core-architecture change.**
+- **Decision — the model hierarchy (authoritative copy in
+  `docs/research/MODEL_TOURNAMENT.md`):**
+
+  | Role | Model | Repo | State |
+  |------|-------|------|-------|
+  | **LOCAL A/B PRIMARY** | **RSCoVLM-3B** | `VisionXLab/RSCoVLM` | DOCUMENTED — EXP-002 primary, run local @ 4-bit |
+  | **LOCAL A/B FALLBACK** | **TinyRS-2B** | `aybora/TinyRS` | DOCUMENTED — weight download BLOCKED from this host |
+  | **GENERIC CONTROL** | **Qwen2-VL-2B** | `QwenLM/Qwen2-VL` | runnable — value-of-RS-adaptation baseline |
+  | **TEMPORAL** | **ChangeFormer** | `wgcban/ChangeFormer` | INTEGRATED (mask) — MEASURED IoU 0.83 / n=7 |
+  | **OPTICAL-SAR PRIMARY** | **CROMA** | `antofuller/CROMA` | REPRODUCED — decide vs DOFA in EXP-004 Run 2 |
+  | **OPTICAL-SAR CHALLENGER** | **DOFA** | `zhu-xlab/DOFA` | REPRODUCED |
+  | **GROUNDING REFERENCE** | **GeoGround** | `VisionXLab/GeoGround` | DOCUMENTED — ~7B, remote |
+  | **AUXILIARY** | **RemoteCLIP** | `ChenDelong1999/RemoteCLIP` | INTEGRATED — retrieval / zero-shot / embedding, **not VQA** |
+  | **PRIMARY HIGH-CAPABILITY REFERENCE** | **EarthDial** | `hiyamdebary/EarthDial` | **REFERENCE CANDIDATE** — not reproduced |
+  | **SECONDARY / HISTORICAL RS-VLM REFERENCE** | **GeoChat** | `mbzuai-oryx/GeoChat` | **secondary reference** — not on the critical path; local-run inability is **not** a project blocker |
+  | **RESEARCH REFERENCE** | **SARLANG-1M** | `jimmyxichen/sarlang-1m` | dataset/benchmark — SAR-language eval + fine-tune data |
+
+- **"Ceiling" retired.** Neither EarthDial nor GeoChat is a "ceiling" until it is
+  **reproduced and measured** under our evaluation. Until then both are
+  *references*.
+- **EarthDial verification (no large artifacts downloaded):**
+  - *Checkpoints:* **verified to exist** — HF `akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`,
+    Safetensors, BF16, `internvl_chat` arch, "4B params". HF pages show **"No model
+    card"** (sparse).
+  - *License:* repo footer = **MIT**; the HF checkpoint pages **assert no license**
+    → code MIT, **weights licence unconfirmed** (treat as unconfirmed until stated).
+  - *Hardware:* README = trained on "8 A100 GPUs with 80GB"; **inference VRAM not
+    documented**. 4B BF16 ≈ 8–9 GB → does **not** fit the 4 GB laptop at bf16;
+    4-bit ≈ 3–3.5 GB (undocumented, unverified).
+  - *Environment:* Python 3.9, InternVL2 + Phi-3-Mini stack, `flash-attn==2.3.6`
+    (training). torch / CUDA / `transformers` versions **not pinned** in the README.
+  - *Inference path:* README points to a "demo section"; **exact entrypoint not
+    quoted / not run**. `snapshot_download` example given for weights.
+  - *Repo health:* 45 commits, 140 stars, CVPR 2025.
+  - **Classification: REFERENCE CANDIDATE** until reproduced.
+- **GeoChat:** retained as the **secondary / historical** RS-VLM reference. It is
+  **not required** for the main SatQuery architecture, and its inability to run on
+  the Windows 4 GB host is **explicitly not a project blocker** — the local A/B
+  path (RSCoVLM-3B / TinyRS-2B) and EarthDial (remote, when a box exists) cover the
+  capability.
+- **Consequence:** doc-only. Updated `docs/research/MODEL_TOURNAMENT.md`,
+  `docs/research/model_inventory.md`, `docs/research/CAPABILITY_GAP_MATRIX.md`,
+  `docs/PROJECT_STATUS.md`, this file. `model_registry.yaml` already carries
+  `earthdial_4b` / `geochat` in `excluded:` with statuses — role wording aligned.
+  No code, no new deps, no new repos, no confidence value, no fabricated numbers.
+
 ## ADR-011 — Lightweight Model Replacement Audit: RSCoVLM-3B is the primary single-image arm; EarthDial-4B replaces TEOChat as the remote SAR/temporal VLM
 
 - **Date:** 2026-09-01
