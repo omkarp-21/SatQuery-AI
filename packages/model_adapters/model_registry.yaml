@@ -115,7 +115,9 @@ excluded:
   geochat:      { status: TEST FURTHER, reason: "reference ceiling — 7B > 4 GB VRAM; deepspeed/bnb unbuildable on Windows; needs remote GPU >=16 GB" }
   change_agent: { status: TEST FURTHER, reason: "mmcv==1.3.1 unbuildable; Linux+conda only" }
   changechat:   { status: REJECT, reason: "no released weights; README now cites >=48 GB VRAM to train" }
-  rs_moe:       { status: REJECT, reason: "no released checkpoints, no inference script, no license" }
+  rs_moe:       { status: REJECT, reason: "no released checkpoints, no inference script, no license (2 repos inspected: original + CongcongWen1208/RS-MoE — the latter README says MoE 'not yet implemented', base Vicuna-13B, 'RS-MoE-1B' is a paper claim). LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md" }
+  dynamicvis:   { status: REJECT (product), reason: "PERCEPTION/ENCODER (Mamba SSM), NOT a VLM — no VQA/grounding/captioning per README. Apache-2.0, HF KyanChen/DynamicVis, ~800 MB/2048px. Windows + CPU INCOMPATIBLE (Mamba/CUDA-only) -> disqualified for the 4 GB ASUS + CPU-fallback target; C already covered by CPU-capable ChangeFormer. Research watch-item." }
+  remotesam:    { status: TEST FURTHER, reason: "GROUNDING/SEGMENTATION specialist (NOT a VLM) — referring segmentation + visual grounding, mask + box output. Swin-B + BERT ~200 M, HF 1e12Leon/RemoteSAM, ACM MM 2025. LOCAL-FITS-4GB on size; repro BLOCKED on mmcv-full==1.7.1 env (Windows build risk, same class as change_agent) + licence unstated. Best capability-B candidate — a dedicated grounding specialist, not a VLM side-task. LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md" }
   tinyrs:       { status: TEST FURTHER, reason: "EXP-002 fallback arm — 2B, Apache-2.0, HF aybora/Qwen2-VL-TinyRS; weight download BLOCKED from this host (5 attempts, <1 MB/s)" }
   rscovlm:      { status: TEST FURTHER, reason: "EXP-002 PRIMARY arm — Qwen2.5-VL-3B, MIT code / CC-BY-4.0 data, HF Qingyun/rscovlm; RS multi-task VQA+grounding+caption; 4 GB only at 4-bit (undocumented); DOCUMENTED, repro pending" }
   earthdial_4b: { status: TEST FURTHER (remote), reason: "InternVL2+Phi-3-Mini 4B, MIT code+weights, HF akshaydudhane/EarthDial_4B_*; adds SAR + temporal + grounding + captioning; too heavy for 4 GB fp16 -> remote box; DOCUMENTED only" }
@@ -131,7 +133,7 @@ routing:
   single_image_scene_or_retrieval: [remoteclip]
   optical_sar_representation: [croma, dofa]   # bake-off BLOCKED (EXP-004 Run 2 - no dataset)
   single_image_vqa: []             # unresolved - EXP-002 BLOCKED (weights unfetchable); -> NO_VQA_SPECIALIST
-  single_image_grounding: []       # unresolved - EXP-002
+  single_image_grounding: []       # unresolved - candidate = remotesam (dedicated ~200 M grounding specialist, mask+box); repro BLOCKED on mmcv env. See LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md
   bitemporal_semantic_change:      # composed baseline only (NOT learned / NOT validated)
     composed_baseline: [changeformer, remoteclip]   # COMPOSED_SEMANTIC_CHANGE_BASELINE
     learned_model: []              # unresolved - EXP-003 (needs a remote box)

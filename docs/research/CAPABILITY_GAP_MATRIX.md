@@ -4,10 +4,12 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01** (refreshed after **G7** — model-independent semantic
-> verifier built + MEASURED, P/R/F1 = 1.00 on n=34, INTEGRATED; SIH evidence pack
-> started; model stack NOT frozen. Earlier: G6 EXP-005 + crop strategy; G5A A/B
-> gate blocked ×6; roles frozen ADR-011/012). Experiment write-ups:
+> Date: **2026-09-01** (refreshed after the **Local Lightweight Model Tournament**
+> — RemoteSAM added as the lead capability-B candidate (~200 M grounding
+> specialist); RS-MoE REJECT (no artifact); DynamicVis REJECT for product
+> (Windows/CPU-incompatible). Earlier: G7 semantic verifier MEASURED; G8/G9
+> failure-aware routing; G5A A/B gate blocked ×6; roles frozen ADR-011/012).
+> Experiment write-ups:
 > `EXP-002.md`, `EXP-004.md`, `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
@@ -129,7 +131,7 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 | **D. Optical–SAR** | **REPRODUCED** + probe machinery validated (EXP-004 Run 1, synthetic); joint-repr contract in `/analyze` | mandatory + differentiation | **EXP-004 Run 2 BLOCKED** — no acquirable real S1+S2 set (DFC 11 GB / So2Sat 7 GB). Needs a remote box. |
 | **E. RS adaptation** | NONE — harness ready | mandatory | **EXP-008 BLOCKED** on EXP-004 Run 2. Needs a remote box. |
 | **A. Single-image VQA** | DOCUMENTED — **G5A: N=0, BLOCKED** (6th artifact-acquisition failure). Roles frozen: PRIMARY RSCoVLM-3B / FALLBACK TinyRS-2B / CONTROL Qwen2-VL-2B; references EarthDial + GeoChat | mandatory | **Remote reference gate OPEN (ADR-013)** — run `exp002_ab_gate.py` on a Linux GPU box: all three local candidates + both references on the frozen RSVQA-LR sample. Local-only path exhausted. |
-| **B. Extra single-image task** | PARTIAL — RemoteCLIP retrieval **integrated as `/scene`** (explicitly *not* captioning/grounding per PS); **G5A: grounding N=0, BLOCKED** | mandatory | grounding via **RSCoVLM-3B** / TinyRS-2B / Qwen2-VL-2B on the frozen DIOR-RSVG sample — **remote gate** (ADR-013); **GeoGround = GROUNDING REFERENCE** |
+| **B. Extra single-image task** | PARTIAL — RemoteCLIP retrieval **integrated as `/scene`** (not captioning/grounding per PS). **Candidate revised (G-tournament):** **RemoteSAM** — a dedicated ~200 M referring-segmentation + visual-grounding specialist (mask + box), ACM MM 2025, `LOCAL-FITS-4GB` — is the lead for B. DOCUMENTED; repro BLOCKED on `mmcv-full==1.7.1` env + unstated licence. | mandatory | **reproduce RemoteSAM** on an mmcv-capable machine → MEASURE grounding acc@IoU0.5 on the frozen 25-expr DIOR-RSVG sample. Fallback: RSCoVLM-3B grounding. Reference: GeoGround. `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`. |
 | **C. Semantic change (language)** | mask **INTEGRATED + MEASURED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE`** wired into `/analyze` — experimental, disclaimed. **G6 EXP-003b: crop strategy measured** (tight/expanded/mask_aware; agreement 4/6 on the demo pair; `expanded` provisional default). **Learned** semantic change NONE. | mandatory | EXP-003a with a real VLM (**EarthDial**, native temporal+change) on the remote box; then set the crop default with a labelled caption metric |
 | **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) needs EXP-004 Run 2 data |
 | **H. Evidence/confidence/audit** | `EvidenceItem` + `Provenance` + `verify()` in all 3 APIs. **EXP-005 (G6):** structural detection **P/R/F1 = 1.00** (n=24). **EXP-005b (G7):** model-independent `verify_semantic()` — **P/R/F1 = 1.00** (n=34), **INTEGRATED** into the composed baseline; residual label-correctness gap (BEYOND_SCOPE miss 1.00) needs a second model. Confidence = NONE (EXP-C1/C2 specified, blocked). | mandatory | `independent_model_agreement` + `optical_sar_agreement` semantic checks (need EXP-002 / EXP-C2, remote box); then EXP-C1 calibration |

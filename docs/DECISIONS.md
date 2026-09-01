@@ -5,6 +5,61 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-018 — Local Lightweight Model Tournament: RemoteSAM becomes the lead capability-B (grounding) candidate; RS-MoE + DynamicVis rejected; product confirmed to need no 7B/16 GB model
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** The product must run end-to-end on the ASUS RTX 3050 Ti 4 GB
+  + CPU fallback (SIH / non-commercial prototype). Audit of 3 new lightweight
+  candidates from their current official GitHub/HF READMEs — capability read from
+  the released implementation, not the paper title. No repos cloned, no
+  checkpoints downloaded. `docs/research/LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`.
+- **Findings:**
+  - **RemoteSAM** (`1e12Leon/RemoteSAM`, ACM MM 2025) — **GROUNDING / SEGMENTATION
+    specialist**, *not* a VLM. Swin-Base + BERT ≈ **200 M** ("billions → millions").
+    Released: HF checkpoint + RemoteSAM-270K dataset + inference examples. Tasks:
+    **referring segmentation (text → mask)**, **visual grounding (text → box)**,
+    detection, classification, captioning, counting. Env: Python 3.8 / torch
+    1.13 / CUDA 11.6 / **`mmcv-full==1.7.1`**. Licence **not stated**. Class:
+    **`LOCAL-FITS-4GB`** on size; **repro BLOCKED** on the `mmcv` build (same class
+    that blocked Change-Agent on Windows) + licence. **→ TEST FURTHER — the lead
+    capability-B candidate**: a dedicated lightweight grounding specialist that
+    emits mask + box is strictly better for B than making a 3 B VQA model ground.
+  - **DynamicVis** (`KyanChen/DynamicVis`) — **PERCEPTION / ENCODER** (Mamba
+    SSM), Apache-2.0, ~800 MB / 2048² image. README: **no VQA / captioning /
+    grounding** in the released code. **Windows + CPU incompatible** (Mamba is
+    CUDA-only) → **disqualified for the product target**. C is already covered by
+    CPU-capable ChangeFormer. **→ REJECT for product; research watch-item.**
+  - **RS-MoE** (`CongcongWen1208/RS-MoE`) — README: **training-only**, *"MoE
+    architecture is not yet implemented"*, base **Vicuna-13B**, no released
+    weights, no licence, 6 commits. "RS-MoE-1B" is a paper claim with no artifact.
+    **→ REJECT (no artifact)** — same outcome as the original RS-MoE repo (G1.6).
+- **Decision:**
+  - **Capability B lead = RemoteSAM** (dedicated grounding specialist), fallback
+    = RSCoVLM-3B grounding head, reference = GeoGround (remote). `model_registry.yaml`
+    `single_image_grounding` routing note + `excluded:` block updated
+    (`remotesam` TEST FURTHER, `dynamicvis` REJECT(product), `rs_moe` REJECT).
+  - **Capabilities A / C / D / E and the model hierarchy are UNCHANGED** — no new
+    VQA candidate emerged (RS-MoE-1B is vapour); ChangeFormer, CROMA, DOFA,
+    RemoteCLIP stay; DynamicVis does not displace ChangeFormer.
+  - **The product architecture is confirmed to have NO mandatory 7B/16 GB
+    dependency.** EarthDial-4B, GeoChat-7B, GeoGround-7B remain **research-only
+    references**. The 4 GB + CPU-fallback target is met for C + D + retrieval
+    today (proven); A + B are plausibly 4 GB-feasible (RSCoVLM-3B @ 4-bit;
+    RemoteSAM ≈ sub-GB) but **unreproduced** — blocked on artifact/env
+    acquisition, not on capability or compute.
+  - **Next experiment:** on an `mmcv`-capable machine (Linux, or a matching
+    Windows wheel), **reproduce RemoteSAM** — load the HF checkpoint, run its
+    referring-segmentation + visual-grounding examples, confirm mask + box, record
+    VRAM / latency / licence — then MEASURE grounding acc@IoU0.5 on the frozen
+    25-expression DIOR-RSVG sample. This resolves B **independently** of the
+    download-blocked VQA models and is more likely to succeed (weights ≈ sub-GB).
+- **Consequence (doc-only; no code, no new deps, no repos cloned, tests unchanged
+  at 121):** new `docs/research/LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`; updated
+  `model_registry.yaml` (excluded block + grounding routing note),
+  `MODEL_TOURNAMENT.md`, `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`
+  (B row + header), `EVIDENCE_LEDGER.md`, `PROJECT_STATUS.md`.
+
 ## ADR-017 — G9: `LOW_MARGIN` advisory added to failure-aware routing; remote batches (A/B/D/E) still blocked on human provisioning; stack NOT frozen — the loop stops here until a machine exists
 
 - **Date:** 2026-09-01

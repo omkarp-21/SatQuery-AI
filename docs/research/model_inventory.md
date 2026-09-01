@@ -19,13 +19,16 @@
 | **INTEGRATED** | Runs inside the SatQuery pipeline via an adapter, with provenance. |
 | **VALIDATED** | End-to-end in the pipeline, verified, with provenance. |
 
-> **G7–G8 (2026-09-01):** no inventory change — model discovery is stopped, the
-> stack is NOT frozen (A/B/D/E unmeasured, ADR-015/016). G7 built the
-> model-independent semantic verifier (EXP-005b, P/R/F1 = 1.00 on n=34, INTEGRATED)
-> + SIH evidence pack. G8 built failure-aware routing (`derive_resolution` +
-> `image_difference_fallback`, INTEGRATED into `/analyze`, 10 tests) — the
-> image-difference fallback is a deterministic non-model baseline, not a new
-> inventory model.
+> **G7–G9 (2026-09-01):** semantic verifier MEASURED + INTEGRATED (EXP-005b);
+> failure-aware routing INTEGRATED (`derive_resolution` + `image_difference_fallback`
+> + `LOW_MARGIN` advisory). Stack NOT frozen.
+>
+> **Local Lightweight Model Tournament (2026-09-01):** inspected 3 new candidates
+> from official GitHub/HF. **RemoteSAM** (~200 M grounding/segmentation
+> specialist) → **TEST FURTHER, lead capability-B candidate**. **RS-MoE** → REJECT
+> (no artifact; "MoE not yet implemented"). **DynamicVis** → REJECT for product
+> (Mamba: Windows + CPU incompatible). Product confirmed to have **no mandatory
+> 7B/16 GB dependency**. Full record: `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`.
 >
 > **Model hierarchy (ADR-011/012) — role labels, not a quality ranking.** LOCAL
 > A/B PRIMARY = **RSCoVLM-3B**; LOCAL A/B FALLBACK = **TinyRS-2B**; GENERIC CONTROL
@@ -61,6 +64,9 @@
 | Qwen2-VL-2B | generic VLM (VQA, native bbox grounding) | Apache-2.0 | yes (`Qwen/Qwen2-VL-2B-Instruct`) | ✅ (4-bit) | **GENERIC CONTROL** — **G5A: N=0**, 6th DL failure (0-byte safetensors) |
 | EarthDial | RS multi-task VLM (VQA+grounding+caption, **+SAR +temporal**) | code MIT / weights unconfirmed | yes (`akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`, InternVL2+Phi-3, 4B) | ❌ (4B ≈ 8–9 GB bf16) | **PRIMARY HIGH-CAPABILITY REFERENCE** — REFERENCE CANDIDATE; **G5A remote reference gate** (run on same frozen samples) |
 | GeoGround | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`) | ❌ (~7B) | **GROUNDING REFERENCE** (remote) / BACKUP |
+| **RemoteSAM** | GROUNDING/SEGMENTATION specialist — referring seg + visual grounding (mask+box) | not stated | yes (`1e12Leon/RemoteSAM`, Swin-B+BERT ~200 M) | ✅ size (`LOCAL-FITS-4GB`); env-BLOCKED (mmcv-full 1.7.1) | **TEST FURTHER — lead capability-B candidate** (`LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`) |
+| **DynamicVis** | PERCEPTION/ENCODER (Mamba SSM) — NOT a VLM; classif/detect/seg/change/retrieval | Apache-2.0 | yes (`KyanChen/DynamicVis` b/l) | VRAM `LOCAL-EASY` (~800 MB/2048px) but **Windows+CPU incompatible** | **REJECT for product** (portability); research watch-item |
+| **RS-MoE** (`CongcongWen1208/RS-MoE`) | GENERAL VLM (claim) — captioning + VQA | not stated | **no** — training-only, "MoE not yet implemented", base Vicuna-13B | ❌ | **REJECT (no artifact)** — "RS-MoE-1B" is a paper claim |
 | LRS-VQA | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (7B) | ❌ | **KEEP FOR LATER** — as a VQA benchmark |
 | UniRS | unified single/dual-temporal/video VLM | code Apache; **weights CC-BY-NC-SA (non-commercial)** | unclear | ❌ (VILA-1.5) | **BACKUP** — remote, licence-restricted |
 | TEOChat | temporal EO VLM (semantic change, change-QA) | non-commercial (LLaMA-derived) | yes | ❌ (~7B) | **TEST FURTHER** — remote C ceiling |

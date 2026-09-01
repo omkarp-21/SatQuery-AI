@@ -93,6 +93,9 @@ section" — **exact entrypoint not confirmed, not run**. Repo health: 45 commit
 | 13 | **LRS-VQA** | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (Qwen2-7B / Vicuna-7B on HF/ModelScope) | **no** (7B, A100-tested) | DOCUMENTED — useful as a **VQA benchmark** |
 | 14 | **RSCoVLM** | multi-task RS VLM (VQA + grounding + detect) | **code MIT / data CC-BY-4.0** | yes (HF collection); **3B and 7B** (Qwen2.5-VL) | **borderline yes (3B)** | DOCUMENTED — **strong TinyRS challenger** (best licence) |
 | 15 | **SARLANG-1M** | SAR-language **dataset/benchmark** (1M pairs, 7 tasks) | not stated | n/a — **data only**, no model (`YiminJimmy/SARLANG-1M`) | n/a | DOCUMENTED — **SAR-language eval + fine-tune data** |
+| 16 | **RemoteSAM** (`1e12Leon/RemoteSAM`) | GROUNDING/SEGMENTATION specialist — referring seg + visual grounding (mask+box); NOT a VLM | not stated | yes (Swin-B+BERT ~200 M, ACM MM 2025) | ✅ size; env-BLOCKED (`mmcv-full==1.7.1`) | **TEST FURTHER — lead capability-B candidate** (`LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`) |
+| 17 | **DynamicVis** (`KyanChen/DynamicVis`) | PERCEPTION/ENCODER (Mamba SSM); NOT a VLM | Apache-2.0 | yes (b/l) | VRAM easy (~800 MB) but **Windows+CPU incompatible** | **REJECT for product** (portability); watch-item |
+| 18 | **RS-MoE** (`CongcongWen1208/RS-MoE`) | GENERAL VLM (claim) — caption + VQA | not stated | **no** (training-only; base Vicuna-13B) | ❌ | **REJECT (no artifact)** |
 
 ¹ classifier metadata only; verify before redistribution.
 Carry-over from G1.5: **TEOChat** (temporal EO VLM, ~7B, non-commercial) — remote
@@ -152,17 +155,21 @@ for the reference comparison **only** once the local arms are measured.
 
 | Candidate | Status | Notes |
 |-----------|--------|-------|
-| GeoGround | DOCUMENTED | grounding-specialised (HBB/OBB/**mask**), HF weights, ~7B → remote |
-| GeoChat grounding | BLOCKED locally | remote |
-| RS-MoE captioning | REJECTED | no weights |
+| **RemoteSAM** | **TEST FURTHER — lead** | dedicated ~200 M referring-seg + visual-grounding specialist (**mask + box**), ACM MM 2025, `LOCAL-FITS-4GB`; env-BLOCKED (`mmcv-full==1.7.1`) + licence unstated. `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md` |
+| RSCoVLM grounding | DOCUMENTED, local | spatial grounding at 3B — fallback |
 | TinyRS grounding | DOCUMENTED, local | boxes-in-text at 2B |
-| RSCoVLM grounding | DOCUMENTED, local | spatial grounding at 3B |
+| Qwen2-VL-2B | DOCUMENTED | native `<box>` tokens — generic control |
+| GeoGround | DOCUMENTED | grounding-specialised (~7B) → **GROUNDING REFERENCE** (remote) |
+| RS-MoE captioning | REJECTED | no weights / no inference code (2 repos) |
 
-**Recommendation: choose GROUNDING** over captioning — stronger evidence
-visualisation (a box on the map is inspectable), better demo value, and a clean
-benchmark (DIOR-RSVG acc@IoU0.5). Local path: whichever of TinyRS / RSCoVLM-3B
-grounds acceptably (measured inside EXP-002). **GeoGround is the GROUNDING
-REFERENCE (remote) / backup** — not a "ceiling" until reproduced + measured.
+**Recommendation: choose GROUNDING, and make it a DEDICATED SPECIALIST.**
+The Local Lightweight Tournament found **RemoteSAM** — a ~200 M model purpose-built
+for referring segmentation + visual grounding that emits a **mask *and* a box**
+(both directly mappable as evidence). That is strictly better for capability B
+than forcing a 3 B VQA model to emit coordinates in text. **Primary = RemoteSAM**
+(reproduce first — weights ≈ sub-GB, the risk is the `mmcv` env), **fallback =
+RSCoVLM-3B grounding head**, **reference = GeoGround** (remote). Benchmark:
+DIOR-RSVG acc@IoU0.5 on the frozen 25-expression sample.
 
 ### Tournament C — Temporal  *(mandatory capability C)*
 
@@ -256,9 +263,11 @@ reproduced + measured. **Remote reference gate OPEN (ADR-013)** — run
 `exp002_ab_gate.py` on a Linux GPU box; local + reference on the same frozen
 RSVQA-LR / DIOR-RSVG samples.
 
-**E. Best grounding/caption candidate** — Choose **grounding**. Local: RSCoVLM-3B
-grounding (primary) / TinyRS-2B (fallback) via EXP-002; **Qwen2-VL-2B** native
-bbox as the control. **GROUNDING REFERENCE: GeoGround** (remote).
+**E. Best grounding/caption candidate** — Choose **grounding, as a dedicated
+specialist**. **Primary = RemoteSAM** (~200 M, mask + box, RS-native; repro
+BLOCKED on the `mmcv` env). Fallback = RSCoVLM-3B grounding head (via EXP-002).
+Control = Qwen2-VL-2B native `<box>`. **GROUNDING REFERENCE: GeoGround** (remote).
+See `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`.
 
 **F. Best temporal candidate** — **ChangeFormer** (mask, MEASURED) **+ a composed
 caption pipeline** for the language side. Ceilings: TEOChat / Change-Agent (remote).
