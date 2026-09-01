@@ -48,10 +48,10 @@
 |-----------|------|---------|----------|---------------|---------|
 | CROMA | optical–SAR joint repr. | MIT | yes | ✅ | **REPRODUCED** — primary D |
 | DOFA | multi-sensor repr. (incl. SAR) | MIT | yes | ✅ | **REPRODUCED** — D challenger |
-| RSCoVLM | multi-task RS VLM (VQA+grounding+detect) | **MIT / CC-BY-4.0** | yes (3B & 7B) | borderline (3B @ 4-bit) | **LOCAL A/B PRIMARY** (EXP-002) |
-| TinyRS / R1 | lightweight single-image VLM (VQA, grounding) | Apache-2.0 | yes (`aybora/Qwen2-VL-TinyRS*`) | borderline (2B @ 4-bit) | **LOCAL A/B FALLBACK** (EXP-002; weight DL blocked from this host) |
-| Qwen2-VL-2B | generic VLM (VQA, native bbox grounding) | Apache-2.0 | yes (`Qwen/Qwen2-VL-2B-Instruct`) | ✅ (4-bit) | **GENERIC CONTROL** — value-of-RS-adaptation baseline |
-| EarthDial | RS multi-task VLM (VQA+grounding+caption, **+SAR +temporal**) | code MIT / weights unconfirmed | yes (`akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`, InternVL2+Phi-3, 4B) | ❌ (4B ≈ 8–9 GB bf16) | **PRIMARY HIGH-CAPABILITY REFERENCE** — REFERENCE CANDIDATE (not reproduced) |
+| RSCoVLM | multi-task RS VLM (VQA+grounding+detect) | **MIT / CC-BY-4.0** | yes (3B & 7B) | borderline (3B @ 4-bit) | **LOCAL A/B PRIMARY** — **G5A: N=0, artifact BLOCKED**; harness ready |
+| TinyRS / R1 | lightweight single-image VLM (VQA, grounding) | Apache-2.0 | yes (`aybora/Qwen2-VL-TinyRS*`) | borderline (2B @ 4-bit) | **LOCAL A/B FALLBACK** — **G5A: N=0**, weight DL failed 5× |
+| Qwen2-VL-2B | generic VLM (VQA, native bbox grounding) | Apache-2.0 | yes (`Qwen/Qwen2-VL-2B-Instruct`) | ✅ (4-bit) | **GENERIC CONTROL** — **G5A: N=0**, 6th DL failure (0-byte safetensors) |
+| EarthDial | RS multi-task VLM (VQA+grounding+caption, **+SAR +temporal**) | code MIT / weights unconfirmed | yes (`akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`, InternVL2+Phi-3, 4B) | ❌ (4B ≈ 8–9 GB bf16) | **PRIMARY HIGH-CAPABILITY REFERENCE** — REFERENCE CANDIDATE; **G5A remote reference gate** (run on same frozen samples) |
 | GeoGround | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`) | ❌ (~7B) | **GROUNDING REFERENCE** (remote) / BACKUP |
 | LRS-VQA | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (7B) | ❌ | **KEEP FOR LATER** — as a VQA benchmark |
 | UniRS | unified single/dual-temporal/video VLM | code Apache; **weights CC-BY-NC-SA (non-commercial)** | unclear | ❌ (VILA-1.5) | **BACKUP** — remote, licence-restricted |

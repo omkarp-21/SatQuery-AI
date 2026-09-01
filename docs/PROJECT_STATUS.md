@@ -39,6 +39,7 @@
 | **G4 · confidence plan** | `docs/research/CONFIDENCE_PLAN.md` — candidate sources + required experiments (EXP-005, EXP-C1, EXP-C2). **No confidence number emitted anywhere.** |
 | **G4 · EXP-002 / EXP-004 Run 2 / EXP-008** | **BLOCKED — artifact/dataset acquisition fails from this host** (TinyRS 4 attempts <1 MB/s; DFC 11 GB / So2Sat 7 GB / EuroSAT-SAR 922 MB all too large). **Remote GPU now justified on infrastructure grounds.** |
 | **G4 · tests** | **92 passed, 0 failed** (baseline 59). No regressions. |
+| **G5A — A/B reproduction gate** | **Ran. LOCAL REPRODUCTION BLOCKED — 6th documented artifact-acquisition failure** (bounded Qwen2-VL-2B download, fresh `Qwen/` HF org: config landed instantly, both `.safetensors` shards stuck at **0 bytes** for the 8-min window — same signature as the 5 prior TinyRS attempts → host↔HF-CDN path is the blocker). RSVQA-LR + DIOR-RSVG also unfetchable. **N=0, no numbers fabricated.** Delivered ready-to-run: `evaluation/datasets/{rsvqa_lr,dior_rsvg}_sample.json` (frozen deterministic 40-Q / 25-expr selection specs) + `evaluation/scripts/exp002_ab_gate.py` (full measurement harness — compiles; `--resolve` → clean `DATASET_MISSING`). **Remote reference gate OPEN (ADR-013).** No production A/B model selected, no adapter written (would be fabrication), `/analyze` routing unchanged (`NO_VQA_SPECIALIST`, never RemoteCLIP). 92/92 tests unchanged — doc + eval-scaffold only, no product code. Three-numbers table in `EXP-002.md` + `EVIDENCE_LEDGER.md`. |
 | **Model hierarchy — role labels (ADR-012)** | "GeoChat = ceiling" retired. Roles: **LOCAL A/B PRIMARY** RSCoVLM-3B · **FALLBACK** TinyRS-2B · **GENERIC CONTROL** Qwen2-VL-2B · **TEMPORAL** ChangeFormer · **OPTICAL-SAR PRIMARY** CROMA · **CHALLENGER** DOFA · **GROUNDING REFERENCE** GeoGround · **AUXILIARY** RemoteCLIP · **PRIMARY HIGH-CAPABILITY REFERENCE** EarthDial (REFERENCE CANDIDATE — checkpoints verified to exist, weights licence unconfirmed, 4B, not reproduced) · **SECONDARY / HISTORICAL REFERENCE** GeoChat (not on the critical path; local-run inability is **not** a blocker) · **RESEARCH REFERENCE** SARLANG-1M. Nothing is a "ceiling" until reproduced + measured. Docs: `MODEL_TOURNAMENT.md` (authoritative), `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`, ADR-012. **No new repos, no code, no artifacts downloaded.** |
 | **Lightweight Model Replacement Audit** | `docs/research/LIGHTWEIGHT_AUDIT.md` (ADR-011). 5 candidates inspected from released artifacts (not paper titles), compared vs TinyRS + GeoChat. **RSCoVLM-3B** (MIT, `Qingyun/rscovlm`, RS multi-task VQA+grounding+caption) → **primary** EXP-002 arm; **TinyRS-2B** fallback; **Qwen2-VL-2B** generic control; **EarthDial-4B** (MIT weights, +SAR +temporal) replaces TEOChat as the remote SAR/temporal VLM; **SkyEyeGPT** BLOCKED (no inference recipe); **ISRO-GeoNLI** REJECT (wrapper, 36 GB). All still **#1 DOCUMENTED** — no reproduction. TinyRS download failed a **5th** time (11/12 files; 4.4 GB shard incomplete). `model_registry.yaml` `excluded:` block updated. **No new repos, no code, no fabricated numbers.** |
 | Strategy docs `docs/17`–`docs/21` | files present; cross-linked from `CLAUDE.md` |
@@ -174,15 +175,16 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **EXP-002 local arms first** — bounded download of **RSCoVLM-3B** (LOCAL A/B
-   PRIMARY) + retry TinyRS-2B; run @ 4-bit on the RTX 3050 Ti with **Qwen2-VL-2B**
-   as the GENERIC CONTROL; measure balanced acc / acc@IoU0.5 / latency vs the
-   EXP-002 threshold. **Then** provision one remote Linux GPU box (≥ 16 GB, good
-   bandwidth) to reproduce the **high-capability references** (EarthDial 4B,
-   GeoChat 7B, GeoGround) for the local-vs-reference comparison **and** to unblock
-   the multi-GB dataset backlog: DFC2020 → **EXP-004 Run 2** → **EXP-008**. The
-   remote box is *useful*, not on the A/B critical path; GeoChat's local-run
-   inability is **not** a blocker.
+1. **Provision one remote Linux GPU box (≥ 16 GB, working bandwidth)** — the local
+   A/B path is now exhausted (G5A: 6th weight-download failure; RSVQA-LR/DIOR-RSVG
+   also unfetchable). On that box run the committed `evaluation/scripts/exp002_ab_gate.py`
+   for **RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B** (@ 4-bit — still the 4 GB budget
+   logically) **and** the reference arm **EarthDial-4B / GeoChat-7B** on the
+   *identical* frozen RSVQA-LR + DIOR-RSVG samples → balanced acc / acc@IoU0.5 /
+   latency / memory + absolute & relative local-vs-reference deltas. Same box
+   unblocks DFC2020 → **EXP-004 Run 2** → **EXP-008**. Then select the production
+   A/B model on the 7 G5A criteria and write **one** SpecialistAdapter + update
+   `/analyze` routing to point VQA/grounding at it.
 2. **EXP-005 (verifier detection) + confidence EXP-C1/C2 prep** — curate the
    right/wrong answer set, run the deterministic verifier's detection precision/
    recall; this is local and unblocks the `CONFIDENCE_PLAN.md` experiments.

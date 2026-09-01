@@ -5,6 +5,57 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-013 — G5A A/B reproduction gate: local reproduction BLOCKED (6th artifact-acquisition failure) → remote reference gate OPEN; no production A/B model selected
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G5A froze the model hierarchy and ran the final A/B reproduction
+  gate — resolve capability **A** (single-image VQA) and **B** (text-guided
+  grounding) by *actually reproducing and measuring* RSCoVLM-3B / TinyRS-2B /
+  Qwen2-VL-2B on the RTX 3050 Ti, against fixed RSVQA-LR + DIOR-RSVG samples and
+  internal usability thresholds (VQA balanced-acc ≥ 0.60; grounding acc@IoU0.5 ≥
+  0.30; ≤ 45 s/query). No new repos, no architecture change.
+- **What ran:** one bounded weight-download attempt for **Qwen2-VL-2B-Instruct**
+  (`Qwen/…` — a *different* HF namespace from the earlier TinyRS attempts),
+  `snapshot_download`, `max_workers=2`, 8-minute bound.
+- **Result — BLOCKED at three layers:**
+  1. **Model weights (6th documented failure).** Config + `merges.txt` landed
+     instantly; **both `model-0000?-of-00002.safetensors` shards stuck at 0 bytes**
+     (`.incomplete` 0 B) for the entire window. Identical signature to the five
+     prior TinyRS attempts (G2.5×2 `ChunkedEncodingError`, G3 DNS, G4 134 MB/4.4 GB,
+     Audit 11/12 files) — on a different model from a different org → the blocker
+     is this Windows host's network path to the HF CDN, not any one repo. RSCoVLM-3B
+     (~6 GB, same infra) not attempted per the bounded-time rule (`docs/21`).
+  2. **Evaluation datasets.** RSVQA-LR (Zenodo 3945396) and DIOR-RSVG (DIOR images
+     ≈ 20 GB) are the same multi-GB download problem — not on disk.
+  3. **Remote GPU.** Not available this session → the reference arm (EarthDial-4B,
+     GeoChat-7B on the same frozen samples) could not run.
+- **The three numbers stay separate (`docs/18`):** PAPER RESULT is recorded per
+  model (attributed); **OUR REPRODUCTION / OUR MEASUREMENT / OUR INTEGRATED RESULT
+  are all empty — because no artifact could be acquired, not because a model was
+  measured and failed.** `EVIDENCE_LEDGER.md` shows A/B still at **DOCUMENTED**.
+- **Decision:**
+  - **Remote reference gate is OPEN.** On a Linux box with working bandwidth +
+    GPU ≥ 16 GB: run the committed harness `evaluation/scripts/exp002_ab_gate.py`
+    for RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B **and** the reference arm
+    EarthDial-4B / GeoChat-7B on the identical frozen samples; record absolute +
+    relative deltas; select the production A/B model on the 7 G5A criteria; write
+    one adapter.
+  - **No production A/B model is selected** and **no adapter is written** — doing
+    either without a real run would be fabrication (`.claude/rules/ai-models.md`).
+  - **`/analyze` routing is unchanged** — VQA/grounding still returns
+    `NO_VQA_SPECIALIST` (never RemoteCLIP). It is wired to the winner only after
+    G5A-remote produces one.
+  - **Model discovery stops** (per the G5A brief) — the hierarchy is frozen.
+- **Consequence (doc + eval-scaffold only; no product code, 92/92 tests
+  unchanged):** new `evaluation/datasets/rsvqa_lr_sample.json`,
+  `evaluation/datasets/dior_rsvg_sample.json` (frozen deterministic selection
+  specs), `evaluation/scripts/exp002_ab_gate.py` (full measurement harness —
+  compiles, `--resolve` reports `DATASET_MISSING` cleanly). Updated `EXP-002.md`
+  (G5A section + three-numbers table + attempt log), `MODEL_TOURNAMENT.md`,
+  `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`, `EVIDENCE_LEDGER.md`,
+  `PROJECT_STATUS.md`, `19_EXPERIMENT_REGISTRY.md`.
+
 ## ADR-012 — Model hierarchy: role labels replace "ceiling"; EarthDial = primary high-capability reference (REFERENCE CANDIDATE), GeoChat demoted to secondary/historical
 
 - **Date:** 2026-09-01

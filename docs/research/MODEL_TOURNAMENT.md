@@ -14,15 +14,18 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
-Current (post-G4): 4 models REPRODUCED behind the standard `SpecialistAdapter`
+Current (post-G5A): 4 models REPRODUCED behind the standard `SpecialistAdapter`
 contract. **ChangeFormer + RemoteCLIP INTEGRATED**, now reachable through the
 unified **`POST /analyze`** (deterministic interpret → route → dispatch →
 aggregate). CROMA/DOFA INTEGRATED as `run_joint_representation()` (representation-
 level). A `COMPOSED_SEMANTIC_CHANGE_BASELINE` chains ChangeFormer + RemoteCLIP for
-capability C (experimental, disclaimed). Nothing is VALIDATED — and the
-model-selection experiments (EXP-002 VQA, EXP-004 Run 2 optical-SAR, EXP-008
-adaptation) are **BLOCKED on data acquisition from this host**; a remote Linux GPU
-box is now the path. Ledger: `EVIDENCE_LEDGER.md`. Confidence: `CONFIDENCE_PLAN.md`.
+capability C (experimental, disclaimed). Nothing is VALIDATED. The
+model-selection experiments (EXP-002 VQA/grounding, EXP-004 Run 2 optical-SAR,
+EXP-008 adaptation) are **BLOCKED on artifact acquisition from this host** — **G5A
+ran the A/B gate and hit the 6th documented weight-download failure** (0-byte
+safetensors on a fresh `Qwen/` repo, 8-min bound); frozen sample specs +
+`evaluation/scripts/exp002_ab_gate.py` are committed and ready. **Remote reference
+gate OPEN (ADR-013).** Ledger: `EVIDENCE_LEDGER.md`. Confidence: `CONFIDENCE_PLAN.md`.
 
 ---
 
@@ -235,11 +238,13 @@ linear probe (train only a linear head) ≠ LoRA (low-rank adapters in the backb
 
 ## Final recommendations (report items D–N)
 
-**D. Best single-image VQA candidate** — *No winner yet (nothing reproduced).*
-**LOCAL A/B PRIMARY = RSCoVLM-3B**, **LOCAL A/B FALLBACK = TinyRS-2B**, **GENERIC
-CONTROL = Qwen2-VL-2B**. High-capability references: **EarthDial** (primary,
-REFERENCE CANDIDATE) and **GeoChat** (secondary / historical). No "ceiling" label
-until reproduced + measured. Resolve via EXP-002.
+**D. Best single-image VQA candidate** — *No winner (G5A: nothing reproduced —
+artifact acquisition BLOCKED, 6th download failure).* **LOCAL A/B PRIMARY =
+RSCoVLM-3B**, **FALLBACK = TinyRS-2B**, **GENERIC CONTROL = Qwen2-VL-2B**;
+references **EarthDial** (primary) + **GeoChat** (secondary). No "ceiling" until
+reproduced + measured. **Remote reference gate OPEN (ADR-013)** — run
+`exp002_ab_gate.py` on a Linux GPU box; local + reference on the same frozen
+RSVQA-LR / DIOR-RSVG samples.
 
 **E. Best grounding/caption candidate** — Choose **grounding**. Local: RSCoVLM-3B
 grounding (primary) / TinyRS-2B (fallback) via EXP-002; **Qwen2-VL-2B** native
@@ -275,15 +280,17 @@ before→after.
 4. F/G/H are code we haven't written (blocked on adapters + the geospatial stage).
 5. GeoChat / TEOChat / GeoGround / Change-Agent all need a remote Linux GPU.
 
-**K. Is remote GPU justified?** — **Useful, not yet on the critical path.** The
-local A/B path (RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B @ 4-bit) and the reproduced
-CROMA/DOFA/ChangeFormer stack do not need one. A remote Linux GPU ≥16 GB is
-*useful* for: (a) reproducing the **high-capability references** EarthDial (4B) and
-GeoChat (7B) for the local-vs-reference comparison, (b) GeoGround grounding, (c)
-the multi-GB dataset/weight downloads that keep failing from this Windows host
-(EXP-002 weights, EXP-004 Run 2 / EXP-008 S1+S2). Provision it **after** the local
-EXP-002 arms are measured — its job is the *reference* comparison, not the primary
-capability. **GeoChat's local-run inability is not a project blocker.**
+**K. Is remote GPU justified?** — **Yes now — the local A/B path is exhausted.**
+G5A ran the A/B gate and hit the **6th** documented weight-download failure
+(0-byte safetensors on a fresh `Qwen/` repo, 8-min bound → the blocker is this
+host's path to the HF CDN, not any one repo). RSVQA-LR + DIOR-RSVG are the same
+multi-GB problem. A remote Linux GPU ≥ 16 GB is needed for: (a) reliable bandwidth
+to fetch RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B weights + the eval datasets,
+(b) reproducing the references EarthDial-4B + GeoChat-7B + GeoGround on the same
+frozen samples, (c) EXP-004 Run 2 / EXP-008 S1+S2. Run the committed
+`evaluation/scripts/exp002_ab_gate.py` there. CROMA/DOFA/ChangeFormer still need
+no GPU. **GeoChat's local-run inability is not a project blocker** — it is one of
+five models the one box unblocks.
 
 **L. Recommended minimum V0 stack** (all locally reproduced, no GPU spend):
 - **RemoteCLIP** — retrieval / zero-shot tagging / planner-aux embedding index.

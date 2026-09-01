@@ -4,9 +4,10 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01** (refreshed after **G4** — unified `/analyze`, composed
-> semantic-change baseline, EXP-007 15/15; EXP-002/004-Run2/008 **BLOCKED** on
-> data acquisition → **remote GPU box justified**). Experiment write-ups:
+> Date: **2026-09-01** (refreshed after **G5A** — A/B reproduction gate ran and
+> hit the 6th artifact-acquisition failure; roles frozen ADR-011/012; **remote
+> reference gate OPEN ADR-013**. Earlier: G4 unified `/analyze`, composed
+> semantic-change baseline, EXP-007 15/15). Experiment write-ups:
 > `EXP-002.md`, `EXP-004.md`, `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
@@ -36,7 +37,7 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 | | |
 |---|---|
 | **Current model/tool** | *(role labels — ADR-011/012)* **LOCAL A/B PRIMARY = RSCoVLM-3B**; **FALLBACK = TinyRS-2B**; **GENERIC CONTROL = Qwen2-VL-2B**. High-capability references: **EarthDial** (primary, REFERENCE CANDIDATE) + **GeoChat** (secondary / historical). |
-| **Evidence status** | **DOCUMENTED only.** No single-image VLM reproduced. RSCoVLM-3B / TinyRS-2B not yet run (TinyRS weight DL **BLOCKED** from this host, 5 attempts). GeoChat GPU-blocked (7B; `deepspeed`/`bitsandbytes` unbuildable on Windows) — **not a project blocker**. EarthDial = REFERENCE CANDIDATE (checkpoints verified to exist; 4B, not reproduced). |
+| **Evidence status** | **DOCUMENTED only.** **G5A ran the A/B gate → N=0, artifact acquisition BLOCKED** (6th weight-download failure — 0-byte safetensors on a fresh `Qwen/` repo; RSVQA-LR + DIOR-RSVG also unfetchable). Frozen sample specs + `exp002_ab_gate.py` harness committed. GeoChat GPU-blocked — **not a project blocker**. EarthDial = REFERENCE CANDIDATE. **Remote reference gate OPEN (ADR-013).** |
 | **Missing capability** | A VQA model **reproduced** on available hardware and MEASURED against the EXP-002 threshold. |
 | **Candidate solution** | **RSCoVLM-3B** (`VisionXLab/RSCoVLM`, code MIT / data CC-BY-4.0, HF `Qingyun/rscovlm`, RS multi-task) at 4-bit on the RTX 3050 Ti; **TinyRS-2B** (`aybora/TinyRS`, Apache-2.0) as fallback; **Qwen2-VL-2B** (`Qwen/Qwen2-VL-2B-Instruct`, Apache-2.0) as the generic control. **EarthDial** (`akshaydudhane/EarthDial_4B_*`, InternVL2+Phi-3, code MIT) + **GeoChat** reproduced on a cloud GPU ≥16 GB for the reference comparison. |
 | **Validation plan** | `.venvs/rscovlm` (transformers matching Qwen2.5-VL + `qwen-vl-utils`; **no** deepspeed/flash-attn for inference). Run RSCoVLM-3B on a small RSVQA-LR + DIOR-RSVG sample → REPRODUCED → MEASURE balanced acc / acc@IoU0.5 / latency vs the EXP-002 threshold. Repeat for TinyRS-2B + Qwen2-VL-2B. Compare vs EarthDial + GeoChat on a remote box afterwards. |
@@ -127,8 +128,8 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 |-----|--------|-----------|--------------------------------|
 | **D. Optical–SAR** | **REPRODUCED** + probe machinery validated (EXP-004 Run 1, synthetic); joint-repr contract in `/analyze` | mandatory + differentiation | **EXP-004 Run 2 BLOCKED** — no acquirable real S1+S2 set (DFC 11 GB / So2Sat 7 GB). Needs a remote box. |
 | **E. RS adaptation** | NONE — harness ready | mandatory | **EXP-008 BLOCKED** on EXP-004 Run 2. Needs a remote box. |
-| **A. Single-image VQA** | DOCUMENTED — **LOCAL A/B PRIMARY = RSCoVLM-3B**, FALLBACK TinyRS-2B, CONTROL Qwen2-VL-2B; references EarthDial (primary) + GeoChat (secondary) | mandatory | **EXP-002** — run RSCoVLM-3B @ 4-bit **local** first; TinyRS weight DL BLOCKED (5 attempts). Remote GPU *useful* for the EarthDial/GeoChat reference, not on the critical path. |
-| **B. Extra single-image task** | PARTIAL — RemoteCLIP retrieval **integrated as `/scene`** (explicitly *not* captioning/grounding per PS) | mandatory | grounding via **RSCoVLM-3B** (primary) / TinyRS-2B (fallback) / Qwen2-VL-2B (control) — EXP-002, **local**; **GeoGround = GROUNDING REFERENCE** (remote) |
+| **A. Single-image VQA** | DOCUMENTED — **G5A: N=0, BLOCKED** (6th artifact-acquisition failure). Roles frozen: PRIMARY RSCoVLM-3B / FALLBACK TinyRS-2B / CONTROL Qwen2-VL-2B; references EarthDial + GeoChat | mandatory | **Remote reference gate OPEN (ADR-013)** — run `exp002_ab_gate.py` on a Linux GPU box: all three local candidates + both references on the frozen RSVQA-LR sample. Local-only path exhausted. |
+| **B. Extra single-image task** | PARTIAL — RemoteCLIP retrieval **integrated as `/scene`** (explicitly *not* captioning/grounding per PS); **G5A: grounding N=0, BLOCKED** | mandatory | grounding via **RSCoVLM-3B** / TinyRS-2B / Qwen2-VL-2B on the frozen DIOR-RSVG sample — **remote gate** (ADR-013); **GeoGround = GROUNDING REFERENCE** |
 | **C. Semantic change (language)** | mask **INTEGRATED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE` built & wired into `/analyze`** (mask→components→crop-tag→rule description) — experimental, disclaimed, tags noisy on tiny crops; **learned** semantic change NONE | mandatory | improve the baseline (better crops / a captioner) + EXP-003 with a real VLM on a remote box — **EarthDial** (native temporal + change) is the PRIMARY HIGH-CAPABILITY REFERENCE to reproduce first |
 | **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) needs EXP-004 Run 2 data |
 | **H. Evidence/confidence/audit** | `EvidenceItem` + standardized `Provenance` + **deterministic `verify()` implemented & wired into both APIs**; **semantic** verification + confidence method still NONE (by design) | mandatory | add semantic checks + a documented/calibrated confidence source (EXP-005) — **local** |

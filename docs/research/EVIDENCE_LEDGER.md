@@ -4,7 +4,7 @@
 > reached, with the artifact that proves it. Never promote a row without a real
 > run. Levels: `PAPER-REPORTED < DOCUMENTED < REPRODUCED < MEASURED < INTEGRATED
 > < VALIDATED`.
-> Updated: **2026-09-01 (G2.5)**.
+> Updated: **2026-09-01 (G5A)**.
 
 ## Level definitions
 
@@ -32,10 +32,12 @@
 | **DOFA** | multi-sensor (S1/S2) embedding | **REPRODUCED** | `forward_features` for S1 + S2; `DofaAdapter` smoke (random) → dim 768 | |
 | DOFA | fused SAR-signal recovery | **MEASURED (sanity)** | EXP-004 Run 1: bal-acc 1.00 (S2⊕S1) vs 0.50 optical-only | same synthetic control |
 | DOFA | GEO-Bench results | PAPER-REPORTED | DOFA paper | not reproduced by us |
-| GeoChat | single-image VQA / grounding | DOCUMENTED | repo + `model_inventory.md` | BLOCKED locally (7B > 4 GB; deepspeed/bnb) |
+| **RSCoVLM-3B** | single-image RS VQA / grounding (LOCAL A/B PRIMARY) | **DOCUMENTED** | HF `Qingyun/rscovlm` card; frozen sample specs + `exp002_ab_gate.py` harness committed | **G5A: N=0** — weights unfetchable (host↔HF CDN); PAPER: no single headline # in README |
+| **TinyRS-2B** | lightweight RS VQA / grounding (LOCAL A/B FALLBACK) | **DOCUMENTED** | HF card; `.venvs/tinyrs`; harness ready | **G5A: N=0** — weight download failed 5×; PAPER: authors ≈ 83.5 % RS-VQA acc |
+| **Qwen2-VL-2B** | generic VQA / native bbox grounding (GENERIC CONTROL) | **DOCUMENTED** | HF `Qwen/Qwen2-VL-2B-Instruct` card | **G5A: N=0** — 6th acquisition failure (0-byte safetensors, 8-min bound); PAPER (generic, not RS): DocVQA 90.1 / MMBench-EN 74.9 |
+| **EarthDial-4B** | RS multi-task VLM +SAR +temporal (PRIMARY HIGH-CAPABILITY REFERENCE) | **DOCUMENTED** | README + HF `akshaydudhane/EarthDial_4B_*` (checkpoints verified to exist; weights licence unconfirmed) | REFERENCE CANDIDATE — remote-only; PAPER: 44-dataset eval, no README # |
+| GeoChat-7B | single-image VQA / grounding (SECONDARY / HISTORICAL REFERENCE) | DOCUMENTED | repo + `model_inventory.md` | BLOCKED locally (7B > 4 GB; deepspeed/bnb) — **not a project blocker**; PAPER: authors ≈ 90 % RSVQA-LR |
 | Change-Agent | temporal semantic + caption | DOCUMENTED | repo | BLOCKED (mmcv 1.3.1) |
-| TinyRS | lightweight RS VQA / grounding | DOCUMENTED | HF card; `.venvs/tinyrs` set up | EXP-002 — weight download unreliable (N=0) |
-| RSCoVLM-3B | multi-task RS VLM | DOCUMENTED | HF card | EXP-002 challenger — not started |
 | ChangeChat | temporal change caption/VQA | DOCUMENTED | repo | REJECT — no released weights |
 | RS-MoE | RS caption + VQA | DOCUMENTED | repo | REJECT — no released weights / inference path |
 
@@ -60,6 +62,20 @@
 | Semantic verification | **NONE** | verifier is structural only |
 | Learned semantic change / temporal VLM | **NONE** | only the composed baseline exists (not learned, not validated) |
 | Agentic (LLM) router / true `/analyze` planning | **DESIGNED** | deterministic `/analyze` is the substrate; LLM intent step = EXP-006 |
+
+## G5A A/B gate — the three numbers (kept separate, `docs/18`)
+
+| Category | RSCoVLM-3B | TinyRS-2B | Qwen2-VL-2B | EarthDial-4B | GeoChat-7B |
+|----------|-----------|-----------|-------------|--------------|------------|
+| PAPER RESULT | no headline # | ≈83.5 % RS-VQA (authors) | DocVQA 90.1 (generic) | 44-dset eval, no # | ≈90 % RSVQA-LR (authors) |
+| OUR REPRODUCTION | — | — | — | — | — |
+| OUR MEASUREMENT | — | — | — | — | — |
+| OUR INTEGRATED RESULT | — | — | — | — | — |
+
+All non-PAPER cells empty: **artifact acquisition BLOCKED** (weights + datasets,
+6 documented download failures), not a measured failure. Remote reference gate
+OPEN (ADR-013). Harness + frozen samples committed:
+`evaluation/scripts/exp002_ab_gate.py`, `evaluation/datasets/{rsvqa_lr,dior_rsvg}_sample.json`.
 
 **Reminder:** no row here is VALIDATED for a *model on a task* — that needs a real
 benchmark under our evaluation (EXP-004 Run 2, EXP-002, EXP-003).

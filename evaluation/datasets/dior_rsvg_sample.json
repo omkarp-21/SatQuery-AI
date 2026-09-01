@@ -1,0 +1,35 @@
+{
+  "name": "DIOR-RSVG A/B gate sample (EXP-002)",
+  "frozen": "2026-09-01",
+  "purpose": "Fixed, deterministic text-guided grounding sample for the G5A A/B reproduction gate. Used identically across RSCoVLM-3B, TinyRS-2B, Qwen2-VL-2B.",
+  "source_dataset": {
+    "id": "DIOR-RSVG",
+    "paper": "Zhan et al., 'RSVG: Exploring Data and Models for Visual Grounding on Remote Sensing Data', IEEE TGRS 2023",
+    "images": "DIOR optical images, 800x800, 20 object classes",
+    "files_expected": [
+      "Annotations/<id>.xml  (each: <filename>, <size>, one <object> with <name>, <bndbox>, <description> referring expression)",
+      "JPEGImages/<filename>.jpg",
+      "train.txt / val.txt / test.txt  (expression-id splits)"
+    ],
+    "acquisition": "https://github.com/ZhanYang-nwpu/RSVG-pytorch  (Google Drive). NOT downloaded from this host - DIOR images ~20 GB, see EXP-002 blocker log."
+  },
+  "selection_policy": {
+    "deterministic": true,
+    "split": "test",
+    "ordering": "ascending expression id as listed in test.txt",
+    "one_expression_per_image": true,
+    "one_expression_per_image_rule": "when multiple test expressions share an image, keep the first by expression id; skip the rest until 25 distinct images are collected",
+    "take": 25,
+    "bbox_format_reference": "Pascal-VOC [x_min, y_min, x_max, y_max] in original pixel coords; model outputs are rescaled to this frame before IoU",
+    "malformed_reference_handling": "missing/empty bndbox or description -> discard and log MALFORMED_REFERENCE"
+  },
+  "resolved_ids": [],
+  "resolved_note": "resolved_ids is populated by evaluation/scripts/exp002_ab_gate.py --resolve once Annotations/ + test.txt are present. Empty here because the dataset is not acquired (artifact-acquisition BLOCKED, see docs/research/EXP-002.md).",
+  "metric": {
+    "primary": "acc@IoU0.5",
+    "definition": "fraction of expressions where IoU(pred_box, gt_box) >= 0.5; a query with no parseable box from the model counts as a miss (IoU 0) and also increments failure_rate",
+    "threshold": 0.30,
+    "threshold_kind": "INTERNAL USABILITY THRESHOLD - not an official SIH scoring criterion",
+    "latency_budget_s_per_query": 45
+  }
+}

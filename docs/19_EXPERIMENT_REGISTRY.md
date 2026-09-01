@@ -70,13 +70,16 @@ what we measured, what we decided.
 
 ## EXP-002 — Candidate single-image RS-VLM comparison
 
-- Status: **BLOCKED — artifact acquisition (`docs/research/EXP-002.md`).** TinyRS
-  weight download failed **5 times** (G2.5–G4 + the Lightweight Model Replacement
-  Audit): `ChunkedEncodingError` ×2, DNS failure, `hf_transfer`+resume (8 min →
-  134 MB), and (audit, 2026-09-01) `snapshot_download` 240 s → 11/12 files, the
-  4.4 GB shard again incomplete. **N=0.** **→ Remote Linux GPU box justified** on
-  infrastructure grounds; but attempt the local 4-bit path first (blocker is
-  download reliability, not compute).
+- Status: **BLOCKED — artifact acquisition. G5A ran the A/B gate; REMOTE REFERENCE
+  GATE OPEN (ADR-013).** Weight download failed **6 times** (`docs/research/EXP-002.md`):
+  5× TinyRS (`ChunkedEncodingError` ×2, DNS, 8-min→134 MB, 240 s→11/12 files) and
+  (**G5A, 2026-09-01**) Qwen2-VL-2B from a *different* HF org — config landed
+  instantly, both `.safetensors` shards **0 bytes** for an 8-min window (same
+  signature → host↔HF-CDN path is the blocker). RSVQA-LR + DIOR-RSVG also
+  unfetchable. **N=0, nothing fabricated.** Delivered: frozen sample specs
+  (`evaluation/datasets/{rsvqa_lr,dior_rsvg}_sample.json`) + measurement harness
+  (`evaluation/scripts/exp002_ab_gate.py`). **→ Run the harness on a remote Linux
+  GPU ≥ 16 GB** (local + reference arms, same frozen samples).
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?
@@ -224,7 +227,7 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image VLM bake-off — **RSCoVLM-3B** primary / TinyRS-2B fallback / Qwen2-VL-2B control (local), GeoChat + EarthDial-4B ceiling (remote) | selection | **BLOCKED** — weights unfetchable (5 dl attempts); candidate set revised by the Lightweight Audit (ADR-011); try local 4-bit first | — |
+| EXP-002 | single-image VLM A/B gate — **RSCoVLM-3B** primary / TinyRS-2B fallback / Qwen2-VL-2B control (local); EarthDial-4B + GeoChat-7B reference (remote) | selection | **BLOCKED** — G5A ran the gate; weights unfetchable (**6 dl attempts**, fresh org same failure); RSVQA-LR/DIOR-RSVG unfetchable; **remote reference gate OPEN (ADR-013)**; harness + frozen samples committed | — |
 | EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
 | **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | Run 1 (synthetic sanity) done; **Run 2 BLOCKED** — no acquirable S1+S2 set | — |
 | EXP-005 | unverified vs verified | H4 | PLANNED | — |
