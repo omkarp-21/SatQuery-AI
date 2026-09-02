@@ -140,7 +140,7 @@ models:
     source_repo: https://github.com/1e12Leon/RemoteSAM
     paper: "RemoteSAM: Towards Segment Anything for Earth Observation (ACM MM 2025, oral)"
     commit: ebb7bc278c7343c29c8c16b035289f78f40f0f72
-    license: "NOT STATED — no LICENSE file in the repo; HF checkpoint has no model card. MUST be clarified before non-prototype use."
+    license: "NOT STATED — no LICENSE file in the repo; HF checkpoint has no model card; the ACM MM 2025 paper does not state a weights licence. Re-checked G17 (2026-09-03): still unresolved. An upstream issue asking for clarification is the next step; until answered, RemoteSAM stays documented with this caveat and is used only in the prototype. MUST be clarified before non-prototype use."
     capabilities: [grounding, referring-segmentation]
     modalities: [optical-single]
     deployment_tier: LOCAL_PREFERRED   # the grounding specialist; runs on the 4 GB target (CPU verified, GPU pending)

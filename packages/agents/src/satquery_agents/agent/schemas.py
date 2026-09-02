@@ -55,6 +55,66 @@ MAX_STEPS = 8  # bounded autonomy — hard cap on tool actions per mission
 
 
 # --------------------------------------------------------------------------- #
+# Typed INTENT (G17) — what the LLM produces. NOT an execution graph.
+#
+# The hybrid architecture is: mission text -> LLM intent extraction -> typed
+# ``Intent`` -> deterministic ``PlanSynthesizer`` -> ``AgentPlan`` -> policy ->
+# bounded adaptive execution. The LLM classifies the goal; it never chooses
+# tools or builds a plan. G16 measured that the 2 B model can echo but not plan;
+# asking it only for this small typed object removes the part it fails at.
+# --------------------------------------------------------------------------- #
+
+
+class TaskFamily(str, Enum):
+    VQA = "VQA"
+    GROUNDING = "GROUNDING"
+    SCENE = "SCENE"
+    TEMPORAL_CHANGE = "TEMPORAL_CHANGE"
+    SEMANTIC_CHANGE = "SEMANTIC_CHANGE"
+    OPTICAL_SAR = "OPTICAL_SAR"
+    INVESTIGATION = "INVESTIGATION"
+    UNSUPPORTED = "UNSUPPORTED"
+
+
+class Capability(str, Enum):
+    VQA = "VQA"
+    GROUNDING = "GROUNDING"
+    SCENE_RETRIEVAL = "SCENE_RETRIEVAL"
+    TEMPORAL_CHANGE = "TEMPORAL_CHANGE"
+    SEMANTIC_CHANGE = "SEMANTIC_CHANGE"
+    CHANGED_REGIONS = "CHANGED_REGIONS"
+    OPTICAL_SAR = "OPTICAL_SAR"
+    CROSS_CHECK = "CROSS_CHECK"
+
+
+class Intent(BaseModel):
+    """A compact, typed classification of the user's mission."""
+
+    goal: str = Field(min_length=1, description="the mission restated in one line")
+    task_family: TaskFamily
+    required_capabilities: list[Capability] = Field(default_factory=list)
+    objects: list[str] = Field(default_factory=list, description="nouns to locate, e.g. ['building']")
+    temporal_required: bool = False
+    spatial_required: bool = False           # grounding / changed-region extraction
+    comparison_required: bool = False        # optical vs SAR
+    investigation_required: bool = False     # >= 2 distinct analyses
+    requested_outputs: list[str] = Field(default_factory=list)  # change_map|regions|evidence|verification|geojson
+    constraints: list[str] = Field(default_factory=list)
+    ambiguity: Literal["none", "low", "high"] = "none"
+    ambiguity_note: str = ""
+    source: str = "unknown"                  # rule_based | llm | llm_repaired | rule_based_fallback
+
+    @field_validator("required_capabilities")
+    @classmethod
+    def _dedup(cls, v: list[Capability]) -> list[Capability]:
+        seen: list[Capability] = []
+        for c in v:
+            if c not in seen:
+                seen.append(c)
+        return seen
+
+
+# --------------------------------------------------------------------------- #
 # The plan
 # --------------------------------------------------------------------------- #
 
@@ -181,6 +241,7 @@ class AgentInvestigationResult(BaseModel):
     plan_status: Literal["valid", "rejected", "fallback", "no_planner"] = "no_planner"
     plan_rejection_reasons: list[str] = Field(default_factory=list)
     planner_used: str = "none"
+    intent: dict[str, Any] | None = None  # G17: the typed Intent the plan was synthesised from (hybrid)
 
     # --- execution ---
     phase: AgentPhase = "INITIAL"
@@ -203,6 +264,7 @@ class AgentInvestigationResult(BaseModel):
     # --- audit ---
     evidence: list[dict[str, Any]] = Field(default_factory=list)
     verification: dict[str, Any] | None = None
+    confidence: dict[str, Any] | None = None  # G17 trust layer: HIGH|MEDIUM|LOW|INSUFFICIENT_EVIDENCE + why
     resolution: dict[str, Any] | None = None
     provenance: dict[str, Any] = Field(default_factory=dict)
     execution_trace: list[TimelineEntry] = Field(default_factory=list)

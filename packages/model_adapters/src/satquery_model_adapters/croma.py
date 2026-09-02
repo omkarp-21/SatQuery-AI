@@ -30,10 +30,14 @@ class CromaAdapter(SpecialistAdapter):
     modalities = ("optical-sar",)
 
     def __init__(self, *, checkpoint: str, timeout_s: float = 240.0, size: str = "base",
-                 resolution: int = 120, **opts) -> None:
+                 resolution: int = 120, lora_weights: str | None = None, **opts) -> None:
         super().__init__(checkpoint=checkpoint, timeout_s=timeout_s, **opts)
         self.size = size
         self.resolution = resolution
+        # G17 (EXP-008): OPTIONAL frozen-encoder LoRA delta. Production default is
+        # None = frozen CROMA. Only pass this once a larger-split validation
+        # supports adaptation (see docs/G17_HYBRID_AGENT_REPORT.md Part 19/20).
+        self.lora_weights = str(lora_weights) if lora_weights else None
         self._py = venv_python("croma", opts.get("venv_python"))
         self._script = bridge_script("croma_infer.py", opts.get("bridge_script"))
 
@@ -54,6 +58,10 @@ class CromaAdapter(SpecialistAdapter):
     def execute(self, request: AdapterRequest) -> RawOutput:
         args = ["--checkpoint", str(self.checkpoint), "--size", self.size,
                 "--resolution", str(self.resolution)]
+        if self.lora_weights:
+            if not Path(self.lora_weights).exists():
+                raise AdapterExecutionError(f"lora weights not found: {self.lora_weights}")
+            args += ["--lora-weights", self.lora_weights]
         if request.context.get("random"):
             args += ["--random", "1"]
         else:
@@ -75,5 +83,8 @@ class CromaAdapter(SpecialistAdapter):
         prov = super().provenance(request, raw, timing)
         prov.update(checkpoint_sha256=sha256(self.checkpoint), device="cpu",
                     size=self.size, resolution=self.resolution,
-                    bridge="scripts/research/croma_infer.py")
+                    bridge="scripts/research/croma_infer.py",
+                    lora_weights=self.lora_weights,
+                    lora_weights_sha256=sha256(self.lora_weights) if self.lora_weights else None,
+                    encoder_mode="lora_adapted" if self.lora_weights else "frozen")
         return prov

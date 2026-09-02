@@ -212,11 +212,21 @@ function renderInvestigation(b) {
   let html = "";
 
   // ---- 1. INVESTIGATION RESULT (judge-facing) ----
+  const it = b.intent || null;
+  const understood = it
+    ? esc(it.task_family) + " · " + ((it.required_capabilities||[]).join(", ") || "no extra capabilities")
+      + (it.source && it.source !== "rule_based" ? ` <span class="empty">(intent via ${esc(it.source)})</span>` : "")
+    : `<span class="empty">${esc(b.planner_used || "—")}</span>`;
+  const conf = b.confidence || {};
+  const confClass = conf.category === "HIGH" ? "b-ok" : conf.category === "MEDIUM" ? "b-warn"
+    : conf.category === "LOW" ? "b-warn" : "b-bad";
   html += `<div class="card">
     <h2>Investigation result ${b.ok ? '<span class="badge b-ok">ok</span>' : '<span class="badge b-warn">partial</span>'}</h2>
     <div class="kv">
       <div>Mission</div><div>${esc(b.mission)}</div>
+      <div>Understood as</div><div>${understood}</div>
       <div>Status</div><div>${verdictBadge((b.verification||{}).status)} <span class="empty">${esc(statusWord)}</span></div>
+      ${conf.category ? `<div>Confidence</div><div><span class="badge ${confClass}">${esc(conf.category)}</span> <span class="empty">evidence-derived category — NOT a probability</span></div>` : ""}
       <div>Models used</div><div>${(b.models_used||[]).map(esc).join(", ") || "—"}</div>
       <div>Tool calls</div><div>${b.tool_calls} / ${b.max_steps}${b.hit_step_cap ? " · CAP HIT" : ""}${b.early_stopped ? " · stopped early ("+esc(b.completion_reason||"evidence sufficient")+")" : ""}</div>
       <div>Replans</div><div>${(b.replans||[]).length ? b.replans.map(r=>esc(r.reason)).join(", ") : "none"}</div>
@@ -273,6 +283,15 @@ function renderInvestigation(b) {
     <div class="kv"><div>Status</div><div>${verdictBadge(v.status)}</div>
     ${b.resolution && b.resolution.qualifier ? `<div>Resolution</div><div>${esc(b.resolution.qualifier)}</div>` : ""}</div>
     <div class="hint">${esc((b.resolution||{}).note || "deterministic post-execution qualifier — NOT a confidence value")}</div></div>`;
+
+  // ---- 6b. CONFIDENCE + WHY (G17 trust layer) ----
+  if (conf.category) {
+    html += `<div class="card"><h2>Confidence — <span class="empty">evidence-derived category, NOT a calibrated probability</span></h2>
+      <div class="kv"><div>Category</div><div><span class="badge ${confClass}">${esc(conf.category)}</span>${conf.hard_rule ? ` <span class="empty">(forced: ${esc(conf.hard_rule)})</span>` : ""}</div></div>
+      <h3 style="margin:10px 0 4px;font-size:13px">Why</h3>
+      <ul class="trace">${(conf.reasons||[]).map(r => `<li>${esc(r)}</li>`).join("") || '<li class="empty">no reasons recorded</li>'}</ul>
+      <div class="hint">${esc(conf.note || "docs/G17_TRUST_LAYER.md")}</div></div>`;
+  }
 
   // ---- 7. EVIDENCE ----
   if ((b.evidence||[]).length) {

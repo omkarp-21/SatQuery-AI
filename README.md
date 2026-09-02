@@ -114,6 +114,24 @@ Its plans are *structurally* valid, so a G16 **plan-intent cross-check**
 deterministic fallback. `RuleBasedPlanner` stays the default; the LLM is opt-in.
 See `docs/G16_REAL_LLM_EVALUATION.md`.
 
+**G17 — hybrid architecture** (`SATQUERY_PLANNER=hybrid`): the LLM produces a
+small typed **`Intent`** only; a deterministic `PlanSynthesizer` builds the plan
+from it. The LLM never picks a tool. Plus an **evidence-derived confidence
+category** (`HIGH / MEDIUM / LOW / INSUFFICIENT_EVIDENCE` — not a probability;
+`docs/G17_TRUST_LAYER.md`).
+
+```bash
+# cache the LLM intent JSON for all 100 frozen missions (persistent server; ~35 s/mission on CPU)
+SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe evaluation/agent/run_g17_eval.py --intent-cache
+# score ARM A (rule) vs ARM B (pure LLM, carried from G16) vs ARM C (hybrid)
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_g17_eval.py --plan
+# real-model execution: hybrid agent vs the deterministic baseline
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_g17_eval.py --exec 12
+# flagship with the hybrid architecture, change vs no-change
+SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe scripts/demo/run_g17_flagship.py
+# see docs/G17_HYBRID_AGENT_REPORT.md · docs/G17_ARCHITECTURE_DECISION.md · docs/G17_TRUST_LAYER.md
+```
+
 | Demo | Query | Task → model |
 |------|-------|--------------|
 | 1 | "What objects are visible in this satellite image?" | VQA → TinyRS-2B |

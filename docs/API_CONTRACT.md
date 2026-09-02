@@ -32,6 +32,9 @@ evidence-first synthesis. Planner unavailable / plan rejected → deterministic
   "mission": "...", "mode": "investigate", "mission_family": "multi_step",
   "plan": { "goal": "...", "steps": [ {"step_id":"s2","task":"TEMPORAL_CHANGE","tool":"run_temporal_change","depends_on":["s1"],"reason":"..."} ] },
   "plan_status": "valid", "planner_used": "rule_based", "plan_rejection_reasons": [],
+  "intent": { "task_family":"INVESTIGATION", "required_capabilities":["TEMPORAL_CHANGE","CHANGED_REGIONS","GROUNDING","OPTICAL_SAR"],
+              "objects":["building"], "temporal_required":true, "comparison_required":true, "ambiguity":"none",
+              "source":"rule_based" },   // G17: present when planner is hybrid (source = llm | llm_repaired | rule_based_fallback)
   "phase": "FINALIZING", "ok": true, "tool_calls": 4, "max_steps": 8, "hit_step_cap": false,
   "early_stopped": false, "completion_reason": null,
   "steps": [ {"step_id":"s2","task":"TEMPORAL_CHANGE","tool":"run_temporal_change","status":"completed",
@@ -47,6 +50,12 @@ evidence-first synthesis. Planner unavailable / plan rejected → deterministic
   "geojson": { "type":"FeatureCollection", "crs":"EPSG:4326", "features":[ {"type":"Feature","properties":{"label":"changed region","source_step":"s3"},"geometry":{"type":"Polygon","coordinates":[[[...]]]}} ] },
   "evidence": [ {"evidence_type":"change-mask", ...} ],
   "verification": { "status": "SUPPORTED", "checks": [ ... ] },
+  "confidence": { "category": "MEDIUM", "score": 3.5,
+                  "reasons": ["All 4 planned specialist step(s) completed.", "Verification: SUPPORTED ...",
+                              "Optical+SAR result is representation-level only ..."],
+                  "signals": {"family":"multi_step","verification":"SUPPORTED","cross_check_inside":"1/1"},
+                  "hard_rule": null,
+                  "note": "evidence-derived category (docs/G17_TRUST_LAYER.md). NOT a calibrated probability." },
   "resolution": { "qualifier": "RESULT_OK", "answer_surfaced": true, "note": "deterministic post-execution qualifier — NOT a confidence value" },
   "provenance": { "layer": "agent", "planner_used": "rule_based", "plan_status": "valid", "mission_family": "multi_step",
                   "plan_steps": [...], "tool_calls": 4, "contributing_tool_calls": 4, "unnecessary_tool_calls": 0,
@@ -77,7 +86,21 @@ evidence-first synthesis. Planner unavailable / plan rejected → deterministic
   append VERIFY+FINALIZE, salvage truncated JSON) → validated; anything still
   invalid → `RuleBasedPlanner`. `planner_used` gains `"llm"` / `"llm_repaired"`.
   The **raw model text is never returned** — only the `planner_attempt` status
-  block above.
+  block above. G16 measured this as **not production-viable** — rejected.
+- **Hybrid planner (G17, opt-in `SATQUERY_PLANNER=hybrid`):** the LLM produces a
+  small typed **`Intent`** (task family + required capabilities + flags); a
+  deterministic `PlanSynthesizer` builds the `AgentPlan` from it. The LLM never
+  chooses a tool or orders a step. Response gains **`intent`** (the typed
+  object, with `source ∈ {rule_based, llm, llm_repaired, rule_based_fallback}`).
+  `planner_used` gains `"hybrid_llm"` / `"hybrid_llm_repaired"` /
+  `"hybrid_rule_fallback"`. If intent extraction fails, the deterministic
+  keyword extractor is used and tagged — never silent.
+- **Trust / confidence layer (G17):** response gains **`confidence`** —
+  `{category: HIGH|MEDIUM|LOW|INSUFFICIENT_EVIDENCE, score, reasons[], signals{},
+  hard_rule, note}`. An **evidence-derived category**, computed by deterministic
+  rules (`docs/G17_TRUST_LAYER.md`) from the specialists' structured results +
+  the verification aggregate. **NOT a calibrated probability**; the `score` is
+  internal and never surfaced as a percentage.
 - **Plan-intent cross-check (G16):** after the policy layer, an LLM plan is also
   checked against the deterministic query interpreter. A `change` /
   `semantic-change` / `optical-sar` mission (or any ≥2-image mission) answered

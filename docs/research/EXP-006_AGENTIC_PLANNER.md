@@ -290,3 +290,45 @@ deterministic‑fallback guard. **No invalid action reached execution.** The
 weakest measured component is the planner model, not the architecture — revisit
 with a GPU host + a ≥7 B / planning‑tuned model, or an LLM‑proposes / rules‑fill
 hybrid.
+
+## G17 — the "LLM-proposes / rules-fill hybrid", built and measured (2026-09-03)
+
+Full write-up: `docs/G17_HYBRID_AGENT_REPORT.md`, `docs/G17_ARCHITECTURE_DECISION.md`,
+`docs/G17_TRUST_LAYER.md`. Eval: `evaluation/agent/run_g17_eval.py` ->
+`evaluation/agent/reports/G17_HYBRID_EVALUATION.{md,json}`.
+
+G17 acted on G16's "next": the LLM now produces only a small typed **`Intent`**
+(task family + required capabilities + flags + ambiguity), and a deterministic
+`PlanSynthesizer` builds the `AgentPlan` from it. `PlanSynthesizer` reproduces
+`RuleBasedPlanner`'s tool sequence exactly on a 10-mission equivalence check
+(zero regression) and additionally trims the G16 over-planning flaw on
+region-only missions. `HybridPlanner` adds an image-count plausibility guard and
+a visible rule-intent fallback; the G16 plan-intent cross-check also runs for
+`hybrid_llm*`.
+
+Method: 100 frozen missions (the 50 G15/G16 verbatim + `expected_intent`, + 50
+paraphrase/scenario variants; 20/category). 3 arms: A `RuleBasedPlanner` (100),
+B pure LLM planner (carried from G16 - preserved), C hybrid (LLM intent cached
+once, ~35 s/mission CPU).
+
+Result (N=100): **ARM A** PLAN_VALIDITY 0.886 / TOOL_SELECTION 0.90 /
+UNNECESSARY_TOOL_SELECTION 0.20 / latency <0.01 s. **ARM C** 0.591 / 0.66 /
+0.526 / ~40 s. **ARM B** (G16) 0.25 / 0.40 / ~100 s. INTENT_SCHEMA_VALIDITY
+0.82, **INTENT_TASK_ACCURACY 0.317** (N=82), 29/100 fell back to the rule
+intent. By category the LLM intent is reliable ONLY on the INVESTIGATION family
+(accuracy 1.00 - "investigate... changes... buildings... SAR" is unambiguous),
+where hybrid **ties** rule (1.00/1.00); it is marginally ahead on temporal
+tool-selection (0.95 vs 0.85) and much worse on single_step (0.20 vs 0.75) and
+optical_sar (0.35 vs 1.00), which it misclassifies as SCENE / INVESTIGATION.
+Adversarial: A and C both 0.917 correctly handled - the policy layer + the G16
+cross-check stop every illegal action regardless of the intent.
+
+Decision: **Architecture A (pure deterministic) is the production default.**
+The 2 B model cannot classify intent reliably on CPU (0.317). C beats B (the
+synthesizer + plausibility guard + cross-check + rule fallback contain bad
+intents) but does not beat A. C ships as an **opt-in enhancement**
+(`SATQUERY_PLANNER=hybrid`), viable today only for verbose multi-step
+investigation missions. B stays **rejected for production** (G16). The trust /
+confidence category layer is KEPT regardless of planner. Revisit C when a
+phrasing-robust intent classifier exists (GPU + larger instruction-tuned model,
+or a small fine-tuned intent head).

@@ -47,6 +47,7 @@ from app.services.normalize import normalize
 from app.services.scene_slice import run_scene
 from app.services.semantic_change_baseline import run_composed_semantic_change
 from app.services.temporal_slice import run_change_fallback, run_change_slice
+from app.services.trust import assess_confidence
 from app.services.vqa_slice import run_vqa
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -438,6 +439,13 @@ def run_investigation(
     if attempt is not None:
         # audit only - the raw LLM text is never surfaced to users
         res.provenance["planner_attempt"] = attempt.public()
+    # G17: capture the typed Intent the hybrid planner synthesised the plan from
+    _intent_obj = getattr(planner, "last_intent", None)
+    if _intent_obj is not None:
+        res.intent = _intent_obj.model_dump(mode="json")
+        tl.append(TimelineEntry(ts=_now(),
+                                event=f"Understood as: {res.intent.get('task_family')} "
+                                      f"({', '.join(res.intent.get('required_capabilities', [])) or 'no capabilities'})"))
 
     # --- POLICY ---
     res.phase = "PLAN_VALIDATION"
@@ -465,11 +473,15 @@ def run_investigation(
     # doing exactly this. Cross-check the plan shape against the deterministic query
     # interpreter; on a clear mismatch, RE-PLAN with the RuleBasedPlanner (which can
     # handle multi-image missions the /analyze fallback cannot) and continue.
-    if planner_used in ("llm", "llm_repaired"):
+    # Runs for any LLM-derived plan: the pure LLM planner (llm/llm_repaired) OR the
+    # hybrid planner when the *LLM intent* drove synthesis (hybrid_llm*). Not for a
+    # deterministic intent (hybrid_rule_fallback) - that cannot be mission-wrong.
+    if planner_used in ("llm", "llm_repaired", "hybrid_llm", "hybrid_llm_repaired"):
         mismatch = _plan_intent_mismatch(mission, len(paths), plan)
         if mismatch:
+            src = "LLM plan" if planner_used.startswith("llm") else "LLM-intent plan"
             tl.append(TimelineEntry(ts=_now(), event=f"Plan INTENT MISMATCH: {mismatch}"))
-            res.warnings.append(f"AGENT FALLBACK: PLAN_INTENT_MISMATCH - the LLM plan was "
+            res.warnings.append(f"AGENT FALLBACK: PLAN_INTENT_MISMATCH - the {src} was "
                                 f"under-scoped for the mission ({mismatch}); the deterministic "
                                 f"rule planner produced this plan instead.")
             rb_plan = RuleBasedPlanner().plan(mission, len(paths), mods)
@@ -809,6 +821,16 @@ def _step_summary(task: TaskType, payload: dict) -> str:
     return ""
 
 
+class _IntentStub:
+    """Read-only view of a stored `res.intent` dict for the trust layer."""
+
+    def __init__(self, d: dict) -> None:
+        self.task_family = d.get("task_family")
+        self.required_capabilities = d.get("required_capabilities", [])
+        self.comparison_required = bool(d.get("comparison_required"))
+        self.ambiguity = d.get("ambiguity", "none")
+
+
 def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
     """Evidence-first report — built ONLY from observed facts. No LLM invention."""
     findings: list[str] = []
@@ -892,6 +914,10 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
     res.warnings = _dedup(res.warnings + mem.warnings)
     res.failures = _dedup(res.failures + mem.failures)
     res.models_used = mem.models_used
+
+    # --- G17 trust / confidence layer (evidence-derived CATEGORY, not a probability) ---
+    _intent_stub = _IntentStub(res.intent or {})
+    res.confidence = assess_confidence(res, mem, plan, intent=_intent_stub).public()
     contributing = sum(1 for o in res.steps if o.tool.startswith("run_") and o.contributed)
     ran = sum(1 for o in res.steps if o.tool.startswith("run_") and o.status in ("completed", "failed"))
     res.provenance = {
@@ -980,6 +1006,17 @@ def _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir, *,
                               + [f"AGENT FALLBACK: {reason} - the deterministic /analyze path was used."])
         res.failures = _dedup(res.failures + n.failures)
         res.models_used = [n.model_used] if n.model_used else []
+        _vs = (res.verification or {}).get("status", "INSUFFICIENT_EVIDENCE")
+        res.confidence = {
+            "category": "MEDIUM" if (a.ok and _vs == "SUPPORTED") else
+                        "LOW" if a.ok else "INSUFFICIENT_EVIDENCE",
+            "score": None,
+            "reasons": [f"Answered via the deterministic fallback ({reason}); "
+                        f"the agent plan could not run. Verification: {_vs}."],
+            "signals": {"path": "deterministic_fallback", "reason": reason},
+            "hard_rule": None,
+            "note": "evidence-derived category (docs/G17_TRUST_LAYER.md). NOT a calibrated probability.",
+        }
         res.provenance = {"layer": "agent->deterministic_fallback", "fallback_reason": reason,
                           "routing_code": n.task_code, "plan_rejection_reasons": res.plan_rejection_reasons,
                           "note": "the agent plan could not be produced/validated; the deterministic "

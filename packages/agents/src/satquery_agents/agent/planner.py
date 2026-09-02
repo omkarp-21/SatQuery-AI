@@ -437,6 +437,9 @@ class LlmPlanner:
 
 def make_planner() -> Planner:
     choice = os.environ.get("SATQUERY_PLANNER", "rule").lower()
+    if choice in ("hybrid", "intent"):
+        from .intent import HybridPlanner
+        return HybridPlanner()
     if choice in ("llm", "qwen", "local_qwen") or os.environ.get("SATQUERY_PLANNER_API_BASE"):
         return LlmPlanner()
     return RuleBasedPlanner()
@@ -461,6 +464,25 @@ def plan_with_fallback_ex(
         return p.plan(mission, image_count, modalities), p.name, notes, None
 
     rb = RuleBasedPlanner()
+
+    # HybridPlanner: LLM intent -> deterministic synthesis. It never raises (its
+    # own extractor falls back to the rule intent) so there is no separate guard.
+    from .intent import HybridPlanner  # local import avoids a module cycle
+    if isinstance(p, HybridPlanner):
+        t0 = time.time()
+        plan, _intent, iatt = p.plan_ex(mission, image_count, modalities)
+        used = {"llm": "hybrid_llm", "llm_repaired": "hybrid_llm_repaired",
+                "rule_based_fallback": "hybrid_rule_fallback"}.get(iatt.final_source, "hybrid")
+        notes.append(f"{used} intent in {time.time() - t0:.1f}s"
+                     + (f" (repairs: {len(iatt.repairs)})" if iatt.repairs else "")
+                     + (f" -> rule intent ({iatt.fallback_reason})"
+                        if iatt.final_source == "rule_based_fallback" else ""))
+        pa = PlannerAttempt(planner="hybrid", parse_status=iatt.parse_status,
+                            schema_status=iatt.schema_status, repairs=list(iatt.repairs),
+                            final_source=iatt.final_source, fallback_reason=iatt.fallback_reason,
+                            gen_s=iatt.gen_s)
+        return plan, used, notes, pa
+
     if isinstance(p, LlmPlanner):
         try:
             t0 = time.time()

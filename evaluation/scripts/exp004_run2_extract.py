@@ -83,6 +83,9 @@ def main() -> int:
     ap.add_argument("--n-train", type=int, default=400)
     ap.add_argument("--n-eval", type=int, default=200)
     ap.add_argument("--seed", type=int, default=20260902)
+    ap.add_argument("--split-out", default=None,
+                    help="where to write the split doc (default: evaluation/datasets/dfc2020_exp004_split.json; "
+                         "pass a different path for a larger G17 split so the G12 frozen split is untouched)")
     a = ap.parse_args()
 
     dfc_dir = Path(a.dfc_dir)
@@ -165,7 +168,9 @@ def main() -> int:
         "note": "sanity-scale: 600 patches of the 986-patch validation split. A real "
         "number (integrated encoder -> frozen probe -> metric), NOT a full benchmark.",
     }
-    sp = REPO_ROOT / "evaluation" / "datasets" / "dfc2020_exp004_split.json"
+    sp = (Path(a.split_out) if a.split_out
+          else REPO_ROOT / "evaluation" / "datasets" / "dfc2020_exp004_split.json")
+    sp.parent.mkdir(parents=True, exist_ok=True)
     sp.write_text(json.dumps(split_doc, indent=2))
     print(f"wrote {sp}")
     print(f"train {train['y'].size}  eval {ev['y'].size}")
