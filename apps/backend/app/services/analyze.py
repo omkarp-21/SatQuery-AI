@@ -28,6 +28,7 @@ from satquery_evidence import EvidenceItem, VerificationResult
 from satquery_geospatial import check_pair_compatibility, read_raster_meta, validate_geotiff
 
 from app.services.failure_aware import ResolutionInfo, derive_resolution
+from app.services.grounding_slice import run_grounding
 from app.services.multimodal_slice import run_joint_representation
 from app.services.scene_slice import run_scene
 from app.services.semantic_change_baseline import run_composed_semantic_change
@@ -40,7 +41,10 @@ _CF_CKPT = _REPO_ROOT / ("models/cache/changeformer/CD_ChangeFormerV6_LEVIR_b16_
 _CHANGE_KW = ("change", "changed", "difference", "before and after", "bi-temporal", "bitemporal")
 _SEMANTIC_KW = ("describe", "what kind", "what type", "semantic", "explain the change", "characteri")
 _SCENE_KW = ("scene", "what is this", "classify", "retrieve", "find similar", "land cover", "tag", "identify the")
-_VQA_KW = ("how many", "count", "is there", "are there", "where is", "locate", "point to", "?")
+# grounding = "point me at the region this phrase refers to" -> RemoteSAM specialist
+_GROUNDING_KW = ("where is", "where's", "locate", "point to", "point at", "find the", "show me the",
+                 "segment the", "highlight the", "which region", "ground the")
+_VQA_KW = ("how many", "count", "is there", "are there", "does the", "what color", "?")
 _SAR_KW = ("sar", "radar", "sentinel-1", "backscatter", "vv", "vh")
 
 
@@ -62,6 +66,8 @@ def interpret_query(query: str) -> QueryInterpretation:
         return QueryInterpretation(intent="change", notes=["matched change keywords"])
     if any(k in q for k in _SCENE_KW):
         return QueryInterpretation(intent="scene", notes=["matched scene/retrieval keywords"])
+    if any(k in q for k in _GROUNDING_KW):
+        return QueryInterpretation(intent="grounding", notes=["matched grounding keywords"])
     if any(k in q for k in _VQA_KW):
         return QueryInterpretation(intent="vqa", notes=["matched VQA-style keywords"])
     return QueryInterpretation(intent="unknown", notes=["no keyword match"])
@@ -180,6 +186,9 @@ def run_analyze(
             prompts = ctx.get("prompts") or ["urban area", "farmland", "forest", "water body",
                                              "bare land", "industrial area"]
             sub = run_scene(paths[0], prompts)
+            payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
+        elif decision.code == "SINGLE_IMAGE_GROUNDING":
+            sub = run_grounding(paths[0], query, device=ctx.get("device", "cpu"))
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
         elif decision.code == "TEMPORAL" and interp.intent == "semantic-change":
             sub = run_composed_semantic_change(paths[0], paths[1], checkpoint_dir=_CF_CKPT)

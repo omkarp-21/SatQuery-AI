@@ -28,6 +28,7 @@ RoutingCode = Literal[
     "TEMPORAL",
     "MULTIMODAL_REPR",
     "SINGLE_IMAGE_SCENE",
+    "SINGLE_IMAGE_GROUNDING",
     "NO_VQA_SPECIALIST",
     "VALIDATION_FAILED",
     "NO_MATCH",
@@ -35,7 +36,11 @@ RoutingCode = Literal[
 
 SCENE_INTENTS = {"scene", "scene-description", "retrieval", "classify", "classification",
                  "zero-shot", "tag", "tagging", "what-is-this-scene"}
-VQA_INTENTS = {"vqa", "question", "grounding", "refer", "count", "describe-object"}
+# grounding = "point me at the region the phrase refers to" -> RemoteSAM specialist
+GROUNDING_INTENTS = {"grounding", "grounding-query", "refer", "referring", "referring-segmentation",
+                     "locate", "where-is", "point-to", "find-the", "segment"}
+# VQA = an open-ended question about the image -> no integrated specialist yet
+VQA_INTENTS = {"vqa", "question", "count", "describe-object", "how-many", "is-there"}
 CHANGE_INTENTS = {"change", "change-detection", "what-changed", "bitemporal"}
 
 
@@ -115,12 +120,22 @@ def route(req: RoutingRequest, *, registry_path: str | Path | None = None) -> Ro
                 execution_order=["remoteclip"],
             )
 
-    # 5. single image VQA / grounding - no integrated specialist yet (honest)
+    # 4b. single image + a grounding intent -> the grounding specialist (RemoteSAM)
+    if req.image_count == 1 and intent in GROUNDING_INTENTS and "grounding" in caps:
+        return RoutingDecision(
+            specialists=["remotesam"], code="SINGLE_IMAGE_GROUNDING",
+            reason="one image + a grounding intent -> the RS grounding specialist "
+                   "(text -> box + mask; RemoteSAM). NOT a VQA model.",
+            required_preprocessing=["image-open-check"],
+            execution_order=["remotesam"],
+        )
+
+    # 5. single image VQA - no integrated specialist yet (honest)
     if req.image_count == 1 and intent in VQA_INTENTS:
         return RoutingDecision(
             specialists=[], code="NO_VQA_SPECIALIST",
-            reason="single-image VQA/grounding is a mandatory capability with NO integrated "
-                   "specialist yet (EXP-002 pending). Do not route RemoteCLIP as a VQA model.",
+            reason="single-image VQA is a mandatory capability with NO integrated "
+                   "specialist yet (EXP-002 pending). Do not route RemoteCLIP or RemoteSAM as a VQA model.",
         )
 
     return RoutingDecision(

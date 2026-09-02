@@ -174,12 +174,23 @@ The fallback is **not** ChangeFormer quality and says so in its `score_meaning`.
 | Query / inputs | code | specialists | `ok` |
 |----------------|------|-------------|------|
 | 1 image + scene/retrieval intent | `SINGLE_IMAGE_SCENE` | `["remoteclip"]` | true |
+| 1 image + **grounding** intent (`where is…`, `locate…`, `segment…`) | `SINGLE_IMAGE_GROUNDING` | `["remotesam"]` | true — text→box+mask |
 | 2 images + change intent | `TEMPORAL` | `["changeformer"]` | true |
 | 2 images + **semantic**-change intent | `TEMPORAL` (→ `COMPOSED_SEMANTIC_CHANGE_BASELINE`) | `["changeformer"]` | true |
 | 2 images optical + SAR (non-change) | `MULTIMODAL_REPR` | `["croma"]`/`["dofa"]` | true (representation-level) |
-| 1 image + VQA/grounding intent | `NO_VQA_SPECIALIST` | `[]` | **false** — never routed to RemoteCLIP |
+| 1 image + **VQA** intent (`how many…`, `is there…`) | `NO_VQA_SPECIALIST` | `[]` | **false** — never routed to RemoteCLIP **or RemoteSAM** |
 | invalid / misregistered pair | `VALIDATION_FAILED` | `[]` | **false** |
 | no rule matches | `NO_MATCH` | `[]` | **false** |
+
+**Grounding result** (`SINGLE_IMAGE_GROUNDING` → `result` is a `GroundingResult`,
+`docs/architecture/GROUNDING_PIPELINE.md`): `bbox_xyxy` `[xmin,ymin,xmax,ymax]`
+(image pixels) or `null`, `mask_path`, `image_dimensions [W,H]`, `score` (raw
+foreground softmax prob — **not** a confidence), `validation_status`
+(`PASS`/`NO_REGION`/`FAIL_BOX_OUT_OF_BOUNDS`/`FAIL_BOX_DEGENERATE`). `evidence[0]`
+is `evidence_type: "grounding"` with `spatial_region.bbox_pixel` (row/col) for the
+map. `verification` runs `grounding_box_valid` + `grounding_mask_artifact`
+(structural). RemoteSAM upstream **licence: NOT STATED**; **not benchmarked**
+(DIOR-RSVG); GPU/4 GB-VRAM **unverified** (CPU-only, ~16–22 s/query).
 
 Errors: `>2 images → 400`; traversal → `400`; missing file → `404`; pipeline error
 → sanitized `500`.

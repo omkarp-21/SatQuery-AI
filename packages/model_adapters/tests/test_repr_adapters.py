@@ -23,8 +23,8 @@ _DOFA_CKPT = _REPO / "models/cache/dofa/DOFA_ViT_base_e100.pth"
 _RC_IMG = _REPO / "external/research/RemoteCLIP/assets/airport.jpg"
 
 
-def test_all_four_registered():
-    assert set(ADAPTERS) == {"changeformer", "remoteclip", "croma", "dofa"}
+def test_all_adapters_registered():
+    assert set(ADAPTERS) == {"changeformer", "remoteclip", "croma", "dofa", "remotesam"}
 
 
 def test_remoteclip_rejects_vqa():

@@ -93,7 +93,7 @@ section" — **exact entrypoint not confirmed, not run**. Repo health: 45 commit
 | 13 | **LRS-VQA** | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (Qwen2-7B / Vicuna-7B on HF/ModelScope) | **no** (7B, A100-tested) | DOCUMENTED — useful as a **VQA benchmark** |
 | 14 | **RSCoVLM** | multi-task RS VLM (VQA + grounding + detect) | **code MIT / data CC-BY-4.0** | yes (HF collection); **3B and 7B** (Qwen2.5-VL) | **borderline yes (3B)** | DOCUMENTED — **strong TinyRS challenger** (best licence) |
 | 15 | **SARLANG-1M** | SAR-language **dataset/benchmark** (1M pairs, 7 tasks) | not stated | n/a — **data only**, no model (`YiminJimmy/SARLANG-1M`) | n/a | DOCUMENTED — **SAR-language eval + fine-tune data** |
-| 16 | **RemoteSAM** (`1e12Leon/RemoteSAM`) | GROUNDING/SEGMENTATION specialist — referring seg + visual grounding (mask+box); NOT a VLM | not stated | yes (Swin-B+BERT ~200 M, ACM MM 2025) | ✅ size; env-BLOCKED (`mmcv-full==1.7.1`) | **TEST FURTHER — lead capability-B candidate** (`LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`) |
+| 16 | **RemoteSAM** (`1e12Leon/RemoteSAM`) | GROUNDING/SEGMENTATION specialist — text→box+mask; NOT a VLM | **NOT STATED** | yes (`RemoteSAMv1.pth` 2.57 GB, Swin-B+BERT ~200 M, ACM MM 2025) | **`CPU-FALLBACK` verified**; env solved (`mmcv` lite 1.7.1) | **KEEP — capability-B grounding specialist, REPRODUCED + INTEGRATED (G10, ADR-019)**; not benchmarked; `EXP-GROUNDING.md` |
 | 17 | **DynamicVis** (`KyanChen/DynamicVis`) | PERCEPTION/ENCODER (Mamba SSM); NOT a VLM | Apache-2.0 | yes (b/l) | VRAM easy (~800 MB) but **Windows+CPU incompatible** | **REJECT for product** (portability); watch-item |
 | 18 | **RS-MoE** (`CongcongWen1208/RS-MoE`) | GENERAL VLM (claim) — caption + VQA | not stated | **no** (training-only; base Vicuna-13B) | ❌ | **REJECT (no artifact)** |
 
@@ -155,21 +155,22 @@ for the reference comparison **only** once the local arms are measured.
 
 | Candidate | Status | Notes |
 |-----------|--------|-------|
-| **RemoteSAM** | **TEST FURTHER — lead** | dedicated ~200 M referring-seg + visual-grounding specialist (**mask + box**), ACM MM 2025, `LOCAL-FITS-4GB`; env-BLOCKED (`mmcv-full==1.7.1`) + licence unstated. `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md` |
+| **RemoteSAM** | **KEEP — REPRODUCED + INTEGRATED (G10)** | dedicated ~200 M grounding specialist (**mask + box**), ACM MM 2025. Runs on CPU (`.venvs/remotesam`, `mmcv` lite); `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING` route + grounding evidence. Licence **NOT STATED**; not benchmarked (DIOR-RSVG blocked); GPU/4 GB unverified (`CPU-FALLBACK`). `EXP-GROUNDING.md`, ADR-019 |
 | RSCoVLM grounding | DOCUMENTED, local | spatial grounding at 3B — fallback |
 | TinyRS grounding | DOCUMENTED, local | boxes-in-text at 2B |
 | Qwen2-VL-2B | DOCUMENTED | native `<box>` tokens — generic control |
 | GeoGround | DOCUMENTED | grounding-specialised (~7B) → **GROUNDING REFERENCE** (remote) |
 | RS-MoE captioning | REJECTED | no weights / no inference code (2 repos) |
 
-**Recommendation: choose GROUNDING, and make it a DEDICATED SPECIALIST.**
-The Local Lightweight Tournament found **RemoteSAM** — a ~200 M model purpose-built
-for referring segmentation + visual grounding that emits a **mask *and* a box**
-(both directly mappable as evidence). That is strictly better for capability B
-than forcing a 3 B VQA model to emit coordinates in text. **Primary = RemoteSAM**
-(reproduce first — weights ≈ sub-GB, the risk is the `mmcv` env), **fallback =
-RSCoVLM-3B grounding head**, **reference = GeoGround** (remote). Benchmark:
-DIOR-RSVG acc@IoU0.5 on the frozen 25-expression sample.
+**Recommendation: GROUNDING, as a DEDICATED SPECIALIST — DONE (G10).**
+**RemoteSAM** (~200 M, text→mask+box) is **REPRODUCED + INTEGRATED** as the
+capability-B specialist (`RemoteSamAdapter`, router `SINGLE_IMAGE_GROUNDING`,
+`/analyze` grounding path, grounding `EvidenceItem` + structural verify). It runs
+on the ASUS CPU (`mmcv` **lite** 1.7.1 — the audit's `mmcv-full` blocker does not
+apply to the inference path). **Fallback = RSCoVLM-3B grounding head**
+(EXP-002, blocked); **reference = GeoGround** (remote). **Still open:** DIOR-RSVG
+acc@IoU0.5 (dataset unacquirable), GPU/4 GB-VRAM verification, and an upstream
+**licence** (NOT STATED). See `EXP-GROUNDING.md` + ADR-019.
 
 ### Tournament C — Temporal  *(mandatory capability C)*
 

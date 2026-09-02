@@ -4,7 +4,7 @@
 > reached, with the artifact that proves it. Never promote a row without a real
 > run. Levels: `PAPER-REPORTED < DOCUMENTED < REPRODUCED < MEASURED < INTEGRATED
 > < VALIDATED`.
-> Updated: **2026-09-01 (G9)**.
+> Updated: **2026-09-02 (G10)**.
 
 ## Level definitions
 
@@ -39,7 +39,10 @@
 | GeoChat-7B | single-image VQA / grounding (SECONDARY / HISTORICAL REFERENCE) | DOCUMENTED | repo + `model_inventory.md` | BLOCKED locally (7B > 4 GB; deepspeed/bnb) — **not a project blocker**; PAPER: authors ≈ 90 % RSVQA-LR |
 | Change-Agent | temporal semantic + caption | DOCUMENTED | repo | BLOCKED (mmcv 1.3.1) |
 | ChangeChat | temporal change caption/VQA | DOCUMENTED | repo | REJECT — no released weights |
-| **RemoteSAM** | grounding / referring segmentation (mask + box) | **DOCUMENTED** | `1e12Leon/RemoteSAM` README + HF; ACM MM 2025 | **TEST FURTHER — lead capability-B candidate** (~200 M, `LOCAL-FITS-4GB`); repro BLOCKED on `mmcv-full==1.7.1` env + licence unstated. `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md` |
+| **RemoteSAM** | text-guided grounding (box) | **REPRODUCED + INTEGRATED** (G10) | `.venvs/remotesam` CPU smoke 2026-09-02: 3/5 phrases → in-bounds box+mask, prob ≈ 0.97–1.0; `RemoteSamAdapter` + `run_grounding` + router `SINGLE_IMAGE_GROUNDING` + `/analyze` grounding path + grounding `EvidenceItem` + structural verify; 25 tests. `docs/research/EXP-GROUNDING.md` |
+| RemoteSAM | grounding acc@IoU0.5 | **NOT MEASURED** | — | DIOR-RSVG unacquirable (Google-Drive only, multi-GB DIOR images). B is REPRODUCED, not MEASURED. |
+| RemoteSAM | referring segmentation (mask) | REPRODUCED | same smoke — mask dims match image, fg fraction sensible | not scored (no GT mask) |
+| RemoteSAM | 4 GB VRAM fit | **NOT VERIFIED** | CPU only on this host (~8 GB RSS, ~16–22 s/query) | classified `CPU-FALLBACK`; GPU measurement pending |
 | **DynamicVis** | vision encoder (Mamba SSM) — classif/detect/seg/change/retrieval | **DOCUMENTED** | `KyanChen/DynamicVis` README + HF | **REJECT for product** — Mamba is Windows + CPU incompatible; NOT a VLM (no A/B). Watch-item. |
 | RS-MoE (2 repos) | RS caption + VQA (claimed) | DOCUMENTED | repo | REJECT — no released weights / no inference code; `CongcongWen1208/RS-MoE` README: "MoE not yet implemented", base Vicuna-13B |
 

@@ -48,6 +48,7 @@
 | **DOFA** | ✅ | ✅ (`forward_features` S1 2ch + S2 12ch, 111 M, ~120 ms CPU) | ❌ | ❌ | **RUNNING** (G1.6) — OPTICAL-SAR CHALLENGER |
 | EarthDial | ✅ (checkpoints verified to exist) | ❌ (4B ≈ 8–9 GB bf16; not run) | ❌ | ❌ | **REFERENCE CANDIDATE** — PRIMARY HIGH-CAPABILITY REFERENCE (remote) |
 | GeoChat | ✅ | ❌ (7B > 4 GB VRAM; `deepspeed`/`bnb` unbuildable) | ❌ | ❌ | **SECONDARY / HISTORICAL REFERENCE** — TEST FURTHER on ≥16 GB Linux GPU; **not a blocker** |
+| **RemoteSAM** | ✅ | ✅ (CPU, `.venvs/remotesam`; 3/5 smoke phrases → in-bounds box+mask) | ❌ (DIOR-RSVG blocked) | ✅ (`RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING` + grounding evidence + verify) | **KEEP — local grounding specialist (G10)**; licence NOT STATED; not benchmarked |
 | Change-Agent | ✅ | ❌ (`mmcv==1.3.1` unbuildable; `transformers` conflict) | ❌ | ❌ | **BLOCKED** — TEST FURTHER on Linux+conda |
 | ChangeChat | ✅ | ❌ (no weights; README now ≥48 GB VRAM to train) | ❌ | ❌ | **REJECT for now** (re-verified G1.6) |
 
@@ -64,7 +65,7 @@
 | Qwen2-VL-2B | generic VLM (VQA, native bbox grounding) | Apache-2.0 | yes (`Qwen/Qwen2-VL-2B-Instruct`) | ✅ (4-bit) | **GENERIC CONTROL** — **G5A: N=0**, 6th DL failure (0-byte safetensors) |
 | EarthDial | RS multi-task VLM (VQA+grounding+caption, **+SAR +temporal**) | code MIT / weights unconfirmed | yes (`akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`, InternVL2+Phi-3, 4B) | ❌ (4B ≈ 8–9 GB bf16) | **PRIMARY HIGH-CAPABILITY REFERENCE** — REFERENCE CANDIDATE; **G5A remote reference gate** (run on same frozen samples) |
 | GeoGround | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`) | ❌ (~7B) | **GROUNDING REFERENCE** (remote) / BACKUP |
-| **RemoteSAM** | GROUNDING/SEGMENTATION specialist — referring seg + visual grounding (mask+box) | not stated | yes (`1e12Leon/RemoteSAM`, Swin-B+BERT ~200 M) | ✅ size (`LOCAL-FITS-4GB`); env-BLOCKED (mmcv-full 1.7.1) | **TEST FURTHER — lead capability-B candidate** (`LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`) |
+| **RemoteSAM** | GROUNDING/SEGMENTATION specialist — text→box+mask | **NOT STATED** (no LICENSE in repo or HF) | yes (`1e12Leon/RemoteSAM`, `RemoteSAMv1.pth` 2.57 GB, Swin-B+BERT ~200 M) | **`CPU-FALLBACK` verified** (~8 GB RSS, ~16–22 s/query); GPU/4 GB unverified; env solved (`mmcv` **lite** 1.7.1) | **KEEP — local grounding specialist, REPRODUCED + INTEGRATED (G10)**; not benchmarked; `EXP-GROUNDING.md` |
 | **DynamicVis** | PERCEPTION/ENCODER (Mamba SSM) — NOT a VLM; classif/detect/seg/change/retrieval | Apache-2.0 | yes (`KyanChen/DynamicVis` b/l) | VRAM `LOCAL-EASY` (~800 MB/2048px) but **Windows+CPU incompatible** | **REJECT for product** (portability); research watch-item |
 | **RS-MoE** (`CongcongWen1208/RS-MoE`) | GENERAL VLM (claim) — captioning + VQA | not stated | **no** — training-only, "MoE not yet implemented", base Vicuna-13B | ❌ | **REJECT (no artifact)** — "RS-MoE-1B" is a paper claim |
 | LRS-VQA | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (7B) | ❌ | **KEEP FOR LATER** — as a VQA benchmark |

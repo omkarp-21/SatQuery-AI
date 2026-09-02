@@ -107,6 +107,31 @@ models:
     fallback: "croma"
     note: "One wavelength-conditioned encoder for any sensor; fusion is a downstream choice."
 
+  remotesam:
+    adapter: satquery_model_adapters.remotesam:RemoteSamAdapter
+    source_repo: https://github.com/1e12Leon/RemoteSAM
+    paper: "RemoteSAM: Towards Segment Anything for Earth Observation (ACM MM 2025, oral)"
+    commit: ebb7bc278c7343c29c8c16b035289f78f40f0f72
+    license: "NOT STATED — no LICENSE file in the repo; HF checkpoint has no model card. MUST be clarified before non-prototype use."
+    capabilities: [grounding, referring-segmentation]
+    modalities: [optical-single]
+    deployment_tier: LOCAL_PREFERRED   # the grounding specialist; runs on the 4 GB target (CPU verified, GPU pending)
+    input: "1 RGB image + a referring phrase (context['query'] or request.query)"
+    output: "bbox_xyxy [xmin,ymin,xmax,ymax] (image pixels) + binary mask PNG; score = foreground softmax prob (raw, NOT calibrated)"
+    environment: ".venvs/remotesam (py3.11, torch 2.2.2 cpu, mmcv 1.7.1 LITE via --no-build-isolation, transformers 4.30.2, timm 0.6.13, opencv-headless 4.11); bert-base-uncased cached at models/cache/hf_home"
+    checkpoint: "models/cache/remotesam/RemoteSAM/RemoteSAMv1.pth (2,566,704,235 B; state_dict 854 backbone / 197 text_encoder / 56 decoder)"
+    hardware: "CPU verified: load ~22 s, ~8 GB peak RSS, ~16-22 s/query steady-state (896^2). GPU/4 GB VRAM: plausible, NOT verified (no CUDA torch on this host)."
+    quantization: "not attempted"
+    latency: "~17-22 s/query (CPU, warm, 896^2); first call ~96 s incl. lazy init"
+    memory: "~8 GB peak CPU RSS (896^2 Swin-B forward, fp32 CPU)"
+    params: "~200 M (Swin-Base + BERT-base)"
+    benchmark: "authors: oIoU 76.21 / mIoU 64.79 on referring-seg (their number, NOT ours)"
+    our_measured_result: "REPRODUCED (CPU, 2026-09-02): 3/5 smoke groundings returned in-bounds box + mask with prob ~0.97-1.0; 2/5 no_box (one OOD 256 px tile). Spatial correspondence verified. NOT measured on DIOR-RSVG (dataset unacquirable). docs/research/EXP-GROUNDING.md"
+    evidence_level: reproduced
+    status: KEEP (local grounding specialist) — pending DIOR-RSVG measurement + GPU-VRAM check + licence
+    fallback: "none integrated (RSCoVLM-3B grounding head is the documented fallback — EXP-002, blocked)"
+    note: "text -> box + mask. NOT a VQA/captioning model (UnsupportedTaskError). Score is a raw probability, not a confidence. Runs via subprocess to .venvs/remotesam; product code never imports the research repo."
+
 # --- not in the registry: no runnable adapter (blocked / rejected) ---
 # Statuses + measured facts only. NO capability is claimed here for an unrun model.
 # Single-image candidate set revised by the Lightweight Model Replacement Audit
@@ -133,7 +158,7 @@ routing:
   single_image_scene_or_retrieval: [remoteclip]
   optical_sar_representation: [croma, dofa]   # bake-off BLOCKED (EXP-004 Run 2 - no dataset)
   single_image_vqa: []             # unresolved - EXP-002 BLOCKED (weights unfetchable); -> NO_VQA_SPECIALIST
-  single_image_grounding: []       # unresolved - candidate = remotesam (dedicated ~200 M grounding specialist, mask+box); repro BLOCKED on mmcv env. See LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md
+  single_image_grounding: [remotesam]   # RemoteSAM grounding specialist (REPRODUCED; not benchmarked). See LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md + EXP-GROUNDING.md
   bitemporal_semantic_change:      # composed baseline only (NOT learned / NOT validated)
     composed_baseline: [changeformer, remoteclip]   # COMPOSED_SEMANTIC_CHANGE_BASELINE
     learned_model: []              # unresolved - EXP-003 (needs a remote box)

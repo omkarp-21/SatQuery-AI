@@ -70,7 +70,7 @@ reliability and integration cost all count.
 | Windows / CPU / quant | Not documented. **`mmcv-full==1.7.1` is the risk** — same dependency class that blocked Change-Agent on Windows (needs a compiler + CUDA toolkit; Linux wheels exist for torch 1.13/cu116). |
 | Repo health | **247 stars, 15 commits, last update 2025-07** (ACM MM acceptance). |
 | 4 GB class | **`LOCAL-FITS-4GB`** on size (~200 M) — **but env-`BLOCKED`**: `mmcv-full 1.7.1` build on this Windows host is the wall. |
-| Decision | **TEST FURTHER — best B (grounding) candidate.** A purpose-built lightweight grounding+segmentation specialist that emits **mappable spatial evidence (mask + box)** from a phrase — strictly better for capability B than forcing a 3 B VQA model to ground. Reproduction **BLOCKED** pending (a) the `mmcv` env (Linux, or a matching Windows wheel) and (b) licence confirmation. Weights are likely fetchable (sub-GB). |
+| Decision | **KEEP — REPRODUCED + INTEGRATED (G10, ADR-019).** Runs on the ASUS **CPU** via `.venvs/remotesam` — the grounding inference path needs only **`mmcv` (lite) 1.7.1** (no compiled ops; the `mmcv-full` assumption above was wrong). Checkpoint `RemoteSAMv1.pth` **2.57 GB** (not sub-GB) downloaded. Smoke: 3/5 phrases → in-bounds box+mask, prob ≈ 0.97–1.0. `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING` route live. **Open:** DIOR-RSVG acc@IoU0.5 (dataset blocked), GPU/4 GB-VRAM check (CPU-only here, ~8 GB RSS → `CPU-FALLBACK`), and an upstream **licence** (NOT STATED). Full record: `EXP-GROUNDING.md`. |
 
 ---
 
@@ -96,22 +96,24 @@ real release exists in the inspected set.
 
 ### Tournament B — Grounding  *(RemoteSAM / RSCoVLM / TinyRS / Qwen2-VL / GeoGround ref)*
 
-**RemoteSAM is the new lead for capability B.**
+**RemoteSAM WON capability B — REPRODUCED + INTEGRATED (G10, ADR-019).**
 
 | Candidate | Class | Grounding output | Params | 4 GB class | State |
 |-----------|-------|------------------|:------:|-----------|-------|
-| **RemoteSAM** | GROUNDING / SEGMENTATION | **mask + box** from a phrase | ~200 M | `LOCAL-FITS-4GB` (env-BLOCKED: mmcv) | **DOCUMENTED** — TEST FURTHER |
+| **RemoteSAM** | GROUNDING / SEGMENTATION | **mask + box** from a phrase | ~200 M | **`CPU-FALLBACK` verified** (~8 GB RSS; GPU/4 GB unverified) | **REPRODUCED + INTEGRATED** (not benchmarked) |
 | RSCoVLM-3B | GENERAL VLM | box-in-text | 3 B | `LOCAL-BORDERLINE` | DOCUMENTED |
 | TinyRS-2B | GENERAL VLM | box-in-text | 2 B | `LOCAL-FITS-4GB` | DOCUMENTED |
 | Qwen2-VL-2B | GENERAL VLM | native `<box>` tokens | 2 B | `LOCAL-FITS-4GB` | DOCUMENTED (generic control) |
 | GeoGround | GENERAL VLM (grounding) | box / mask | ~7 B | `REMOTE-ONLY` | reference |
 
-**Best local grounding model (evidence-based, pending reproduction): RemoteSAM** —
-a dedicated ~200 M specialist that returns a **mask *and* a box** (both directly
+**Best local grounding model: RemoteSAM — REPRODUCED + INTEGRATED (G10, ADR-019).**
+A dedicated ~200 M specialist that returns a **mask *and* a box** (both directly
 mappable as evidence), rather than making a 3 B VQA model emit coordinates in
-text. **Use grounding as a specialist, not as a VQA side-task.** Fallback =
-RSCoVLM-3B grounding head (if the VQA winner is RSCoVLM anyway). Reference =
-GeoGround (remote). **Reproduction blocked on the `mmcv` env + licence.**
+text. **Grounding is now a specialist, not a VQA side-task.** Runs on the ASUS
+CPU (`.venvs/remotesam`, `mmcv` **lite** — no compiled ops on the inference
+path). Fallback = RSCoVLM-3B grounding head. Reference = GeoGround (remote).
+**Not benchmarked** (DIOR-RSVG blocked); GPU/4 GB fit unverified; **licence NOT
+STATED** upstream. `EXP-GROUNDING.md`.
 
 ### Tournament C — Efficient perception  *(DynamicVis)*
 

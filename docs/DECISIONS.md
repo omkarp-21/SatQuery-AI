@@ -5,6 +5,65 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-019 — G10: RemoteSAM REPRODUCED + INTEGRATED as the local grounding specialist; capability B moves DOCUMENTED → REPRODUCED (not MEASURED); licence NOT STATED
+
+- **Date:** 2026-09-02
+- **Status:** Accepted
+- **Context:** ADR-018 named RemoteSAM the lead capability-B candidate and assumed
+  it was BLOCKED on `mmcv-full==1.7.1`. G10 verified the *current* repo and ran it.
+- **Findings that corrected the audit:**
+  - RemoteSAM's **grounding inference path uses no compiled mmcv/mmdet/mmseg ops** —
+    pure PyTorch + `timm` layers + `transformers.BertModel`. The only mmcv touch is
+    a checkpoint-loader shim importing pure-Python `mmcv.fileio/parallel/runner`,
+    satisfied by **`mmcv` (lite) 1.7.1** (`pip install mmcv==1.7.1
+    --no-build-isolation`). `mmdet`/`mmsegmentation`/`pycocotools` are training-only.
+  - Checkpoint `RemoteSAMv1.pth` (**2.57 GB**) downloaded (hf_transfer retry).
+    `bert-base-uncased` (440 MB) cached locally for offline load.
+  - **Licence: NOT STATED.** No LICENSE file in the repo; HF checkpoint has no
+    model card. Recorded verbatim as `NOT STATED` in the registry.
+- **Reproduced (CPU, `.venvs/remotesam`, 2026-09-02):** 5-phrase smoke —
+  **3/5 grounded** with an in-bounds box + mask and foreground prob ≈ 0.97–1.0;
+  2/5 `no_box` (one a 256 px LEVIR tile, out of distribution for DIOR-scale
+  training). Spatial correspondence **verified** (mask dims match image, box
+  well-formed and inside bounds, box derived from mask). Load ~22 s, **peak RSS
+  ~8 GB**, ~16–22 s/query steady-state (first call ~96 s).
+- **Integrated:**
+  - `RemoteSamAdapter` (`packages/model_adapters/.../remotesam.py`) — standard
+    `validate/execute/normalize_output/provenance/run`; subprocess to
+    `.venvs/remotesam` via `scripts/research/remotesam_infer.py`; **no research-repo
+    import in product code**; rejects VQA/captioning with `UnsupportedTaskError`.
+  - `model_registry.yaml` `models:` `remotesam` — `deployment_tier:
+    LOCAL_PREFERRED`, `capabilities: [grounding, referring-segmentation]`,
+    `evidence_level: reproduced`, `license: "NOT STATED …"`,
+    `status: KEEP (local grounding specialist) — pending DIOR-RSVG measurement +
+    GPU-VRAM check + licence`.
+  - Router: `GROUNDING_INTENTS`, rule 4b, code `SINGLE_IMAGE_GROUNDING →
+    ["remotesam"]`. **VQA still → `NO_VQA_SPECIALIST`** with the reason explicitly
+    forbidding routing RemoteCLIP *or RemoteSAM* as a VQA model.
+  - `/analyze`: `grounding` intent → `run_grounding` (`grounding_slice.py`) →
+    `GroundingResult` + a **grounding** `EvidenceItem` + structural `verify()`
+    (`grounding_box_valid` + `grounding_mask_artifact` added to the verifier) +
+    provenance; flows through the failure-aware `resolution`.
+  - `"grounding"` added to `EvidenceType`.
+  - RemoteSAM cloned to `external/research/RemoteSAM` (gitignored, pinned
+    `ebb7bc2`).
+- **Decision — capability B: DOCUMENTED → REPRODUCED + INTEGRATED. NOT MEASURED.**
+  DIOR-RSVG acc@IoU0.5 is blocked (Google-Drive-only dataset, no HF mirror,
+  multi-GB DIOR images). GPU/4 GB-VRAM fit is **unverified** (no CUDA torch here) —
+  classified `CPU-FALLBACK`, not `LOCAL-FITS-4GB`, until measured on a GPU.
+  **The A/B design is now a real two-specialist split on the B side.** SatQuery
+  does **not** depend on a large VLM for grounding.
+- **Consequence (131/131 tests, was 121; +25 grounding/adapter tests; new adapter
+  + service + bridge + 2 docs; router/verifier/evidence extended additively; no
+  contract break; no confidence value):** new
+  `remotesam.py`, `grounding_slice.py`, `scripts/research/remotesam_infer.py`,
+  `docs/research/EXP-GROUNDING.md`, `docs/architecture/GROUNDING_PIPELINE.md`,
+  `test_remotesam_adapter.py`, `test_grounding.py`; updated `router.py`,
+  `verifier.py`, evidence `models.py`, `analyze.py`, `model_registry.yaml`,
+  `__init__.py` (adapters), `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`,
+  `MODEL_TOURNAMENT.md`, `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`,
+  `EVIDENCE_LEDGER.md`, `PROJECT_STATUS.md`, `API_CONTRACT.md`.
+
 ## ADR-018 — Local Lightweight Model Tournament: RemoteSAM becomes the lead capability-B (grounding) candidate; RS-MoE + DynamicVis rejected; product confirmed to need no 7B/16 GB model
 
 - **Date:** 2026-09-01

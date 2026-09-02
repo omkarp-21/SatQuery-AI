@@ -93,6 +93,26 @@ def verify(
             probs_ok = all(0.0 <= float(p) <= 1.0 for _, p in r) if r else False
             checks.append(Check(name=f"ranking_probs[{ev.evidence_id}]",
                                 passed=probs_ok, detail=f"n={len(r)}"))
+        elif ev.evidence_type == "grounding":
+            # structural only: a box, if present, must be well-formed and lie
+            # inside the declared image; a mask artifact path, if given, must exist.
+            box = ev.payload.get("bbox_xyxy")
+            dims = ev.payload.get("image_dims")  # [W, H]
+            if box is not None:
+                ok_shape = len(box) == 4 and box[0] < box[2] and box[1] < box[3]
+                ok_bounds = True
+                if dims and len(dims) == 2:
+                    w, h = dims
+                    ok_bounds = 0 <= box[0] and 0 <= box[1] and box[2] <= w and box[3] <= h
+                checks.append(Check(name=f"grounding_box_valid[{ev.evidence_id}]",
+                                    passed=bool(ok_shape and ok_bounds),
+                                    detail=f"box={box} image_dims={dims}"))
+            mp = ev.payload.get("mask_path")
+            if mp is not None:
+                from pathlib import Path as _P  # noqa: PLC0415
+
+                checks.append(Check(name=f"grounding_mask_artifact[{ev.evidence_id}]",
+                                    passed=_P(str(mp)).exists(), detail=f"mask_path={mp}"))
 
     if not checks:
         return VerificationResult(status="INSUFFICIENT_EVIDENCE", checks=[])
