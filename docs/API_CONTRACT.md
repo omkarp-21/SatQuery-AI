@@ -1,10 +1,62 @@
 # SatQuery API Contract
 
-> Status: **G13 — product surface live.** `GET /` (local UI), `POST /analyze/upload`
-> (the primary entry point — multipart, returns the flat `NormalizedResponse`),
-> `GET /artifact` (mask PNGs), plus the earlier `POST /analyze`, `/change`,
-> `/scene`, `/health`. No LLM planner. **No confidence value in any response.**
+> Status: **G14 — agentic investigator live.** `POST /investigate` (mission →
+> planner → policy → bounded agent loop → evidence-first report), `GET /` (UI with
+> an ASK / INVESTIGATE toggle), `POST /analyze/upload` (single-shot, flat
+> `NormalizedResponse`), `GET /artifact`, plus `POST /analyze`, `/change`,
+> `/scene`, `/health`. The deterministic router is the execution guard, not
+> replaced. **No confidence value in any response.**
 > Full request/response types: `apps/backend/app/api/`.
+
+---
+
+## `POST /investigate`  — agentic geospatial investigator  *(G14)*
+
+**Request** — `multipart/form-data`: `query` (the mission, str), `files` (1–4
+images), optional `context` (JSON string).
+
+**Flow:** mission → **planner** (`RuleBasedPlanner` default; `LlmPlanner` local
+Qwen2-VL-2B text-only when `SATQUERY_PLANNER=llm`, always falls back) → typed
+`AgentPlan` → **12-check deterministic policy layer** (rejects wrong-tool-for-task,
+cycles, > 8 steps, misregistered pairs, …) → **bounded executor** (state machine,
+≤ 8 specialist calls, observes each result and conditionally replans) →
+evidence-first synthesis. Planner unavailable / plan rejected → deterministic
+`/analyze` fallback.
+
+**Response `200` (`AgentInvestigationResult`)** — key fields:
+
+```json
+{
+  "mission": "...", "mode": "investigate",
+  "plan": { "goal": "...", "steps": [ {"step_id":"s2","task":"TEMPORAL_CHANGE","tool":"run_temporal_change","depends_on":["s1"],"reason":"..."} ] },
+  "plan_status": "valid", "planner_used": "rule_based", "plan_rejection_reasons": [],
+  "phase": "FINALIZING", "ok": true, "tool_calls": 4, "max_steps": 8, "hit_step_cap": false,
+  "steps": [ {"step_id":"s2","task":"TEMPORAL_CHANGE","tool":"run_temporal_change","status":"completed",
+              "verdict":"COHERENT","summary":"changed_fraction 0.2526, area 0.4138 ha",
+              "verification_status":"SUPPORTED","numeric":{"changed_fraction":0.2526},"runtime_s":8.1} ],
+  "conclusion": "~25.3% of the scene changed, 6 changed region(s) isolated, 1 structure region(s) located. Verification: SUPPORTED.",
+  "key_findings": [ "Change detected: ~25.3% ...", "6 changed region(s) were isolated ...", "Cross-check: 1/1 grounded region(s) fall inside a changed region." ],
+  "spatial_findings": [ {"label":"changed region","where_pixel":[50,36,94,79],"where_lonlat":[114.9488,28.9119,114.949,28.9121],"area_ha":null,"source_step":"s3"} ],
+  "evidence": [ {"evidence_type":"change-mask", ...} ],
+  "verification": { "status": "SUPPORTED", "checks": [ ... ] },
+  "resolution": { "qualifier": "RESULT_OK", "answer_surfaced": true, "note": "deterministic post-execution qualifier — NOT a confidence value" },
+  "provenance": { "layer": "agent", "planner_used": "rule_based", "plan_status": "valid", "plan_steps": [...], "tool_calls": 4, "mask_source": "...", "input_files": ["/artifact?req=<id>&name=t1_optical.tif"] },
+  "execution_trace": [ {"ts":"13:17:01","event":"Mission received"}, {"ts":"13:17:10","event":"run_temporal_change -> COHERENT (verification SUPPORTED)"} ],
+  "warnings": [ "planner: ..." ], "failures": [], "models_used": ["ChangeFormer","RemoteSAM","CROMA"],
+  "timings": { "total_s": 41.2 }
+}
+```
+
+- **Never** runs a tool the policy layer forbids; **never** fabricates a box,
+  coordinate, or a result for a failed specialist. An optical+SAR step surfaces
+  "representation-level only; no textual fact inferred".
+- Errors: 0 or > 4 files → `400 bad_file_count`; bad type → `400`; > 64 MB →
+  `413`; agent exception → sanitized `500 agent_error`.
+
+Task ontology (closed): `VALIDATE_INPUT, SCENE_UNDERSTANDING, VQA, GROUND_OBJECT,
+TEMPORAL_CHANGE, SEMANTIC_CHANGE, OPTICAL_SAR_ANALYSIS, EXTRACT_CHANGED_REGIONS,
+CROSS_CHECK_EVIDENCE, VERIFY, SUMMARIZE, FINALIZE`. Tools (closed, 12) mirror the
+frozen stack — see `packages/agents/src/satquery_agents/agent/registry.py`.
 
 ---
 

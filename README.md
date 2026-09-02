@@ -68,6 +68,28 @@ cd apps/backend
 # captures written to docs/sih/evidence/demos/g13_demo*.json
 ```
 
+### Agentic investigator  *(G14)*
+
+In the UI, toggle **INVESTIGATE** (or `POST /investigate`). A natural-language
+**mission** is decomposed by a text-only planner into a typed plan, checked by a
+12-rule deterministic policy layer, then run by a bounded executor (≤ 8 specialist
+calls) that observes each result and decides the next action. The deterministic
+router is not replaced — it is the execution guard; if the planner is unavailable
+the request falls back to `/analyze`.
+
+```bash
+# flagship mission (planner-produced, not a hard-coded workflow)
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --only inv-1
+
+# full agent evaluation — 30 frozen missions
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py            # plan phase
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --exec 2   # + exec 2/category
+# report -> evaluation/agent/reports/latest.json ; see docs/G14_AGENTIC_REPORT.md
+
+# optional local LLM planner (Qwen2-VL-2B text-only; always falls back to the rule planner)
+SATQUERY_PLANNER=llm .venvs/satquery/Scripts/python.exe -m uvicorn app.main:app --port 8000
+```
+
 | Demo | Query | Task → model |
 |------|-------|--------------|
 | 1 | "What objects are visible in this satellite image?" | VQA → TinyRS-2B |
@@ -79,8 +101,8 @@ cd apps/backend
 **Tests:**
 
 ```bash
-.venvs/satquery/Scripts/python.exe -m pytest packages apps/backend -q -m "not slow"   # fast, ~2 min
-.venvs/satquery/Scripts/python.exe -m pytest apps/backend/tests/test_g13_integration.py -q -m slow   # real models, slow
+.venvs/satquery/Scripts/python.exe -m pytest packages apps/backend -q -m "not slow"   # fast, ~3 min, 179 tests
+.venvs/satquery/Scripts/python.exe -m pytest apps/backend/tests/test_g13_integration.py apps/backend/tests/test_g14_agent.py -q -m slow   # real models, slow
 ```
 
 **Known limitations (G13 — not hidden):** evaluation samples are sanity-scale;

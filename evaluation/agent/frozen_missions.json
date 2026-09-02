@@ -1,0 +1,680 @@
+{
+  "name": "SatQuery Agent Evaluation - internal frozen evaluation",
+  "note": "NOT an external benchmark. 30 frozen missions over local demo fixtures. Metrics measure the PLANNER + POLICY + EXECUTOR, not model accuracy.",
+  "seed": 20260902,
+  "categories": [
+    "vqa",
+    "grounding",
+    "temporal",
+    "optical_sar",
+    "multi_step",
+    "adversarial"
+  ],
+  "missions": [
+    {
+      "id": "vqa-1",
+      "category": "vqa",
+      "mission": "What objects are visible in this satellite image?",
+      "images": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_vqa"
+      ],
+      "forbid_tools": [
+        "run_grounding",
+        "run_temporal_change"
+      ],
+      "notes": "plain VQA"
+    },
+    {
+      "id": "vqa-2",
+      "category": "vqa",
+      "mission": "Is there a road in this image?",
+      "images": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_vqa"
+      ],
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "yes/no VQA"
+    },
+    {
+      "id": "vqa-3",
+      "category": "vqa",
+      "mission": "How many buildings are visible?",
+      "images": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_vqa"
+      ],
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "count VQA"
+    },
+    {
+      "id": "vqa-4",
+      "category": "vqa",
+      "mission": "What can you see in this scene?",
+      "images": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_vqa"
+      ],
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "open VQA"
+    },
+    {
+      "id": "vqa-5",
+      "category": "vqa",
+      "mission": "Describe the contents of this image.",
+      "images": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_vqa"
+      ],
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "describe -> VQA (single image, not temporal)"
+    },
+    {
+      "id": "grd-1",
+      "category": "grounding",
+      "mission": "Where is the largest building?",
+      "images": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_grounding"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "grounding"
+    },
+    {
+      "id": "grd-2",
+      "category": "grounding",
+      "mission": "Locate the runway.",
+      "images": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_grounding"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "grounding, runway phrase"
+    },
+    {
+      "id": "grd-3",
+      "category": "grounding",
+      "mission": "Show me the road in this image.",
+      "images": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_grounding"
+      ],
+      "forbid_tools": [
+        "run_scene_retrieval"
+      ],
+      "notes": "grounding"
+    },
+    {
+      "id": "grd-4",
+      "category": "grounding",
+      "mission": "Point to the buildings.",
+      "images": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_grounding"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "grounding"
+    },
+    {
+      "id": "grd-5",
+      "category": "grounding",
+      "mission": "Identify the structures in this image.",
+      "images": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_grounding"
+      ],
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "identify structures -> grounding"
+    },
+    {
+      "id": "tmp-1",
+      "category": "temporal",
+      "mission": "What changed between these two images?",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "temporal change"
+    },
+    {
+      "id": "tmp-2",
+      "category": "temporal",
+      "mission": "Which areas changed between the two dates?",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change"
+      ],
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "temporal"
+    },
+    {
+      "id": "tmp-3",
+      "category": "temporal",
+      "mission": "Detect the difference between these observations.",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change"
+      ],
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "temporal"
+    },
+    {
+      "id": "tmp-4",
+      "category": "temporal",
+      "mission": "Describe what kind of change happened between these images.",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "SEMANTIC_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_semantic_temporal_baseline"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "semantic-change -> composed baseline"
+    },
+    {
+      "id": "tmp-5",
+      "category": "temporal",
+      "mission": "What happened in this area over time?",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change"
+      ],
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "temporal"
+    },
+    {
+      "id": "osr-1",
+      "category": "optical_sar",
+      "mission": "Compare the optical and SAR imagery for this area.",
+      "images": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_optical_sar"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "id": "osr-2",
+      "category": "optical_sar",
+      "mission": "Analyze the joint optical and radar information here.",
+      "images": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_optical_sar"
+      ],
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "id": "osr-3",
+      "category": "optical_sar",
+      "mission": "Use SAR and optical together to characterize this scene.",
+      "images": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_optical_sar"
+      ],
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "id": "osr-4",
+      "category": "optical_sar",
+      "mission": "What complementary information does the SAR add to the optical image?",
+      "images": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_optical_sar"
+      ],
+      "forbid_tools": [
+        "run_scene_retrieval"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "id": "osr-5",
+      "category": "optical_sar",
+      "mission": "Fuse the Sentinel-1 and Sentinel-2 observations for this location.",
+      "images": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_optical_sar"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "id": "inv-1",
+      "category": "multi_step",
+      "mission": "Investigate this area. Identify significant changes between the two observations, locate the affected structures, and use SAR evidence to characterize the changes. Give me an evidence-backed summary.",
+      "images": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "run_optical_sar"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "flagship"
+    },
+    {
+      "id": "inv-2",
+      "category": "multi_step",
+      "mission": "Compare these two images, identify the major changes, and locate the changed buildings.",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding"
+      ],
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "change + ground, no SAR supplied"
+    },
+    {
+      "id": "inv-3",
+      "category": "multi_step",
+      "mission": "Investigate the area between these dates and describe what changed and where.",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change",
+        "extract_changed_regions"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "change + regions"
+    },
+    {
+      "id": "inv-4",
+      "category": "multi_step",
+      "mission": "Full analysis: detect changes, extract the changed regions, locate structures, verify the evidence.",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding"
+      ],
+      "forbid_tools": [
+        "run_scene_retrieval"
+      ],
+      "notes": "multi-step"
+    },
+    {
+      "id": "inv-5",
+      "category": "multi_step",
+      "mission": "Investigate this location comprehensively using the optical pair and the SAR image, and give a verified summary of the changes and affected structures.",
+      "images": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "run_optical_sar"
+      ],
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "flagship, alt phrasing"
+    },
+    {
+      "id": "adv-1",
+      "category": "adversarial",
+      "mission": "What changed between these images?",
+      "images": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "FINALIZE"
+      ],
+      "expect_tools": [],
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "change asked with ONE image -> cannot; agent must NOT run temporal",
+      "unsupported": true
+    },
+    {
+      "id": "adv-2",
+      "category": "adversarial",
+      "mission": "Compare the optical and SAR imagery.",
+      "images": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "FINALIZE"
+      ],
+      "expect_tools": [],
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "opt+SAR asked with ONE image -> cannot",
+      "unsupported": true
+    },
+    {
+      "id": "adv-3",
+      "category": "adversarial",
+      "mission": "Use RemoteSAM to answer: how many planes are there?",
+      "images": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_vqa"
+      ],
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "user names the wrong tool for a VQA question; policy/planner must route to VQA not grounding"
+    },
+    {
+      "id": "adv-4",
+      "category": "adversarial",
+      "mission": "Predict next week's weather for this location.",
+      "images": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "expect_tools": [
+        "run_vqa"
+      ],
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "out-of-scope question; VLM will answer evasively, verifier/executor should not fabricate",
+      "unsupported": true
+    },
+    {
+      "id": "adv-5",
+      "category": "adversarial",
+      "mission": "What changed between these two images?",
+      "images": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2_shifted.tif"
+      ],
+      "expect_tasks": [
+        "VALIDATE_INPUT",
+        "FINALIZE"
+      ],
+      "expect_tools": [],
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "misregistered pair -> policy/validate must block temporal",
+      "unsupported": true
+    }
+  ]
+}

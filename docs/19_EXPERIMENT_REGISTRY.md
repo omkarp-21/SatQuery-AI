@@ -210,26 +210,31 @@ what we measured, what we decided.
 
 ## EXP-006 — LLM-only routing vs constrained deterministic/agentic routing
 
-- Status: PLANNED (deferred until the capability stack is frozen).
-- **Substrate ready (G8):** deterministic router INTEGRATED + **failure-aware
-  routing INTEGRATED** — `derive_resolution()` (6 post-execution qualifiers,
-  pure fn of `verify()` + `verify_semantic()` + sub status) + single-step
-  `image_difference_fallback`. `docs/research/FAILURE_AWARE_ROUTING.md`. The LLM
-  intent step (mode b) plugs in on top of this.
+- Status: **RUN (G14, 2026-09-02)** — `docs/research/EXP-006_AGENTIC_PLANNER.md`.
+  The agentic geospatial investigator: PLANNER (LlmPlanner local Qwen2-VL-2B
+  text-only / RuleBasedPlanner default) → typed `AgentPlan` → 12-check POLICY
+  layer → bounded executor (≤ 8 specialist calls; observe / verify / conditionally
+  replan) → evidence-first synthesis. The deterministic router is **not**
+  replaced — it stays the execution guard; `run_analyze` is the fallback.
 - Hypothesis: H2
-- Question: Does structured (rule-over-registry) routing improve correct tool
-  selection and reduce invalid execution vs letting an LLM freely choose tools?
-- Models / methods: `packages/agents` routing stage in two modes — (a) LLM proposes
-  the whole plan with no schema constraint; (b) LLM only disambiguates intent, then
-  rules over `model_registry.yaml` capabilities build the plan (the design in the
-  `agent-orchestration` skill).
-- Dataset: a labelled set of queries + input bundles with a **known correct**
-  task / modality / specialist selection, in `evaluation/cases/`.
-- Metric: routing accuracy (correct specialist + task); rate of invalid executions
-  (unsupported task/modality reaching a model); plan reproducibility across repeats.
-- Baseline: mode (a), LLM-only.
-- Result: _not measured_.
-- DECISION: _pending_.
+- Question: Does a constrained planner + deterministic policy guard produce
+  correct multi-step specialist plans without replacing the router, and add
+  functional value over single-shot `/analyze` on multi-step missions?
+- Method: `packages/agents/src/satquery_agents/agent/` (schemas, registry, policy,
+  planner, prompts, memory, verifier) + `apps/backend/app/services/agent_runner.py`
+  + `POST /investigate`. Task ontology (12 closed tasks), tool registry (12 closed
+  tools with metadata). `evaluation/agent/` — 30 frozen missions (6 categories),
+  `run_agent_eval.py` (plan phase all 30 + exec phase bounded sample + agent-vs-
+  baseline).
+- Result (plan phase, 30 missions, rule planner, CPU): **plan validity 0.967,
+  tool-selection accuracy 1.00, task-order correctness 1.00**, avg 2.4 specialist
+  steps/plan, failed-plan rate 0.033 (adv-5 misregistered pair correctly
+  rejected). Exec phase + baseline comparison: see `EXP-006_AGENTIC_PLANNER.md` /
+  `evaluation/agent/reports/latest.json`.
+- DECISION (G14): **KEEP** — the agent produces valid multi-step plans, never
+  runs a forbidden tool, preserves evidence/verification/provenance, and on
+  multi-step missions runs multiple required specialists where the deterministic
+  baseline routes to one. SatQuery's differentiating feature.
 
 ## EXP-007 — Geospatial validation ON vs OFF
 
@@ -259,7 +264,7 @@ what we measured, what we decided.
 | EXP-003 | temporal-language — composed baseline vs remote VLMs (a); crop strategy (b) | selection (→H2) | **EXP-003b RUN** (crop strategy: agreement 4/6, `expanded` provisional); EXP-003a BLOCKED (remote) | `EXP-003.md` |
 | **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **DONE (G12)** — Run 2 real DFC2020 probe: CROMA joint 0.793 vs optical 0.726 macro-F1 (+0.067, n.s. at n=200); DOFA fusion no gain | **KEEP CROMA** (D primary); H3 lean-KEEP |
 | EXP-005 | verifier detection — structural (a) + model-independent semantic (b) | H4 | **RUN** — 005a structural P/R/F1 = 1.00 (n=24); 005b semantic P/R/F1 = 1.00 (n=34), INTEGRATED; label-correctness gap remains | `EXP-005.md` |
-| EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
+| EXP-006 | agentic planner + policy guard vs single-shot routing | H2 | **DONE (G14)** — plan validity 0.967, tool-selection 1.00, task-order 1.00 (30 frozen missions); agent runs multiple required specialists on multi-step missions where the baseline routes to one | **KEEP** — the differentiating feature |
 | EXP-007 | geospatial safeguard stress test | H5 | **RUN — 15/15 pass** (`EXP-007.md`) | KEEP the gate |
 | EXP-008 | RS adaptation probe (req. E) | n/a | **DONE (G12)** — LoRA on CROMA: macro-F1 0.643 (frozen) → 0.704 (adapted), +0.061; 811 k trainable params | **ADOPT LoRA** as the E method; prod default frozen pending larger split |
 

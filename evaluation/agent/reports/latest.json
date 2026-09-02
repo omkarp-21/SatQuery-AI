@@ -1,0 +1,1118 @@
+{
+  "evaluation": "SatQuery Agent Evaluation - internal frozen evaluation",
+  "not_a_benchmark": true,
+  "date": "2026-09-02T133522",
+  "missions_file": "evaluation/agent/frozen_missions.json",
+  "planner_default": "rule_based",
+  "plan_phase": {
+    "n": 30,
+    "plan_valid_rate": 0.967,
+    "failed_plan_rate": 0.033,
+    "tool_selection_accuracy": 1.0,
+    "task_order_accuracy": 1.0,
+    "avg_specialist_steps": 2.4,
+    "by_category": {
+      "vqa": {
+        "n": 5,
+        "plan_valid_rate": 1.0,
+        "tool_selection_accuracy": 1.0,
+        "task_order_accuracy": 1.0
+      },
+      "grounding": {
+        "n": 5,
+        "plan_valid_rate": 1.0,
+        "tool_selection_accuracy": 1.0,
+        "task_order_accuracy": 1.0
+      },
+      "temporal": {
+        "n": 5,
+        "plan_valid_rate": 1.0,
+        "tool_selection_accuracy": 1.0,
+        "task_order_accuracy": 1.0
+      },
+      "optical_sar": {
+        "n": 5,
+        "plan_valid_rate": 1.0,
+        "tool_selection_accuracy": 1.0,
+        "task_order_accuracy": 1.0
+      },
+      "multi_step": {
+        "n": 5,
+        "plan_valid_rate": 1.0,
+        "tool_selection_accuracy": 1.0,
+        "task_order_accuracy": 1.0
+      },
+      "adversarial": {
+        "n": 5,
+        "plan_valid_rate": 0.8,
+        "tool_selection_accuracy": 1.0,
+        "task_order_accuracy": 1.0
+      }
+    }
+  },
+  "exec_phase": {
+    "n": 12,
+    "n_errors": 0,
+    "execution_success_rate": 1.0,
+    "evidence_preservation_rate": 1.0,
+    "verification_preservation_rate": 1.0,
+    "factual_consistency_rate": 1.0,
+    "ran_forbidden_tool_rate": 0.0,
+    "avg_tool_calls": 1.42,
+    "avg_latency_s": 35.0
+  },
+  "baseline_vs_agent": {
+    "note": "multi-step missions: how many required specialists each approach actually selected",
+    "missions": [
+      "inv-1",
+      "inv-2"
+    ],
+    "agent_avg_specialists_run": 2.5,
+    "baseline_avg_specialists_run": 1.0,
+    "agent_evidence_rate": 1.0,
+    "verdict": "agent selects and runs multiple required specialists; the deterministic baseline routes to exactly one \u2014 on multi-step missions the agent covers more of the required analysis."
+  },
+  "plan_rows": [
+    {
+      "id": "vqa-1",
+      "category": "vqa",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "vqa-2",
+      "category": "vqa",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.001
+    },
+    {
+      "id": "vqa-3",
+      "category": "vqa",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "vqa-4",
+      "category": "vqa",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "vqa-5",
+      "category": "vqa",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "grd-1",
+      "category": "grounding",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_grounding",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "grd-2",
+      "category": "grounding",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_grounding",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "grd-3",
+      "category": "grounding",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_grounding",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "grd-4",
+      "category": "grounding",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_grounding",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "grd-5",
+      "category": "grounding",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_grounding",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "tmp-1",
+      "category": "temporal",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "tmp-2",
+      "category": "temporal",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "tmp-3",
+      "category": "temporal",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "tmp-4",
+      "category": "temporal",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_semantic_temporal_baseline",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "SEMANTIC_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "tmp-5",
+      "category": "temporal",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.001
+    },
+    {
+      "id": "osr-1",
+      "category": "optical_sar",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_optical_sar",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "osr-2",
+      "category": "optical_sar",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_optical_sar",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "osr-3",
+      "category": "optical_sar",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_optical_sar",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "osr-4",
+      "category": "optical_sar",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_optical_sar",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "osr-5",
+      "category": "optical_sar",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_optical_sar",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "OPTICAL_SAR_ANALYSIS",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "inv-1",
+      "category": "multi_step",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 5,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "run_optical_sar",
+        "cross_check_evidence",
+        "verify_result",
+        "inspect_evidence",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "OPTICAL_SAR_ANALYSIS",
+        "CROSS_CHECK_EVIDENCE",
+        "VERIFY",
+        "SUMMARIZE",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.001
+    },
+    {
+      "id": "inv-2",
+      "category": "multi_step",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 4,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "verify_result",
+        "inspect_evidence",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "SUMMARIZE",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "inv-3",
+      "category": "multi_step",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 4,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "verify_result",
+        "inspect_evidence",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "SUMMARIZE",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "inv-4",
+      "category": "multi_step",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 4,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "verify_result",
+        "inspect_evidence",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "VERIFY",
+        "SUMMARIZE",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "inv-5",
+      "category": "multi_step",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 5,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "run_optical_sar",
+        "cross_check_evidence",
+        "verify_result",
+        "inspect_evidence",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "EXTRACT_CHANGED_REGIONS",
+        "GROUND_OBJECT",
+        "OPTICAL_SAR_ANALYSIS",
+        "CROSS_CHECK_EVIDENCE",
+        "VERIFY",
+        "SUMMARIZE",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "adv-1",
+      "category": "adversarial",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "adv-2",
+      "category": "adversarial",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "adv-3",
+      "category": "adversarial",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "adv-4",
+      "category": "adversarial",
+      "planner_used": "rule_based",
+      "plan_valid": true,
+      "plan_reasons": [],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_vqa",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "VQA",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    },
+    {
+      "id": "adv-5",
+      "category": "adversarial",
+      "planner_used": "rule_based",
+      "plan_valid": false,
+      "plan_reasons": [
+        "7_geospatial: s2:run_temporal_change needs a co-registered pair; it is not"
+      ],
+      "tool_selection_ok": true,
+      "task_order_ok": true,
+      "n_specialist_steps": 2,
+      "plan_tools": [
+        "validate_geospatial_input",
+        "run_temporal_change",
+        "verify_result",
+        "finalize_answer"
+      ],
+      "plan_tasks": [
+        "VALIDATE_INPUT",
+        "TEMPORAL_CHANGE",
+        "VERIFY",
+        "FINALIZE"
+      ],
+      "planner_notes": [],
+      "plan_latency_s": 0.0
+    }
+  ],
+  "exec_rows": [
+    {
+      "id": "vqa-1",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "TinyRS-2B"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "TinyRS-2B (Qwen2-VL-2B base)",
+      "baseline_task_code": "SINGLE_IMAGE_VQA",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 176.57,
+      "conclusion": "The image shows a large, circular logo with the text \"Nanjing University of Information Science and Technology\" written on  (Verification: SUPPORTED.)"
+    },
+    {
+      "id": "vqa-2",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "TinyRS-2B"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "TinyRS-2B (Qwen2-VL-2B base)",
+      "baseline_task_code": "SINGLE_IMAGE_VQA",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 44.17,
+      "conclusion": "yes  (Verification: SUPPORTED.)"
+    },
+    {
+      "id": "grd-1",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "RemoteSAM"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "RemoteSAM",
+      "baseline_task_code": "SINGLE_IMAGE_GROUNDING",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 28.78,
+      "conclusion": "No positive findings within the executed plan. Verification: SUPPORTED."
+    },
+    {
+      "id": "grd-2",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "RemoteSAM"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "RemoteSAM",
+      "baseline_task_code": "SINGLE_IMAGE_GROUNDING",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 25.5,
+      "conclusion": "1 structure region(s) located. Verification: SUPPORTED."
+    },
+    {
+      "id": "tmp-1",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "ChangeFormer"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "ChangeFormer",
+      "baseline_task_code": "TEMPORAL",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 8.24,
+      "conclusion": "~25.3% of the scene changed. Verification: SUPPORTED."
+    },
+    {
+      "id": "tmp-2",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "ChangeFormer"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "ChangeFormer",
+      "baseline_task_code": "TEMPORAL",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 5.82,
+      "conclusion": "~25.3% of the scene changed. Verification: SUPPORTED."
+    },
+    {
+      "id": "osr-1",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "CROMA"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "CROMA",
+      "baseline_task_code": "MULTIMODAL_REPR",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 6.04,
+      "conclusion": "optical+SAR representation computed. Verification: SUPPORTED."
+    },
+    {
+      "id": "osr-2",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "CROMA"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": "CROMA",
+      "baseline_task_code": "MULTIMODAL_REPR",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 4.72,
+      "conclusion": "optical+SAR representation computed. Verification: SUPPORTED."
+    },
+    {
+      "id": "inv-1",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 4,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "ChangeFormer",
+        "RemoteSAM",
+        "CROMA"
+      ],
+      "agent_specialist_count": 3,
+      "baseline_model": "ChangeFormer",
+      "baseline_task_code": "TEMPORAL",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 37.44,
+      "conclusion": "~25.3% of the scene changed, 6 changed region(s) isolated, 1 structure region(s) located, optical+SAR representation computed. Verification: SUPPORTED."
+    },
+    {
+      "id": "inv-2",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 3,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "ChangeFormer",
+        "RemoteSAM"
+      ],
+      "agent_specialist_count": 2,
+      "baseline_model": "ChangeFormer",
+      "baseline_task_code": "TEMPORAL",
+      "baseline_specialist_count": 1,
+      "agent_latency_s": 32.28,
+      "conclusion": "~25.3% of the scene changed, 6 changed region(s) isolated, 1 structure region(s) located. Verification: SUPPORTED."
+    },
+    {
+      "id": "adv-1",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "TinyRS-2B"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": null,
+      "baseline_task_code": "NO_MATCH",
+      "baseline_specialist_count": 0,
+      "agent_latency_s": 27.65,
+      "conclusion": "The image shows a logo of a university. The logo is circular and has a blue background with white text. The text  (Verification: SUPPORTED.)"
+    },
+    {
+      "id": "adv-2",
+      "exec_success": true,
+      "phase": "FINALIZING",
+      "plan_status": "valid",
+      "tool_calls": 1,
+      "hit_step_cap": false,
+      "evidence_present": true,
+      "verification_present": true,
+      "verification_status": "SUPPORTED",
+      "ran_forbidden_tool": false,
+      "factual_consistency_ok": true,
+      "n_failures": 0,
+      "agent_models": [
+        "TinyRS-2B"
+      ],
+      "agent_specialist_count": 1,
+      "baseline_model": null,
+      "baseline_task_code": "NO_MATCH",
+      "baseline_specialist_count": 0,
+      "agent_latency_s": 22.85,
+      "conclusion": "The image is a satellite image of the university. The image is in color and has a high resolution. The image shows  (Verification: SUPPORTED.)"
+    }
+  ]
+}

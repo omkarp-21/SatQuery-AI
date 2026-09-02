@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from app.api.analyze import router as analyze_router
 from app.api.change import router as change_router
+from app.api.investigate import router as investigate_router
 from app.api.product import router as product_router
 from app.api.scene import router as scene_router
 
@@ -39,3 +40,4 @@ app.include_router(change_router)
 app.include_router(scene_router)
 app.include_router(analyze_router)
 app.include_router(product_router)  # G13: GET / (UI), POST /analyze/upload, GET /artifact
+app.include_router(investigate_router)  # G14: POST /investigate (agentic)
