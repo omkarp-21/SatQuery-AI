@@ -1,7 +1,71 @@
 # SatQuery API Contract
 
-> Status: **v0 (G3)**. Two endpoints live. No agent endpoint yet. No confidence
-> value in any response. Full request/response types: `apps/backend/app/api/`.
+> Status: **G13 — product surface live.** `GET /` (local UI), `POST /analyze/upload`
+> (the primary entry point — multipart, returns the flat `NormalizedResponse`),
+> `GET /artifact` (mask PNGs), plus the earlier `POST /analyze`, `/change`,
+> `/scene`, `/health`. No LLM planner. **No confidence value in any response.**
+> Full request/response types: `apps/backend/app/api/`.
+
+---
+
+## `GET /`  — local single-page UI  *(G13)*
+
+Serves `apps/backend/app/static/index.html` (self-contained vanilla-JS page — no
+build step, no `npm`). Upload 1–2 images + a query → renders the `NormalizedResponse`
+(answer, task, model, visual overlay for boxes/mask, evidence, verification,
+execution trace, provenance, warnings).
+
+## `POST /analyze/upload`  — the product entry point  *(G13)*
+
+**Request** — `multipart/form-data`:
+- `query` (str, required)
+- `files` (1–2 files; `.tif .tiff .png .jpg .jpeg .npy`; ≤ 64 MB each)
+- `context` (optional JSON string: `{modalities, prompts, question}`)
+
+Saves the uploads to a per-request sandbox `data/uploads/<id>/`, runs the same
+deterministic `run_analyze` (validate → interpret → route → specialist → evidence
+→ verify → resolution), then flattens with `normalize()`.
+
+**Response `200` (`NormalizedResponse`)** — one flat schema for every task; only
+the relevant fields are populated, nothing is invented:
+
+```json
+{
+  "query": "...", "interpreted_task": "grounding", "task_code": "SINGLE_IMAGE_GROUNDING",
+  "execution_plan": ["remotesam"],
+  "ok": true, "answer": "1 region grounded for the referring phrase.",
+  "model_used": "RemoteSAM", "latency_s": 31.4,
+  "yesno": null, "labels": [], "boxes": [{"xyxy_pixel": [..], "bbox_lonlat": null, "score": 0.99}],
+  "regions": [], "mask_url": "/artifact?req=<id>&name=mask.png", "image_dimensions": [800, 800],
+  "changed_fraction": null, "area_ha": null, "centroid_lonlat": null, "representation_dim": null,
+  "score": 0.99, "score_meaning": "RemoteSAM foreground softmax probability - NOT a calibrated confidence",
+  "crs": null, "geospatial_available": false,
+  "geospatial_note": "geospatial coordinates unavailable because CRS/transform is missing",
+  "evidence": [ { "evidence_type": "grounding", ... } ],
+  "verification": { "status": "SUPPORTED", "checks": [ ... ] },
+  "resolution": { "qualifier": "RESULT_OK", "answer_surfaced": true, ... },
+  "provenance": { "layer": "analyze", "routing": {...}, "input_files": ["/artifact?req=<id>&name=scene.jpg"] },
+  "execution_trace": { "steps": ["validate_input","interpret_query","route","specialist:remotesam","evidence","verify","resolve"],
+                       "routing_code": "SINGLE_IMAGE_GROUNDING", "routing_rule": "..." },
+  "failures": [], "warnings": ["RemoteSAM upstream licence is NOT STATED — treat grounding output as prototype-only."]
+}
+```
+
+- A **blocked / unmatched** query returns `ok:false`, `answer:null`, the reason in
+  `warnings`, `resolution:null` (nothing executed) — never a silently mis-routed
+  specialist.
+- A **grounding no-object** result returns `ok:true`, `boxes:[]`, an explicit
+  "No region could be grounded …" answer, and `warnings:["no_grounded_region"]` —
+  **never a hallucinated box**.
+- Errors: bad file type → `400 unsupported_file_type`; 0 or >2 files →
+  `400 bad_file_count`; > 64 MB → `413 file_too_large`; bad `context` JSON →
+  `400 bad_context`; pipeline exception → sanitized `500 pipeline_error`.
+
+## `GET /artifact?req=<id>&name=<file>`  — request artifacts  *(G13)*
+
+Serves a file from `data/uploads/<id>/` (the mask PNG, or an echoed input for
+preview). Sandboxed: `req` must match `^[a-f0-9]{6,32}$`, `name` is basename-only.
+Anything outside the sandbox or missing → `404 not_found`.
 
 ## Conventions
 

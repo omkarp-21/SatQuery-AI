@@ -40,6 +40,56 @@ make dev                      # run API + frontend + supporting services
 
 See the [`Makefile`](Makefile) for all targets.
 
+## Run the SatQuery MVP locally  *(G13)*
+
+The frozen model stack (G12) runs **CPU-only** — no CUDA required. Each specialist
+runs in its own `.venvs/<model>` and is loaded lazily per request (subprocess,
+nothing stays resident). First call to a model is a cold start; later calls are warm.
+
+```bash
+# 1. one-time: per-model venvs + checkpoints (see docs/G13_PRODUCTIZATION_REPORT.md)
+#    .venvs/{satquery,tinyrs,remotesam,changeformer,remoteclip,croma,dofa}
+#    models/cache/{tinyrs,remotesam,changeformer,remoteclip,croma,dofa}
+
+# 2. launch the API + UI (Windows PowerShell / Git Bash)
+cd apps/backend
+../../.venvs/satquery/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# 3. open the UI
+#    http://127.0.0.1:8000/          -> upload 1-2 images, type a query, Analyze
+#    http://127.0.0.1:8000/docs      -> OpenAPI (POST /analyze/upload, /analyze, /change, /scene)
+```
+
+**Run the 5 demo scenarios (real outputs, nothing faked):**
+
+```bash
+.venvs/satquery/Scripts/python.exe scripts/demo/run_demos.py            # all 5
+.venvs/satquery/Scripts/python.exe scripts/demo/run_demos.py --demo 2   # just grounding
+# captures written to docs/sih/evidence/demos/g13_demo*.json
+```
+
+| Demo | Query | Task → model |
+|------|-------|--------------|
+| 1 | "What objects are visible in this satellite image?" | VQA → TinyRS-2B |
+| 2 | "Where is the largest building?" | Grounding → RemoteSAM |
+| 3 | "What changed between these two images?" | Temporal → ChangeFormer |
+| 4 | "Compare the optical and SAR information for this area." | Optical+SAR → CROMA |
+| 5 | "Describe what changed and where, with supporting evidence." | Composed semantic baseline (ChangeFormer + RemoteCLIP) |
+
+**Tests:**
+
+```bash
+.venvs/satquery/Scripts/python.exe -m pytest packages apps/backend -q -m "not slow"   # fast, ~2 min
+.venvs/satquery/Scripts/python.exe -m pytest apps/backend/tests/test_g13_integration.py -q -m slow   # real models, slow
+```
+
+**Known limitations (G13 — not hidden):** evaluation samples are sanity-scale;
+the CROMA optical+SAR delta and the LoRA adaptation gain are **not
+significance-tested**; **4 GB VRAM is unverified** (CPU-only host, no VRAM figure);
+**RemoteSAM licence is NOT STATED**; no confidence value is produced (by design);
+no learned temporal semantic VLM; the LoRA adapter is not yet persisted into
+production. See [`docs/G13_PRODUCTIZATION_REPORT.md`](docs/G13_PRODUCTIZATION_REPORT.md).
+
 ## Repository layout
 
 ```

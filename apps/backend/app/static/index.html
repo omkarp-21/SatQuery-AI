@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SatQuery AI</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2b303b;
+    --fg: #e6e9ef; --muted: #9aa4b2; --accent: #5aa9e6;
+    --ok: #46b17b; --warn: #d9a441; --bad: #e0655f;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: .3px; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 24px 60px; display: grid; grid-template-columns: 380px 1fr; gap: 22px; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); font-weight: 600; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], textarea, select {
+    width: 100%; background: var(--panel2); border: 1px solid var(--line); color: var(--fg);
+    border-radius: 7px; padding: 9px 10px; font-family: var(--sans); font-size: 13.5px; resize: vertical;
+  }
+  input[type=file] { width: 100%; font-size: 12.5px; color: var(--muted); }
+  button {
+    background: var(--accent); color: #05121d; border: 0; border-radius: 7px; padding: 10px 16px;
+    font-weight: 700; font-size: 13.5px; cursor: pointer; margin-top: 14px; width: 100%;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .hint { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+  .examples button { width: auto; margin: 4px 4px 0 0; padding: 5px 9px; font-size: 11.5px; font-weight: 500; background: var(--panel2); color: var(--fg); border: 1px solid var(--line); }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 10px; font-size: 13px; }
+  .kv div:nth-child(odd) { color: var(--muted); }
+  .mono { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+  .answer { font-size: 15px; background: var(--panel2); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 4px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+  .b-ok { background: rgba(70,177,123,.16); color: var(--ok); }
+  .b-warn { background: rgba(217,164,65,.16); color: var(--warn); }
+  .b-bad { background: rgba(224,101,95,.16); color: var(--bad); }
+  .b-mut { background: var(--panel2); color: var(--muted); }
+  ul.trace { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 12px; }
+  ul.trace li { padding: 3px 0; color: var(--muted); }
+  ul.trace li::before { content: "→ "; color: var(--accent); }
+  .warnbox { background: rgba(217,164,65,.08); border: 1px solid rgba(217,164,65,.3); border-radius: 7px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 8px; }
+  .badbox { background: rgba(224,101,95,.08); border: 1px solid rgba(224,101,95,.3); border-radius: 7px; padding: 10px 12px; font-size: 12.5px; }
+  .viz { position: relative; display: inline-block; max-width: 100%; }
+  .viz img { display: block; max-width: 100%; border-radius: 8px; border: 1px solid var(--line); }
+  .viz canvas { position: absolute; inset: 0; pointer-events: none; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  table.rank { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.rank td { padding: 3px 6px; border-bottom: 1px solid var(--line); }
+  table.rank td:last-child { text-align: right; color: var(--muted); font-family: var(--mono); }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .empty { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SatQuery AI</h1>
+  <p>Natural-language remote-sensing assistant · deterministic routing · verifiable evidence · no confidence scores by design</p>
+</header>
+
+<div class="wrap">
+  <!-- ---------------- left: query console ---------------- -->
+  <div>
+    <div class="card">
+      <h2>Query</h2>
+      <label>Image / GeoTIFF (1 for VQA·grounding·scene, 2 for change·optical+SAR)</label>
+      <input type="file" id="files" multiple accept=".tif,.tiff,.png,.jpg,.jpeg,.npy" />
+      <label>Natural-language query</label>
+      <textarea id="query" rows="3" placeholder="e.g. Where is the largest building?"></textarea>
+      <div class="examples" id="examples"></div>
+      <button id="run">Analyze</button>
+      <div class="hint" id="hint">The system infers the task, routes to one frozen-stack specialist, runs it, verifies the output, and returns evidence + provenance.</div>
+    </div>
+    <div class="card">
+      <h2>Frozen model stack (G12)</h2>
+      <div class="kv">
+        <div>VQA</div><div>TinyRS-2B · fallback Qwen2-VL-2B</div>
+        <div>Grounding</div><div>RemoteSAM <span class="badge b-warn">licence NOT STATED</span></div>
+        <div>Change</div><div>ChangeFormer (+ image-diff fallback)</div>
+        <div>Semantic change</div><div>ChangeFormer + RemoteCLIP <span class="badge b-mut">experimental</span></div>
+        <div>Optical + SAR</div><div>CROMA · fallback DOFA <span class="badge b-mut">representation-level</span></div>
+        <div>Scene / retrieval</div><div>RemoteCLIP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------------- right: result ---------------- -->
+  <div id="out">
+    <div class="card"><div class="empty">Run a query to see the answer, visual output, evidence, verification and execution trace.</div></div>
+  </div>
+</div>
+
+<script>
+const EXAMPLES = [
+  ["What objects are visible in this image?", "VQA"],
+  ["Is there a runway?", "VQA"],
+  ["Where is the largest building?", "Grounding"],
+  ["Locate the ship.", "Grounding"],
+  ["What type of scene is this?", "Scene"],
+  ["What changed between these two images?", "Change"],
+  ["Describe what changed and where.", "Semantic change"],
+  ["Compare the optical and SAR imagery.", "Optical+SAR"],
+];
+const exWrap = document.getElementById("examples");
+EXAMPLES.forEach(([q]) => {
+  const b = document.createElement("button");
+  b.textContent = q;
+  b.onclick = () => { document.getElementById("query").value = q; };
+  exWrap.appendChild(b);
+});
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const num = (x, d=3) => (x === null || x === undefined) ? "—" : (typeof x === "number" ? x.toFixed(d) : x);
+
+function verdictBadge(status) {
+  if (!status) return '<span class="badge b-mut">n/a</span>';
+  const s = String(status).toUpperCase();
+  if (s.includes("SUPPORTED") || s.includes("COHERENT") || s === "RESULT_OK") return `<span class="badge b-ok">${esc(s)}</span>`;
+  if (s.includes("CONTRADICT") || s.includes("INCOHERENT") || s.includes("FAIL")) return `<span class="badge b-bad">${esc(s)}</span>`;
+  return `<span class="badge b-warn">${esc(s)}</span>`;
+}
+
+document.getElementById("run").onclick = async () => {
+  const btn = document.getElementById("run");
+  const out = document.getElementById("out");
+  const files = document.getElementById("files").files;
+  const query = document.getElementById("query").value.trim();
+  if (!files.length) { out.innerHTML = `<div class="card"><div class="badbox">Select 1–2 image files.</div></div>`; return; }
+  if (!query) { out.innerHTML = `<div class="card"><div class="badbox">Enter a query.</div></div>`; return; }
+
+  btn.disabled = true;
+  out.innerHTML = `<div class="card"><span class="spin"></span> Running: validate → interpret → route → specialist → verify …</div>`;
+
+  const fd = new FormData();
+  fd.append("query", query);
+  for (const f of files) fd.append("files", f);
+
+  try {
+    const r = await fetch("/analyze/upload", { method: "POST", body: fd });
+    const body = await r.json();
+    if (!r.ok) {
+      out.innerHTML = `<div class="card"><div class="badbox">HTTP ${r.status} · ${esc(body?.detail?.error?.code || "error")}: ${esc(body?.detail?.error?.message || JSON.stringify(body))}</div></div>`;
+      return;
+    }
+    render(body);
+  } catch (e) {
+    out.innerHTML = `<div class="card"><div class="badbox">Request failed: ${esc(e.message)}</div></div>`;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+function render(b) {
+  const out = document.getElementById("out");
+  const okBadge = b.ok ? '<span class="badge b-ok">ok</span>' : '<span class="badge b-bad">not ok</span>';
+  const res = b.resolution || {};
+  const inputUrls = (b.provenance && b.provenance.input_files) || [];
+
+  let html = "";
+
+  // headline
+  html += `<div class="card">
+    <h2>Result ${okBadge}</h2>
+    <div class="answer">${esc(b.answer) || '<span class="empty">no answer produced</span>'}</div>
+    <div class="kv" style="margin-top:12px">
+      <div>Interpreted task</div><div class="mono">${esc(b.interpreted_task)} · ${esc(b.task_code)}</div>
+      <div>Model</div><div>${esc(b.model_used) || "—"}</div>
+      <div>Latency</div><div>${num(b.latency_s)} s</div>
+      ${b.yesno !== null && b.yesno !== undefined ? `<div>Yes / No parse</div><div>${b.yesno ? "yes (1)" : "no (0)"}</div>` : ""}
+      ${b.changed_fraction != null ? `<div>Changed fraction</div><div>${num(b.changed_fraction)}</div>` : ""}
+      ${b.area_ha != null ? `<div>Changed area</div><div>${num(b.area_ha)} ha</div>` : ""}
+      ${b.centroid_lonlat ? `<div>Centroid (lon,lat)</div><div class="mono">${b.centroid_lonlat.map(x=>num(x,5)).join(", ")}</div>` : ""}
+      ${b.representation_dim != null ? `<div>Representation dim</div><div>${b.representation_dim}</div>` : ""}
+      ${b.score != null ? `<div>Score</div><div>${num(b.score)} <span class="empty">(${esc(b.score_meaning)})</span></div>` : ""}
+    </div>
+  </div>`;
+
+  // resolution
+  html += `<div class="card"><h2>Failure-aware resolution</h2>
+    <div class="kv">
+      <div>Qualifier</div><div>${verdictBadge(res.qualifier)}</div>
+      <div>Answer surfaced</div><div>${res.answer_surfaced === false ? '<span class="badge b-bad">withheld</span>' : "yes"}</div>
+      ${res.disputed ? `<div>Disputed</div><div><span class="badge b-warn">yes</span></div>` : ""}
+      ${res.fallback_used ? `<div>Fallback</div><div>${esc(res.fallback_used)}</div>` : ""}
+      ${(res.reasons||[]).length ? `<div>Reasons</div><div class="mono">${res.reasons.map(esc).join("\\n")}</div>` : ""}
+      ${(res.advisories||[]).length ? `<div>Advisories</div><div class="mono">${res.advisories.map(esc).join("\\n")}</div>` : ""}
+    </div>
+    <div class="hint">${esc(res.note || "deterministic post-execution qualifier — NOT a confidence value")}</div>
+  </div>`;
+
+  // warnings / failures
+  if ((b.warnings||[]).length || (b.failures||[]).length) {
+    html += `<div class="card"><h2>Warnings &amp; caveats</h2>`;
+    (b.warnings||[]).forEach(w => html += `<div class="warnbox">${esc(w)}</div>`);
+    (b.failures||[]).forEach(f => html += `<div class="badbox">${esc(f)}</div>`);
+    html += `</div>`;
+  }
+
+  // visual
+  const previewUrl = inputUrls[0];
+  if (previewUrl && (b.boxes?.length || b.regions?.length || b.mask_url || b.task_code.startsWith("SINGLE_IMAGE") || b.task_code === "TEMPORAL")) {
+    html += `<div class="card"><h2>Map / image</h2>
+      <div class="viz" id="viz">
+        <img id="vizimg" src="${esc(previewUrl)}" alt="input" />
+        <canvas id="vizcanvas"></canvas>
+      </div>
+      ${b.mask_url ? `<div class="hint">Mask overlay: <a href="${esc(b.mask_url)}" target="_blank" style="color:var(--accent)">open PNG</a></div>` : ""}
+      ${b.image_dimensions ? `<div class="hint">Image space: ${b.image_dimensions[0]}×${b.image_dimensions[1]} px${b.geospatial_available ? " · CRS "+esc(b.crs) : " · "+esc(b.geospatial_note || "no CRS")}</div>` : ""}
+    </div>`;
+  }
+
+  // scene ranking
+  if ((b.labels||[]).length) {
+    html += `<div class="card"><h2>Zero-shot ranking</h2><table class="rank">` +
+      b.labels.map(([lab, sc]) => `<tr><td>${esc(lab)}</td><td>${num(sc)}</td></tr>`).join("") +
+      `</table></div>`;
+  }
+
+  // regions
+  if ((b.regions||[]).length) {
+    html += `<div class="card"><h2>Changed regions (${b.regions.length})</h2><table class="rank">` +
+      b.regions.map(rg => `<tr><td>#${rg.region_id} · ${esc(rg.label||"?")}${rg.low_margin?' <span class="badge b-warn">low margin</span>':""}</td><td>${num(rg.area_ha,3)} ha</td></tr>`).join("") +
+      `</table></div>`;
+  }
+
+  // evidence
+  html += `<div class="card"><h2>Evidence (${(b.evidence||[]).length})</h2>`;
+  if (!(b.evidence||[]).length) html += `<div class="empty">no evidence items</div>`;
+  (b.evidence||[]).forEach(ev => {
+    html += `<details><summary>${esc(ev.evidence_type)} · ${esc(ev.source_model)} · ${esc(ev.task)}</summary>
+      <div class="mono">${esc(JSON.stringify({claim: ev.claim_supported, spatial_region: ev.spatial_region, payload: ev.payload}, null, 2))}</div></details>`;
+  });
+  html += `</div>`;
+
+  // verification
+  const v = b.verification || {};
+  html += `<div class="card"><h2>Verification</h2>
+    <div class="kv"><div>Status</div><div>${verdictBadge(v.status)}</div></div>
+    ${(v.checks||[]).length ? `<table class="rank">` + v.checks.map(c => `<tr><td>${esc(c.name)}</td><td>${c.passed ? '<span class="badge b-ok">pass</span>' : '<span class="badge b-bad">fail</span>'}</td></tr>`).join("") + `</table>` : `<div class="empty">no structural checks applicable</div>`}
+    ${(v.notes||[]).length ? `<div class="hint">${v.notes.map(esc).join(" · ")}</div>` : ""}
+  </div>`;
+
+  // execution trace
+  const t = b.execution_trace || {};
+  html += `<div class="card"><h2>Execution trace</h2>
+    <ul class="trace">${(t.steps||[]).map(s => `<li>${esc(s)}</li>`).join("")}</ul>
+    <div class="hint mono">routing_code = ${esc(t.routing_code)}\nrule = ${esc(t.routing_rule)}</div>
+  </div>`;
+
+  // provenance
+  html += `<div class="card"><h2>Provenance</h2>
+    <details open><summary>audit block</summary><div class="mono">${esc(JSON.stringify(b.provenance || {}, null, 2))}</div></details>
+  </div>`;
+
+  out.innerHTML = html;
+
+  // draw overlays after the image loads
+  const img = document.getElementById("vizimg");
+  if (img) {
+    const draw = () => {
+      const cv = document.getElementById("vizcanvas");
+      if (!cv) return;
+      cv.width = img.clientWidth; cv.height = img.clientHeight;
+      const ctx = cv.getContext("2d");
+      const dims = b.image_dimensions || [img.naturalWidth, img.naturalHeight];
+      const sx = img.clientWidth / dims[0], sy = img.clientHeight / dims[1];
+      ctx.lineWidth = 2; ctx.strokeStyle = "#5aa9e6"; ctx.fillStyle = "rgba(90,169,230,.12)";
+      (b.boxes || []).forEach(bx => {
+        const [x0,y0,x1,y1] = bx.xyxy_pixel || [];
+        if ([x0,y0,x1,y1].every(n => typeof n === "number")) {
+          ctx.fillRect(x0*sx, y0*sy, (x1-x0)*sx, (y1-y0)*sy);
+          ctx.strokeRect(x0*sx, y0*sy, (x1-x0)*sx, (y1-y0)*sy);
+        }
+      });
+      ctx.strokeStyle = "#d9a441";
+      (b.regions || []).forEach(rg => {
+        const [rmin,cmin,rmax,cmax] = rg.bbox_pixel || [];
+        if ([rmin,cmin,rmax,cmax].every(n => typeof n === "number"))
+          ctx.strokeRect(cmin*sx, rmin*sy, (cmax-cmin)*sx, (rmax-rmin)*sy);
+      });
+    };
+    if (img.complete) draw(); else img.onload = draw;
+    window.addEventListener("resize", draw);
+  }
+}
+</script>
+</body>
+</html>

@@ -8,7 +8,11 @@
 > Status vocabulary: `TRACEABLE` (source or experiment recorded) ·
 > `PARTIAL` (some support, gap noted) · `BLOCKED` (needs the remote GPU box) ·
 > `TODO` (not yet collected).
-> Date: **2026-09-01 (G8)**.
+> Date: **2026-09-02 (G13)**. The G8 "BLOCKED — needs the remote box" rows are
+> now mostly cleared: A/B (G11), D/E (G12) closed on the local CPU box via
+> `hf_transfer` + non-gated mirrors; G13 added real end-to-end demo captures
+> (`docs/sih/evidence/demos/g13_demo*.json`). Remaining hard gaps: 4 GB-VRAM
+> verification, significance testing at larger n, calibrated confidence.
 
 ## The three numbers rule applies here
 
@@ -39,9 +43,9 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 | Item | Source | Status |
 |------|--------|--------|
 | Capability gap matrix A–H with evidence levels | `docs/research/CAPABILITY_GAP_MATRIX.md` | TRACEABLE |
-| A/B (VQA, grounding) unreproduced — artifact acquisition blocked ×6 | `EXP-002.md` (6-row attempt log) | TRACEABLE (as a documented blocker) |
-| D (real optical-SAR benefit) unmeasured | `EXP-004.md` (Run 1 synthetic only) | TRACEABLE |
-| E (RS adaptation before/after) unmeasured | `EXP-008.md` | TRACEABLE |
+| A/B (VQA, grounding) — **MEASURED + INTEGRATED (G11)** | `EXP-002.md` §G11 — TinyRS-2B bal-acc 0.87 (RSVQA-LR n=40); RemoteSAM acc@IoU0.5 0.84 (DIOR-RSVG n=25); ADR-020 | TRACEABLE (sanity-scale) |
+| D (real optical-SAR benefit) — **MEASURED (G12)** | `EXP-004.md` Run 2 — CROMA joint macro-F1 0.793 vs optical 0.726 (+0.067, DFC2020 n=200, 95% CI includes 0) | TRACEABLE (sanity-scale, **not significance-tested**) |
+| E (RS adaptation before/after) — **MEASURED (G12)** | `EXP-008.md` — LoRA on frozen CROMA 0.643 → 0.704 (+0.061), 811 k params | TRACEABLE (sanity-scale, **not significance-tested**) |
 | Semantic verification / calibrated confidence unbuilt | `EXP-005.md`, `CONFIDENCE_PLAN.md` | PARTIAL — EXP-005b now measures a model-independent subset |
 
 ## 4. Model comparison — evidence-based selection, not prestige
@@ -51,7 +55,7 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 | 15-repo tournament + verdicts | `MODEL_TOURNAMENT.md` | TRACEABLE |
 | Lightweight replacement audit (5 candidates vs TinyRS/GeoChat) | `LIGHTWEIGHT_AUDIT.md` | TRACEABLE |
 | Frozen role hierarchy (ADR-011/012) | `docs/DECISIONS.md` | TRACEABLE |
-| A/B decision table (measured cells) | `EXP-002.md` §"Phase 3 decision table" | **BLOCKED** — measured cells empty until the box |
+| A/B decision table (measured) | `EXP-002.md` §G11 — TinyRS-2B PRIMARY (0.87), Qwen2-VL-2B fallback (0.70), RSCoVLM-3B non-existent | TRACEABLE |
 
 ## 5. Baseline vs adapted (capability E)
 
@@ -59,14 +63,14 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 |------|--------|--------|
 | Method definitions locked (linear probe ≠ LoRA ≠ MLP head ≠ fine-tune) | `EXP-008.md` | TRACEABLE |
 | Dataset chosen: DFC2020 val ROIs, 400/200 subsample | `EXP-004.md` | TRACEABLE |
-| before → after numbers | `EXP-008.md` | **BLOCKED** |
+| before → after numbers | `EXP-008.md` — 0.643 (frozen) → 0.704 (LoRA), +0.061 macro-F1, DFC2020 n=200 | TRACEABLE (sanity-scale, not significance-tested) |
 
 ## 6. Optical-only vs SAR (capability D)
 
 | Item | Source | Status |
 |------|--------|--------|
 | 3-arm probe machinery validated (synthetic control) | `EXP-004.md` Run 1 — SAR-only signal: joint/fused 1.00 vs optical-only ~0.49 | TRACEABLE (**labelled sanity, NOT a benchmark**) |
-| Real DFC2020 abs + rel SAR delta | `EXP-004.md` Run 2 | **BLOCKED** |
+| Real DFC2020 abs + rel SAR delta | `EXP-004.md` Run 2 — +0.067 abs macro-F1 (CROMA joint 0.793 vs optical 0.726); rel +9.2%; 95% CI [-0.024,+0.153] | TRACEABLE (sanity-scale, not significance-tested) |
 | CROMA vs DOFA both reproduced (CPU, MIT) | `runtime_validation.md`; `EVIDENCE_LEDGER.md` | TRACEABLE (reproduction) |
 
 ## 7. Change detection (capability C)
@@ -107,8 +111,9 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 
 | Item | Source | Status |
 |------|--------|--------|
-| RemoteCLIP ~150 ms/query; ChangeFormer ~790 ms/256² pair; CROMA ~340 ms; DOFA ~120 ms (CPU, host) | `PROJECT_STATUS.md` METRICS | TRACEABLE (measured, host) |
-| VQA/grounding p50/p95 | `exp002_ab_gate.py` output | **BLOCKED** |
+| RemoteCLIP ~150 ms/query; ChangeFormer ~790 ms/256² pair; CROMA ~340 ms; DOFA ~120 ms (CPU, host, warm) | `PROJECT_STATUS.md` METRICS | TRACEABLE (measured, host) |
+| VQA/grounding p50 — TinyRS 4.5 s, RemoteSAM 29 s (CPU, warm) | `EXP-002.md` §G11, `EXP-GROUNDING.md` | TRACEABLE (sanity-scale) |
+| **G13 end-to-end (cold, incl. model load):** VQA 26.7 s · grounding 29.0 s · temporal 8.1 s · optical+SAR 6.3 s · investigation 44.9 s | `docs/G13_PRODUCTIZATION_REPORT.md` §7; demo captures | TRACEABLE (measured, host, CPU) |
 
 ## 12. Architecture
 
@@ -117,19 +122,20 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 | Monorepo split + fixed pipeline stage order | `docs/03_SYSTEM_ARCHITECTURE.md`; ADR-001 | TRACEABLE |
 | SpecialistAdapter contract (validate/execute/normalize_output/provenance/run) | `docs/architecture/SPECIALIST_CONTRACT.md` | TRACEABLE |
 | Research repos isolated, never imported | `.claude/rules/architecture.md`; `external/research/` gitignored | TRACEABLE |
-| 3 live endpoints, 97 tests | `PROJECT_STATUS.md` | TRACEABLE |
+| 6 endpoints (`/`, `/health`, `/analyze`, `/analyze/upload`, `/change`, `/scene`, `/artifact`), 183 tests | `PROJECT_STATUS.md`; `docs/G13_PRODUCTIZATION_REPORT.md` | TRACEABLE |
 
 ## 13. User workflow
 
 | Item | Source | Status |
 |------|--------|--------|
 | `POST /analyze` — NL query + 0–2 images → interpret → validate → route → specialist → evidence + verification + provenance | `API_CONTRACT.md` | TRACEABLE |
-| Demo captures (real outputs) | `docs/sih/evidence/demos/` (Phase 14) | PARTIAL — DEMO 2/4/5 captured; DEMO 1/3 BLOCKED |
+| **G13: `POST /analyze/upload` + `GET /` UI + `NormalizedResponse`** — upload → same pipeline → one flat schema; local UI renders answer + overlay + evidence + verification + trace + provenance | `docs/G13_PRODUCTIZATION_REPORT.md`; `API_CONTRACT.md` | TRACEABLE |
+| Demo captures (real outputs, all 5) | `docs/sih/evidence/demos/g13_demo{1..5}_*.json` — VQA 26.7 s, grounding 29.0 s (box `[169,453,380,650]`), temporal 8.1 s (25.3% changed, EPSG:32650), optical+SAR 6.3 s (dim-768), investigation 44.9 s (6 regions) | TRACEABLE — **5/5 real, nothing faked** |
 
 ---
 
 ## Open items before the PPT
 
-- Fill every **BLOCKED** row from the remote-box experiment runs.
+- ~~Fill every BLOCKED row from the remote box~~ - done on the local CPU box (G11/G12). Remaining: larger-n significance runs, 4 GB-VRAM check, EXP-C1/C2 confidence.
 - Add 2–3 external citations for rows marked **PARTIAL** (rows 1, 2).
-- Keep the differentiation claim (row 2, last line) modest until D/E are measured.
+- D/E are now measured (sanity-scale, not significance-tested) - keep the differentiation claim modest until larger-n significance exists.

@@ -106,13 +106,16 @@ def run_composed_semantic_change(
     vocabulary: list[str] | None = None,
     max_regions: int = 6,
     crop_strategy: CropStrategy = "tight",
+    artifact_dir: str | Path | None = None,
 ) -> ComposedSemanticChangeResult:
     started = time.time()
     vocab = vocabulary or _DEFAULT_VOCAB
     failures: list[str] = []
 
     # --- 1. ChangeFormer mask (reuses geospatial validation + co-reg gate) ---
-    change = run_change_slice(t1_path, t2_path, checkpoint_dir=checkpoint_dir, strict=True)
+    change = run_change_slice(
+        t1_path, t2_path, checkpoint_dir=checkpoint_dir, strict=True, artifact_dir=artifact_dir
+    )
     if not change.ok or change.stats is None or not change.mask_path:
         return ComposedSemanticChangeResult(
             ok=False, errors=change.errors or ["change slice produced no mask"],

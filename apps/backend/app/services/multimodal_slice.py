@@ -49,6 +49,77 @@ class JointReprResult(BaseModel):
     )
 
 
+# DFC2020 / SEN12MS Sentinel-2 is 13-band; CROMA + DOFA want 12 (drop B10 cirrus).
+_S2_KEEP = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12]
+
+
+def _nn_resize(arr: Any, size: int) -> Any:
+    """(C,H,W) ndarray -> (C,size,size) nearest-neighbour, numpy-only."""
+    import numpy as np
+
+    _c, h, w = arr.shape
+    if (h, w) == (size, size):
+        return arr.astype("float32")
+    ys = np.linspace(0, h - 1, size).round().astype(int)
+    xs = np.linspace(0, w - 1, size).round().astype(int)
+    return arr[:, ys][:, :, xs].astype("float32")
+
+
+def run_joint_from_geotiffs(
+    s2_tif: str | Path,
+    s1_tif: str | Path,
+    *,
+    model: Literal["croma", "dofa"] = "croma",
+    resolution: int = 120,
+    artifact_dir: str | Path | None = None,  # accepted for a uniform slice signature; unused
+) -> JointReprResult:
+    """Paired Sentinel-2 (>=12 band) + Sentinel-1 (2 band) GeoTIFFs -> joint representation.
+
+    Reads the two rasters, selects the 12 S2 bands + 2 S1 bands, nearest-resizes to
+    the encoder resolution, writes temporary .npy, and defers to
+    `run_joint_representation`. SAR is kept as raw backscatter (never treated as RGB);
+    per-channel normalisation happens inside the research bridge.
+    """
+    import tempfile
+
+    import numpy as np
+    import rasterio
+
+    for tag, pth in (("S2 optical", s2_tif), ("S1 SAR", s1_tif)):
+        if not Path(pth).exists():
+            return JointReprResult(ok=False, model=model, errors=[f"{tag} input not found: {pth}"])
+
+    try:
+        with rasterio.open(s2_tif) as d2:
+            s2 = d2.read().astype("float32")
+        with rasterio.open(s1_tif) as d1:
+            s1 = d1.read().astype("float32")
+    except Exception as exc:  # noqa: BLE001
+        return JointReprResult(ok=False, model=model, errors=[f"raster read failed: {type(exc).__name__}"])
+
+    if s1.shape[0] != 2:
+        return JointReprResult(ok=False, model=model,
+                               errors=[f"expected a 2-band Sentinel-1 raster, got {s1.shape[0]} bands"])
+    if s2.shape[0] >= 13:
+        s2 = s2[_S2_KEEP]
+    elif s2.shape[0] < 12:
+        return JointReprResult(ok=False, model=model,
+                               errors=[f"expected a >=12-band Sentinel-2 raster, got {s2.shape[0]} bands"])
+
+    s2 = _nn_resize(s2, resolution)
+    s1 = _nn_resize(s1, resolution)
+
+    tmp = Path(tempfile.mkdtemp(prefix="satq_optsar_"))
+    opt_npy, sar_npy = tmp / "optical.npy", tmp / "sar.npy"
+    np.save(opt_npy, s2)
+    np.save(sar_npy, s1)
+    res = run_joint_representation(opt_npy, sar_npy, model=model)
+    res.provenance.setdefault("note", "")
+    res.provenance["from_geotiffs"] = {"s2": str(s2_tif), "s1": str(s1_tif),
+                                       "s2_bands_kept": len(_S2_KEEP), "resized_to": resolution}
+    return res
+
+
 def run_joint_representation(
     optical_npy: str | Path | None,
     sar_npy: str | Path | None,

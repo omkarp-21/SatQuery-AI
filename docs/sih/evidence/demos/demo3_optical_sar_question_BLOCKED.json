@@ -1,8 +1,0 @@
-{
-  "demo": "DEMO 3 - optical + SAR question",
-  "status": "BLOCKED",
-  "reason": "joint optical-SAR is representation-level only (CROMA/DOFA reproduced, no task head). EXP-004 Run 2 (real DFC2020) needed for a task-level answer; dataset acquisition needs the remote box.",
-  "no_fake_output": true,
-  "_captured": "2026-09-01T10:29:01Z",
-  "_note": "REAL output of the committed pipeline on the bundled demo pair. Not edited."
-}

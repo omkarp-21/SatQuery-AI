@@ -8,6 +8,7 @@ license = { text = "MIT" }
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
+    "python-multipart>=0.0.9",  # G13: multipart form parsing for POST /analyze/upload (file upload)
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "httpx>=0.27",

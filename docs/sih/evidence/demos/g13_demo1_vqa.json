@@ -1,0 +1,220 @@
+{
+  "demo": "VQA \u2014 what is present",
+  "query": "What objects are visible in this satellite image?",
+  "inputs": [
+    "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\vqa\\scene.jpg"
+  ],
+  "status": "OK",
+  "expected_task_code": "SINGLE_IMAGE_VQA",
+  "expected_model": "TinyRS-2B",
+  "normalized_response": {
+    "query": "What objects are visible in this satellite image?",
+    "interpreted_task": "vqa",
+    "task_code": "SINGLE_IMAGE_VQA",
+    "execution_plan": [
+      "tinyrs"
+    ],
+    "ok": true,
+    "answer": "The image shows a large, circular logo with the text \"Nanjing University of Information Science and Technology\" written on",
+    "model_used": "TinyRS-2B (Qwen2-VL-2B base)",
+    "latency_s": 26.7,
+    "yesno": null,
+    "labels": [],
+    "boxes": [],
+    "regions": [],
+    "mask_url": null,
+    "image_dimensions": null,
+    "changed_fraction": null,
+    "area_ha": null,
+    "centroid_lonlat": null,
+    "representation_dim": null,
+    "score": null,
+    "score_meaning": "none - the answer is greedy-decoded; no calibrated probability is produced",
+    "crs": null,
+    "geospatial_available": false,
+    "geospatial_note": "geospatial coordinates unavailable because CRS/transform is missing",
+    "evidence": [
+      {
+        "evidence_id": "ev-vqa_8fd9a204b81e",
+        "source_model": "tinyrs",
+        "task": "vqa",
+        "modality": "optical-single",
+        "source_artifact": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\vqa\\scene.jpg",
+        "spatial_region": null,
+        "temporal_context": null,
+        "claim_supported": "answer to 'What objects are visible in this satellite image?': 'The image shows a large, circular logo with the text \"Nanjing University of Information Science and Technology\" written on'",
+        "evidence_type": "vqa",
+        "payload": {
+          "question": "What objects are visible in this satellite image?",
+          "answer_text": "The image shows a large, circular logo with the text \"Nanjing University of Information Science and Technology\" written on",
+          "yesno": null,
+          "score": null,
+          "score_meaning": "no calibrated probability"
+        },
+        "provenance": {
+          "model": "tinyrs",
+          "version": "TinyRS@Qwen2-VL-2B",
+          "source_repo": "https://github.com/aybora/TinyRS",
+          "license": "Apache-2.0 (code); weights inherit Qwen2-VL-2B terms",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\tinyrs\\Qwen2-VL-TinyRS",
+          "capabilities": [
+            "vqa"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 6.8,
+          "timestamp": "2026-09-02T07:06:45Z",
+          "checkpoint_sha256": "90c36ff980877a73fa8dc3024954f6930cfe6817cb7b3bb05397d9f0f6f35081",
+          "input_digest": "8f6fe60735c94926",
+          "device": "cpu",
+          "bridge": "scripts/research/qwen2vl_vqa_infer.py",
+          "env": {
+            "python": "3.11.0",
+            "torch": "2.13.0+cpu"
+          },
+          "note": "TinyRS (Qwen2-VL-2B base). VQA only - grounding is RemoteSAM. No confidence.",
+          "score_meaning": "none - the answer is greedy-decoded; no calibrated probability is produced"
+        },
+        "timestamp": "2026-09-02T07:06:45Z",
+        "status": "ok"
+      }
+    ],
+    "verification": {
+      "status": "SUPPORTED",
+      "checks": [
+        {
+          "name": "inputs_exist",
+          "passed": true,
+          "detail": "1 declared, missing=[]"
+        },
+        {
+          "name": "modality_supported",
+          "passed": true,
+          "detail": "requested 'optical-single' vs model ['optical-single']"
+        }
+      ],
+      "notes": "structural / deterministic checks only - NOT a semantic correctness judgement"
+    },
+    "resolution": {
+      "qualifier": "RESULT_OK",
+      "answer_surfaced": true,
+      "disputed": false,
+      "reasons": [],
+      "advisories": [],
+      "fallback_used": null,
+      "structural_status": "SUPPORTED",
+      "semantic_status": null,
+      "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+    },
+    "provenance": {
+      "layer": "analyze",
+      "interpretation": {
+        "intent": "vqa",
+        "notes": [
+          "matched VQA-style keywords"
+        ]
+      },
+      "routing": {
+        "selected_task": "vqa",
+        "selected_specialists": [
+          "tinyrs"
+        ],
+        "routing_code": "SINGLE_IMAGE_VQA",
+        "routing_rule": "one image + a VQA intent -> the RS VQA specialist (TinyRS, Qwen2-VL-2B base). NOT a grounding model - grounding is RemoteSAM.",
+        "required_inputs": [
+          "image-open-check"
+        ],
+        "execution_order": [
+          "tinyrs"
+        ],
+        "status": "routed"
+      },
+      "pair_co_registered": null,
+      "resolution": {
+        "qualifier": "RESULT_OK",
+        "answer_surfaced": true,
+        "disputed": false,
+        "reasons": [],
+        "advisories": [],
+        "fallback_used": null,
+        "structural_status": "SUPPORTED",
+        "semantic_status": null,
+        "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+      },
+      "sub_service_provenance": {
+        "layer": "vqa_slice",
+        "model": "tinyrs",
+        "stages": [
+          "image-open-check",
+          "tinyrs_adapter",
+          "evidence",
+          "verify"
+        ],
+        "adapter_provenance": {
+          "model": "tinyrs",
+          "version": "TinyRS@Qwen2-VL-2B",
+          "source_repo": "https://github.com/aybora/TinyRS",
+          "license": "Apache-2.0 (code); weights inherit Qwen2-VL-2B terms",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\tinyrs\\Qwen2-VL-TinyRS",
+          "capabilities": [
+            "vqa"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 6.8,
+          "timestamp": "2026-09-02T07:06:45Z",
+          "checkpoint_sha256": "90c36ff980877a73fa8dc3024954f6930cfe6817cb7b3bb05397d9f0f6f35081",
+          "input_digest": "8f6fe60735c94926",
+          "device": "cpu",
+          "bridge": "scripts/research/qwen2vl_vqa_infer.py",
+          "env": {
+            "python": "3.11.0",
+            "torch": "2.13.0+cpu"
+          },
+          "note": "TinyRS (Qwen2-VL-2B base). VQA only - grounding is RemoteSAM. No confidence.",
+          "score_meaning": "none - the answer is greedy-decoded; no calibrated probability is produced"
+        },
+        "standardized": {
+          "model": "tinyrs",
+          "version": "TinyRS@Qwen2-VL-2B",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\tinyrs\\Qwen2-VL-TinyRS",
+          "checkpoint_sha256": "90c36ff980877a73fa8dc3024954f6930cfe6817cb7b3bb05397d9f0f6f35081",
+          "input_ids": [
+            "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\vqa\\scene.jpg"
+          ],
+          "task": "vqa",
+          "parameters": {},
+          "preprocessing": [
+            "qwen2vl-chat-template"
+          ],
+          "environment": null,
+          "device": "cpu",
+          "execution_time_s": 6.8,
+          "timestamp": "2026-09-02T07:06:45Z",
+          "status": "ok"
+        },
+        "orchestration_runtime_s": 26.677,
+        "note": "TinyRS (Qwen2-VL-2B base). VQA only. No confidence value produced."
+      },
+      "orchestration_runtime_s": 26.702,
+      "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced; `resolution` is a deterministic failure-aware qualifier, not a confidence"
+    },
+    "execution_trace": {
+      "steps": [
+        "validate_input",
+        "interpret_query",
+        "route",
+        "specialist:tinyrs",
+        "evidence",
+        "verify",
+        "resolve"
+      ],
+      "routing_code": "SINGLE_IMAGE_VQA",
+      "routing_rule": "one image + a VQA intent -> the RS VQA specialist (TinyRS, Qwen2-VL-2B base). NOT a grounding model - grounding is RemoteSAM."
+    },
+    "failures": [],
+    "warnings": []
+  }
+}
