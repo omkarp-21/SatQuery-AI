@@ -4,12 +4,11 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01** (refreshed after the **Local Lightweight Model Tournament**
-> — RemoteSAM added as the lead capability-B candidate (~200 M grounding
-> specialist); RS-MoE REJECT (no artifact); DynamicVis REJECT for product
-> (Windows/CPU-incompatible). Earlier: G7 semantic verifier MEASURED; G8/G9
-> failure-aware routing; G5A A/B gate blocked ×6; roles frozen ADR-011/012).
-> Experiment write-ups:
+> Date: **2026-09-02** (refreshed after **G11** — `hf_transfer` cleared the
+> download wall + non-gated HF mirrors found: **A MEASURED + INTEGRATED**
+> (TinyRS-2B, bal acc 0.87), **B MEASURED + INTEGRATED** (RemoteSAM, acc@IoU0.5
+> 0.84). RSCoVLM-3B confirmed non-existent. Earlier: G10 RemoteSAM integrated;
+> G7 semantic verifier; G8/G9 failure-aware routing). Experiment write-ups:
 > `EXP-002.md`, `EXP-004.md`, `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
@@ -130,8 +129,8 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 |-----|--------|-----------|--------------------------------|
 | **D. Optical–SAR** | **REPRODUCED** + probe machinery validated (EXP-004 Run 1, synthetic); joint-repr contract in `/analyze` | mandatory + differentiation | **EXP-004 Run 2 BLOCKED** — no acquirable real S1+S2 set (DFC 11 GB / So2Sat 7 GB). Needs a remote box. |
 | **E. RS adaptation** | NONE — harness ready | mandatory | **EXP-008 BLOCKED** on EXP-004 Run 2. Needs a remote box. |
-| **A. Single-image VQA** | DOCUMENTED — **G5A: N=0, BLOCKED** (6th artifact-acquisition failure). Roles frozen: PRIMARY RSCoVLM-3B / FALLBACK TinyRS-2B / CONTROL Qwen2-VL-2B; references EarthDial + GeoChat | mandatory | **Remote reference gate OPEN (ADR-013)** — run `exp002_ab_gate.py` on a Linux GPU box: all three local candidates + both references on the frozen RSVQA-LR sample. Local-only path exhausted. |
-| **B. Extra single-image task** | **REPRODUCED + INTEGRATED (G10)** — **RemoteSAM** (dedicated ~200 M grounding/referring-seg specialist, text→box+mask) runs locally on CPU via `.venvs/remotesam` (`mmcv` **lite** — grounding path needs no compiled ops); `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING` route + grounding `EvidenceItem` + structural verify. Smoke 3/5 in-bounds box+mask, prob ≈ 1.0. **NOT MEASURED** (DIOR-RSVG unacquirable). **Licence: NOT STATED.** GPU/4 GB fit **unverified** (`CPU-FALLBACK`). | mandatory | MEASURE grounding acc@IoU0.5 on the frozen 25-expr DIOR-RSVG sample once the dataset is acquired; verify peak VRAM on a CUDA build; get a licence statement. Fallback: RSCoVLM-3B grounding head. `EXP-GROUNDING.md`. |
+| **A. Single-image VQA** | **REPRODUCED + MEASURED + INTEGRATED (G11)** — **TinyRS-2B** (PRIMARY, RS-instruction-tuned Qwen2-VL-2B): **balanced acc 0.8736** on 40 RSVQA-LR yes/no (non-gated mirror), CPU, p50 4.45 s. **Qwen2-VL-2B** (FALLBACK/control): 0.7033. `TinyRsAdapter` + `/analyze` `SINGLE_IMAGE_VQA` route + `vqa` `EvidenceItem`. **RSCoVLM-3B does not exist** (only 7B released). n=40 sanity-scale; GPU/4 GB unverified. | mandatory | larger RSVQA-LR sample; GPU/4-bit VRAM check. `EXP-002.md`. |
+| **B. Extra single-image task** | **REPRODUCED + MEASURED + INTEGRATED (G10→G11)** — **RemoteSAM** (~200 M grounding/referring-seg specialist, text→box+mask): **acc@IoU0.5 = 0.84 (21/25)** on a frozen DIOR-RSVG sample (non-gated mirror), CPU, via the integrated bridge; 0 no_box, mean IoU 0.762, p50 29 s. `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING`. **Licence: NOT STATED** (`REMOTESAM_LICENSE.md`). GPU/4 GB fit **unverified** (`CPU-FALLBACK`, ~6 GB RSS). | mandatory | larger DIOR-RSVG sample; peak-VRAM on a CUDA build; upstream licence. `EXP-GROUNDING.md`. |
 | **C. Semantic change (language)** | mask **INTEGRATED + MEASURED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE`** wired into `/analyze` — experimental, disclaimed. **G6 EXP-003b: crop strategy measured** (tight/expanded/mask_aware; agreement 4/6 on the demo pair; `expanded` provisional default). **Learned** semantic change NONE. | mandatory | EXP-003a with a real VLM (**EarthDial**, native temporal+change) on the remote box; then set the crop default with a labelled caption metric |
 | **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) needs EXP-004 Run 2 data |
 | **H. Evidence/confidence/audit** | `EvidenceItem` + `Provenance` + `verify()` in all 3 APIs. **EXP-005 (G6):** structural detection **P/R/F1 = 1.00** (n=24). **EXP-005b (G7):** model-independent `verify_semantic()` — **P/R/F1 = 1.00** (n=34), **INTEGRATED** into the composed baseline; residual label-correctness gap (BEYOND_SCOPE miss 1.00) needs a second model. Confidence = NONE (EXP-C1/C2 specified, blocked). | mandatory | `independent_model_agreement` + `optical_sar_agreement` semantic checks (need EXP-002 / EXP-C2, remote box); then EXP-C1 calibration |

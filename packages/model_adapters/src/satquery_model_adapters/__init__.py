@@ -26,6 +26,7 @@ from .errors import (
 )
 from .remoteclip import RemoteClipAdapter
 from .remotesam import RemoteSamAdapter
+from .tinyrs import TinyRsAdapter
 
 #: name -> adapter class, for the registry loader.
 ADAPTERS: dict[str, type[SpecialistAdapter]] = {
@@ -34,6 +35,7 @@ ADAPTERS: dict[str, type[SpecialistAdapter]] = {
     CromaAdapter.name: CromaAdapter,
     DofaAdapter.name: DofaAdapter,
     RemoteSamAdapter.name: RemoteSamAdapter,
+    TinyRsAdapter.name: TinyRsAdapter,
 }
 
 __all__ = [
@@ -48,6 +50,7 @@ __all__ = [
     "CromaAdapter",
     "DofaAdapter",
     "RemoteSamAdapter",
+    "TinyRsAdapter",
     "ADAPTERS",
     "AdapterError",
     "AdapterConfigError",

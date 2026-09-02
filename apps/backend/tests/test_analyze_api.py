@@ -35,12 +35,22 @@ def test_interpret_query(q, intent):
 
 # --- routing / guards (fast) ---
 
-def test_analyze_vqa_is_blocked_never_routed_to_remoteclip():
+def test_analyze_vqa_routes_to_tinyrs_never_to_remoteclip_or_remotesam():
     r = client.post("/analyze", json={"query": "how many planes?", "images": ["airport.jpg"]})
     b = r.json()
-    assert b["routing"]["routing_code"] == "NO_VQA_SPECIALIST"
-    assert b["routing"]["selected_specialists"] == []
-    assert b["ok"] is False
+    assert b["routing"]["routing_code"] == "SINGLE_IMAGE_VQA"
+    assert b["routing"]["selected_specialists"] == ["tinyrs"]
+    assert "remoteclip" not in b["routing"]["selected_specialists"]
+    assert "remotesam" not in b["routing"]["selected_specialists"]
+
+
+def test_router_vqa_falls_back_to_no_specialist_when_capability_absent():
+    from satquery_core.routing import RoutingRequest, route
+
+    d = route(RoutingRequest(query_intent="vqa", image_count=1, modalities=["optical"],
+                             metadata_valid=True, available_capabilities=["change-detection"]))
+    assert d.code == "NO_VQA_SPECIALIST" and d.specialists == []
+    assert "RemoteCLIP or RemoteSAM" in d.reason
 
 
 def test_analyze_too_many_images_400():

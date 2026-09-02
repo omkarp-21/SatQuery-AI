@@ -49,9 +49,10 @@ def test_grounding_routes_to_remotesam():
 def test_vqa_never_routes_to_remotesam():
     d = route(RoutingRequest(query_intent="vqa", image_count=1,
                              modalities=["optical"], metadata_valid=True))
-    assert d.code == "NO_VQA_SPECIALIST"
+    # VQA now has its own specialist (tinyrs); the invariant is that it is NOT RemoteSAM
     assert "remotesam" not in d.specialists
-    assert "RemoteSAM" in d.reason  # explicitly says not to route it as VQA
+    assert d.code in ("SINGLE_IMAGE_VQA", "NO_VQA_SPECIALIST")
+    assert "NOT a grounding model" in d.reason or "RemoteSAM" in d.reason
 
 
 def test_grounding_blocked_when_capability_absent():

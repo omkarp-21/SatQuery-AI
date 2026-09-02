@@ -5,6 +5,76 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-020 — G11: `hf_transfer` clears the download wall — A (TinyRS-2B) + B (RemoteSAM) both MEASURED + INTEGRATED; RSCoVLM-3B does not exist; RemoteSAM licence confirmed NOT STATED
+
+- **Date:** 2026-09-02
+- **Status:** Accepted
+- **Context:** G11 = VQA closure + RemoteSAM benchmark. `HF_HUB_ENABLE_HF_TRANSFER=1`
+  pulled every multi-GB artifact that had failed 7× before (TinyRS-2B 4.43 GB,
+  Qwen2-VL-2B 4.43 GB, RemoteSAM `RemoteSAMv1.pth` 2.57 GB earlier). Non-gated HF
+  **mirrors** were found for both eval sets (`pzhang1990/DIOR-RSVG`,
+  `dmarsili/RSVQA-LR-2k`). **The "artifact acquisition BLOCKED" premise of
+  ADR-013 is retired.**
+- **Track A — RemoteSAM on DIOR-RSVG (n=25 frozen, CPU):** **acc@IoU0.5 = 0.84**
+  (21/25), 0 no_box, mean IoU 0.762, CPU RSS peak 6.08 GB, p50 latency 29 s.
+  Passes the 0.30 gate. Ran through the same `scripts/research/remotesam_infer.py`
+  bridge the adapter uses → **capability B: REPRODUCED + INTEGRATED + MEASURED.**
+- **Track B — RemoteSAM licence:** **NOT STATED**, confirmed exhaustively —
+  GitHub API `license: null`, no LICENSE file (all variants 404), HF checkpoint
+  has no model card / no licence tag, arXiv 2505.18022v3 says "publicly
+  available" but states no terms. `docs/research/REMOTESAM_LICENSE.md`. Recorded
+  verbatim; not inferred. Open action: ask the authors.
+- **Track C — VQA:** **RSCoVLM has no 3B checkpoint** (`Qingyun/rscovlm` ships
+  only 7B) — the audit's "RSCoVLM-3B primary" is void. Measured on 40 RSVQA-LR
+  yes/no (non-gated mirror), CPU:
+
+  | model | balanced acc | fail | p50 | RSS peak |
+  |-------|:------------:|:----:|:---:|:--------:|
+  | **TinyRS-2B** | **0.8736** | 0.0 | 4.45 s | 9.1 GB |
+  | Qwen2-VL-2B (control) | 0.7033 | 0.0 | 4.41 s | 9.5 GB |
+
+  Both pass the 0.60 gate. **PRODUCTION PRIMARY (A) = TinyRS-2B** (+0.17 over the
+  generic control = the measured value of RS instruction-tuning; Apache-2.0 code;
+  equal runtime). **FALLBACK = Qwen2-VL-2B.** Selected on measured quality, not
+  size (both 2 B). → **capability A: REPRODUCED + MEASURED + INTEGRATED.**
+- **Track D — integration:**
+  - `TinyRsAdapter` — standard contract, subprocess to `.venvs/tinyrs` via
+    `scripts/research/qwen2vl_vqa_infer.py`, no research-repo import, rejects
+    non-VQA tasks. `models: tinyrs` (`deployment_tier: LOCAL_PREFERRED`,
+    `capabilities: [vqa]`, `evidence_level: measured`).
+  - Router — `SINGLE_IMAGE_VQA → ["tinyrs"]`; `SINGLE_IMAGE_GROUNDING →
+    ["remotesam"]` (G10). VQA without a `vqa` capability still → `NO_VQA_SPECIALIST`
+    ("never RemoteCLIP or RemoteSAM"). Grounding never → tinyrs; VQA never →
+    remotesam.
+  - `/analyze` — `vqa` intent → `run_vqa` (`vqa_slice.py`) → `VqaResult` + a
+    **vqa** `EvidenceItem` + structural `verify()` + provenance + failure-aware
+    `resolution`. No confidence value. `"vqa"` added to `EvidenceType`.
+  - **Two-specialist A/B design is now real and measured:** a VQA specialist
+    (TinyRS) *and* a grounding specialist (RemoteSAM), not one VLM doing both.
+- **Track F — RemoteSAM input resolution:** `docs/research/REMOTE_SAM_RESOLUTION.md`.
+  10 in-domain DIOR cases downscaled to 256 px, fed 3 ways (native / 2× upscale /
+  pad-to-canvas), CPU. **native256 = acc@IoU0.5 0.90, 0 no_box** (the G10 `no_box`
+  did **not** reproduce); 2× upscale = 0.90 (no gain); pad-canvas = 0.70 (worse).
+  Pre-registered rule ("keep unchanged unless B/C beats A by ≥ +0.15 or drops
+  no_box") → **production preprocessing unchanged**, no resolution branch added
+  (`.claude/rules/scope.md`). The G10 LEVIR `no_box` is reclassified as a
+  **domain** limit of RemoteSAM (object-centric RS imagery ≠ CD tiles), recorded
+  as a known boundary of capability B.
+- **Model stack still NOT frozen** — D (real optical-SAR task) and E (adaptation)
+  are still unmeasured (EXP-004 Run 2 / EXP-008 need the S1+S2 datasets, which
+  are the next `hf_transfer`/mirror target). Freeze after those.
+- **Consequence (146 → ~150 tests; new TinyRsAdapter + vqa_slice + qwen2vl bridge
+  + 15 tests; router/analyze/evidence extended additively; no contract break; no
+  confidence value; no new repos):** new `tinyrs.py`, `vqa_slice.py`,
+  `scripts/research/qwen2vl_vqa_infer.py`, `evaluation/scripts/{exp002_vqa_rsvqa,
+  exp_grounding_dior,exp_remotesam_resolution}.py`, `test_vqa.py`,
+  `docs/research/{REMOTESAM_LICENSE,REMOTE_SAM_RESOLUTION}.md`; updated
+  `router.py`, `analyze.py`, evidence `models.py`, `model_registry.yaml`,
+  adapters `__init__.py`, `test_routing.py`, `test_analyze_api.py`,
+  `test_grounding.py`, `EXP-002.md`, `EXP-GROUNDING.md`, `MODEL_TOURNAMENT.md`,
+  `CAPABILITY_GAP_MATRIX.md`, `EVIDENCE_LEDGER.md`, `PROJECT_STATUS.md`,
+  `API_CONTRACT.md`, `external/research/README.md`.
+
 ## ADR-019 — G10: RemoteSAM REPRODUCED + INTEGRATED as the local grounding specialist; capability B moves DOCUMENTED → REPRODUCED (not MEASURED); licence NOT STATED
 
 - **Date:** 2026-09-02

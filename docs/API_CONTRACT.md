@@ -178,9 +178,16 @@ The fallback is **not** ChangeFormer quality and says so in its `score_meaning`.
 | 2 images + change intent | `TEMPORAL` | `["changeformer"]` | true |
 | 2 images + **semantic**-change intent | `TEMPORAL` (→ `COMPOSED_SEMANTIC_CHANGE_BASELINE`) | `["changeformer"]` | true |
 | 2 images optical + SAR (non-change) | `MULTIMODAL_REPR` | `["croma"]`/`["dofa"]` | true (representation-level) |
-| 1 image + **VQA** intent (`how many…`, `is there…`) | `NO_VQA_SPECIALIST` | `[]` | **false** — never routed to RemoteCLIP **or RemoteSAM** |
+| 1 image + **VQA** intent (`how many…`, `is there…`, `?`) | `SINGLE_IMAGE_VQA` | `["tinyrs"]` | true — text answer + yes/no parse |
+| 1 image + VQA intent, **no `vqa` capability in the registry** | `NO_VQA_SPECIALIST` | `[]` | **false** — never routed to RemoteCLIP **or RemoteSAM** |
 | invalid / misregistered pair | `VALIDATION_FAILED` | `[]` | **false** |
 | no rule matches | `NO_MATCH` | `[]` | **false** |
+
+**VQA result** (`SINGLE_IMAGE_VQA` → `result` is a `VqaResult`): `answer_text`,
+`yesno` (1 / 0 / null), `score: null` (greedy-decoded — **no confidence value**),
+`evidence[0].evidence_type == "vqa"`. Model: **TinyRS-2B** (RS-instruction-tuned
+Qwen2-VL-2B; balanced acc 0.87 on RSVQA-LR n=40, CPU — `EXP-002.md`); fallback
+Qwen2-VL-2B. GPU/4 GB-VRAM unverified (CPU-only host, ~9 GB RSS, ~4.5 s/query).
 
 **Grounding result** (`SINGLE_IMAGE_GROUNDING` → `result` is a `GroundingResult`,
 `docs/architecture/GROUNDING_PIPELINE.md`): `bbox_xyxy` `[xmin,ymin,xmax,ymax]`

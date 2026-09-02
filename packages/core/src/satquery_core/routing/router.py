@@ -29,6 +29,7 @@ RoutingCode = Literal[
     "MULTIMODAL_REPR",
     "SINGLE_IMAGE_SCENE",
     "SINGLE_IMAGE_GROUNDING",
+    "SINGLE_IMAGE_VQA",
     "NO_VQA_SPECIALIST",
     "VALIDATION_FAILED",
     "NO_MATCH",
@@ -130,12 +131,20 @@ def route(req: RoutingRequest, *, registry_path: str | Path | None = None) -> Ro
             execution_order=["remotesam"],
         )
 
-    # 5. single image VQA - no integrated specialist yet (honest)
+    # 5. single image + a VQA intent -> the VQA specialist (TinyRS)
     if req.image_count == 1 and intent in VQA_INTENTS:
+        if "vqa" in caps:
+            return RoutingDecision(
+                specialists=["tinyrs"], code="SINGLE_IMAGE_VQA",
+                reason="one image + a VQA intent -> the RS VQA specialist (TinyRS, "
+                       "Qwen2-VL-2B base). NOT a grounding model - grounding is RemoteSAM.",
+                required_preprocessing=["image-open-check"],
+                execution_order=["tinyrs"],
+            )
         return RoutingDecision(
             specialists=[], code="NO_VQA_SPECIALIST",
-            reason="single-image VQA is a mandatory capability with NO integrated "
-                   "specialist yet (EXP-002 pending). Do not route RemoteCLIP or RemoteSAM as a VQA model.",
+            reason="single-image VQA has NO integrated specialist in the registry. "
+                   "Do not route RemoteCLIP or RemoteSAM as a VQA model.",
         )
 
     return RoutingDecision(

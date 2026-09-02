@@ -33,6 +33,7 @@ from app.services.multimodal_slice import run_joint_representation
 from app.services.scene_slice import run_scene
 from app.services.semantic_change_baseline import run_composed_semantic_change
 from app.services.temporal_slice import run_change_fallback, run_change_slice
+from app.services.vqa_slice import run_vqa
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _CF_CKPT = _REPO_ROOT / ("models/cache/changeformer/CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw"
@@ -44,7 +45,8 @@ _SCENE_KW = ("scene", "what is this", "classify", "retrieve", "find similar", "l
 # grounding = "point me at the region this phrase refers to" -> RemoteSAM specialist
 _GROUNDING_KW = ("where is", "where's", "locate", "point to", "point at", "find the", "show me the",
                  "segment the", "highlight the", "which region", "ground the")
-_VQA_KW = ("how many", "count", "is there", "are there", "does the", "what color", "?")
+_VQA_KW = ("how many", "count", "is there", "are there", "does the", "what color",
+           "what colour", "what kind of", "?")
 _SAR_KW = ("sar", "radar", "sentinel-1", "backscatter", "vv", "vh")
 
 
@@ -189,6 +191,9 @@ def run_analyze(
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
         elif decision.code == "SINGLE_IMAGE_GROUNDING":
             sub = run_grounding(paths[0], query, device=ctx.get("device", "cpu"))
+            payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
+        elif decision.code == "SINGLE_IMAGE_VQA":
+            sub = run_vqa(paths[0], ctx.get("question") or query)
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
         elif decision.code == "TEMPORAL" and interp.intent == "semantic-change":
             sub = run_composed_semantic_change(paths[0], paths[1], checkpoint_dir=_CF_CKPT)

@@ -11,10 +11,10 @@
 
 | | value |
 |--|--|
-| **PAPER RESULT** (authors, ACM MM 2025) | referring-seg oIoU 76.21 / mIoU 64.79 (their setup) |
-| **OUR REPRODUCTION** | ✅ checkpoint loads on CPU; `visual_grounding` + `referring_seg` produce in-bounds box + mask with foreground prob ≈ 0.97–1.0 on 3/5 smoke phrases |
-| **OUR MEASUREMENT** | ✗ — DIOR-RSVG acc@IoU0.5 not run (dataset is Google-Drive-only, no HF mirror; DIOR images are a multi-GB set this host cannot fetch) |
-| **OUR INTEGRATED RESULT** | adapter + `/analyze` grounding path live; no benchmark number yet |
+| **PAPER RESULT** (authors, ACM MM 2025) | referring-seg oIoU 76.21 / mIoU 64.79 (their setup — different task + metric + n) |
+| **OUR REPRODUCTION** | ✅ checkpoint loads on CPU; `visual_grounding` + `referring_seg` produce in-bounds box + mask with foreground prob ≈ 0.97–1.0 |
+| **OUR MEASUREMENT** (via the integrated bridge, G11) | **acc@IoU0.5 = 0.84 (21/25)** on a frozen DIOR-RSVG sample (`pzhang1990/DIOR-RSVG` non-gated mirror), CPU. Sanity-scale n=25 — a real number, not a full benchmark. |
+| **OUR INTEGRATED RESULT** | `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING` path live; the measurement above ran through the same bridge |
 
 ## Phase 1 — current repository audit (`1e12Leon/RemoteSAM`, branch `master`, commit `ebb7bc2`)
 
@@ -76,12 +76,40 @@ correspondence holds by construction. `GroundingResult` normalises to
 (`PASS` / `NO_REGION` / `FAIL_BOX_OUT_OF_BOUNDS` / `FAIL_BOX_DEGENERATE`), and the
 grounding `EvidenceItem` carries `spatial_region.bbox_pixel` (r,c order) for the map.
 
-## Phase 6 — DIOR-RSVG evaluation
+## Phase 6 — DIOR-RSVG evaluation (G11 Track A — RUN 2026-09-02)
 
-**BLOCKED.** `evaluation/datasets/dior_rsvg_sample.json` (frozen 25 expressions)
-has empty `resolved_ids` because the dataset is not on disk: DIOR-RSVG is
-distributed via Google Drive only (no HF mirror), and the DIOR image set is a
-multi-GB download this host cannot complete. **acc@IoU0.5 is not measured.**
+**A non-gated HF mirror was found** — `pzhang1990/DIOR-RSVG` (parquet:
+`image_id, image, question_id, question, bbox`). One test shard (404 MB) fetched
+with `hf_transfer`. The frozen 25-expression sample resolved deterministically
+(rows sorted by `(int(image_id), int(question_id))`, one expression per distinct
+image, first 25); resolved ids frozen in `evaluation/datasets/dior_rsvg_sample.json`.
+
+**Result** (`evaluation/reports/exp_grounding_dior_*.json`), CPU, via the same
+`scripts/research/remotesam_infer.py` bridge the adapter uses:
+
+| metric | value |
+|--------|-------|
+| **acc@IoU0.5** | **0.84** (21 / 25) — **passes the 0.30 internal gate** |
+| incorrect (IoU < 0.5) | 4 |
+| no_box | 0 |
+| errors | 0 |
+| mean IoU over predicted boxes | 0.762 |
+| load time | 73.7 s |
+| CPU RSS peak | **6.08 GB** (800 px DIOR images; the 896² LEVIR smoke earlier hit ~8 GB) |
+| first / warm latency | 78 s |
+| **p50 latency** | **29 s / query** (under the 45 s gate) |
+| gpu_peak_mb | `null` — **CPU-only run; this is NOT VRAM** |
+
+**Reading:** RemoteSAM grounds in-domain RS referring expressions well at native
+DIOR resolution (~800 px). n = 25 is a **sanity-scale** sample (DIOR-RSVG test has
+6 125 expressions) — a real number, not a full benchmark. The three-numbers rule:
+this is **OUR MEASUREMENT via the integrated bridge**, distinct from the paper's
+referring-seg oIoU/mIoU (different task + metric + n).
+
+**Capability B is now REPRODUCED + INTEGRATED + MEASURED** (acc@IoU0.5 = 0.84,
+n = 25). Still open: peak **VRAM** on a CUDA build (unmeasured — no CUDA torch on
+this host; do not call the 6 GB CPU RSS "VRAM") and the upstream **licence**
+(NOT STATED — `REMOTESAM_LICENSE.md`).
 
 ## Phase 7 — 4 GB feasibility
 
@@ -104,7 +132,7 @@ claim is made.
 
 | category | observed |
 |----------|----------|
-| out-of-distribution resolution | #5 — 256 px LEVIR tile → `no_box`. RemoteSAM expects ~800 px DIOR-scale imagery. |
+| ~~out-of-distribution resolution~~ → **domain** | #5 — 256 px LEVIR tile → `no_box`. **G11 Track F disproved the resolution hypothesis**: on 10 in-domain DIOR cases downscaled to 256 px, native-256 grounding scored acc@IoU0.5 0.90 with **0 `no_box`**; a 2× pre-upscale did not help (0.90) and a padded canvas hurt (0.70). The LEVIR `no_box` is a **domain** limit — RemoteSAM is trained on object-centric RS imagery, not CD tiles. Production preprocessing left unchanged. See `docs/research/REMOTE_SAM_RESOLUTION.md`. |
 | query understanding / no distinct object | #2 — "the largest building" on an airport scene → `no_box` (plausibly correct). |
 | latency | first call ~96 s (lazy init + 2.5 GB load); steady-state OK. |
 | memory | ~8 GB CPU RSS — fine on the ASUS, would need GPU on a RAM-constrained box. |

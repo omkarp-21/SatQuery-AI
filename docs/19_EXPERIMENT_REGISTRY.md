@@ -70,16 +70,18 @@ what we measured, what we decided.
 
 ## EXP-002 — Candidate single-image RS-VLM comparison
 
-- Status: **BLOCKED — artifact acquisition. G5A ran the A/B gate; REMOTE REFERENCE
-  GATE OPEN (ADR-013).** Weight download failed **6 times** (`docs/research/EXP-002.md`):
-  5× TinyRS (`ChunkedEncodingError` ×2, DNS, 8-min→134 MB, 240 s→11/12 files) and
-  (**G5A, 2026-09-01**) Qwen2-VL-2B from a *different* HF org — config landed
-  instantly, both `.safetensors` shards **0 bytes** for an 8-min window (same
-  signature → host↔HF-CDN path is the blocker). RSVQA-LR + DIOR-RSVG also
-  unfetchable. **N=0, nothing fabricated.** Delivered: frozen sample specs
-  (`evaluation/datasets/{rsvqa_lr,dior_rsvg}_sample.json`) + measurement harness
-  (`evaluation/scripts/exp002_ab_gate.py`). **→ Run the harness on a remote Linux
-  GPU ≥ 16 GB** (local + reference arms, same frozen samples).
+- Status: **DONE (G11, 2026-09-02) — A + B both MEASURED + INTEGRATED.**
+  `HF_HUB_ENABLE_HF_TRANSFER=1` pulled TinyRS-2B + Qwen2-VL-2B + RemoteSAM weights
+  (previously failed 7×); non-gated HF mirrors found for both eval sets.
+  **A (VQA):** TinyRS-2B **balanced acc 0.8736** on 40 RSVQA-LR yes/no (CPU,
+  p50 4.45 s) → PRIMARY; Qwen2-VL-2B control 0.7033 → FALLBACK. **RSCoVLM-3B does
+  not exist** (only 7B released). **B (grounding):** RemoteSAM **acc@IoU0.5 = 0.84
+  (21/25)** on frozen DIOR-RSVG (CPU, p50 29 s). Both integrated: `TinyRsAdapter`
+  + `RemoteSamAdapter`, `/analyze` `SINGLE_IMAGE_VQA` / `SINGLE_IMAGE_GROUNDING`.
+  `docs/research/EXP-002.md` §G11, `EXP-GROUNDING.md`, ADR-020. Reports:
+  `evaluation/reports/exp002_vqa_*.json`, `exp_grounding_dior_*.json`.
+  Open: larger samples (n=40/25 are sanity-scale) + GPU/4 GB-VRAM verification.
+  _Earlier (G5A): BLOCKED on artifact acquisition, 6 download failures (ADR-013)._
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?

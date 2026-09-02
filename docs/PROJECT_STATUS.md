@@ -2,7 +2,8 @@
 
 > Living status file (see `chatgpt.context.md` §24). Update every significant
 > session. No fabricated numbers — "not measured" is the honest value until a real
-> run exists. Last updated: **2026-09-02 (G10)**. Tests: **131 passed, 0 failed**.
+> run exists. Last updated: **2026-09-02 (G11)**. Tests: **141 fast pass**; full
+> suite (incl. slow model e2e) green.
 
 ---
 
@@ -39,6 +40,7 @@
 | **G4 · confidence plan** | `docs/research/CONFIDENCE_PLAN.md` — candidate sources + required experiments (EXP-005, EXP-C1, EXP-C2). **No confidence number emitted anywhere.** |
 | **G4 · EXP-002 / EXP-004 Run 2 / EXP-008** | **BLOCKED — artifact/dataset acquisition fails from this host** (TinyRS 4 attempts <1 MB/s; DFC 11 GB / So2Sat 7 GB / EuroSAT-SAR 922 MB all too large). **Remote GPU now justified on infrastructure grounds.** |
 | **G4 · tests** | **92 passed, 0 failed** (baseline 59). No regressions. |
+| **G11 — A + B both MEASURED + INTEGRATED; download wall cleared** | `HF_HUB_ENABLE_HF_TRANSFER=1` pulled TinyRS-2B / Qwen2-VL-2B / RemoteSAM weights (all previously failed 7×); non-gated HF mirrors found for DIOR-RSVG (`pzhang1990`) + RSVQA-LR (`dmarsili`). **A (VQA):** TinyRS-2B = **balanced acc 0.8736** on 40 RSVQA-LR yes/no (CPU, p50 4.45 s) → PRODUCTION PRIMARY; Qwen2-VL-2B control 0.7033 → FALLBACK. `TinyRsAdapter` + `run_vqa` + router `SINGLE_IMAGE_VQA` + `/analyze` VQA path + `vqa` `EvidenceItem`. **RSCoVLM-3B confirmed non-existent** (only 7B). **B (grounding):** RemoteSAM = **acc@IoU0.5 = 0.84 (21/25)** on frozen DIOR-RSVG (CPU, p50 29 s, 0 no_box). Registry: tinyrs + remotesam `evidence_level: measured`. **RemoteSAM licence: NOT STATED** (`REMOTESAM_LICENSE.md`, verified). GPU/4 GB-VRAM unverified for both (CPU host). **Track F (resolution):** on 10 in-domain DIOR cases downscaled to 256 px, native-256 grounding = acc@IoU0.5 **0.90 / 0 no_box**; 2× pre-upscale did not help (0.90), padded canvas hurt (0.70) → **production preprocessing unchanged**; the G10 LEVIR `no_box` reclassified as a **domain** limit, not resolution (`REMOTE_SAM_RESOLUTION.md`). +15 tests. **Two-specialist A/B design is real + measured.** ADR-020. |
 | **G10 — RemoteSAM grounding specialist REPRODUCED + INTEGRATED** | Capability **B: DOCUMENTED → REPRODUCED + INTEGRATED** (not MEASURED). RemoteSAM (`1e12Leon/RemoteSAM`, ~200 M Swin-B+BERT, ACM MM 2025) runs locally on **CPU** via `.venvs/remotesam` (`mmcv` **lite** 1.7.1 — the grounding path needs no compiled mmcv/mmdet/mmseg). Checkpoint `RemoteSAMv1.pth` 2.57 GB downloaded. Smoke: **3/5** phrases → in-bounds box+mask, prob ≈ 0.97–1.0; 2 `no_box` (1 OOD 256 px tile). Peak RSS ~8 GB, ~16–22 s/query steady-state. `RemoteSamAdapter` + `grounding_slice.run_grounding` + router `SINGLE_IMAGE_GROUNDING → [remotesam]` + `/analyze` grounding intent + grounding `EvidenceItem` + structural `verify()` (box-valid, mask-artifact). **VQA still `NO_VQA_SPECIALIST`** (RemoteSAM never routed for VQA). **Licence: NOT STATED** upstream — recorded verbatim. **DIOR-RSVG acc@IoU0.5 NOT measured** (Google-Drive-only dataset). GPU/4 GB-VRAM **unverified** → classified `CPU-FALLBACK`. +25 tests → **131/131**. Docs: `EXP-GROUNDING.md`, `GROUNDING_PIPELINE.md`. ADR-019. |
 | **Local Lightweight Model Tournament** | `docs/research/LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`. Inspected 3 new candidates from official GitHub/HF (no capability inferred from titles). **RemoteSAM** (`1e12Leon/RemoteSAM`, ~200 M Swin-B+BERT referring-seg + visual-grounding, mask+box, ACM MM 2025) → **TEST FURTHER, lead capability-B candidate** — a dedicated grounding *specialist*, not a VLM side-task; `LOCAL-FITS-4GB`, repro BLOCKED on `mmcv-full==1.7.1` env + unstated licence. **RS-MoE** (`CongcongWen1208/RS-MoE`) → **REJECT** — training-only, "MoE not yet implemented", base Vicuna-13B, "RS-MoE-1B" is a paper claim. **DynamicVis** (`KyanChen/DynamicVis`) → **REJECT for product** — Mamba SSM is Windows + CPU incompatible (breaks the 4 GB ASUS + CPU-fallback target); encoder-only, no A/B. **Product confirmed to have NO mandatory 7B/16 GB dependency** — EarthDial/GeoChat/GeoGround stay research-only. `model_registry.yaml` excluded block + `MODEL_TOURNAMENT.md` + `CAPABILITY_GAP_MATRIX.md` (B row) + `model_inventory.md` + `EVIDENCE_LEDGER.md` updated. No code, no new deps, no repos cloned. ADR-018. |
 | **G9 — LOW_MARGIN advisory; remote loop halted** | Provisioning a cloud GPU is not an in-session action (5th identical block). **Built:** `ChangeRegion.tag_margin` / `.low_margin` (RemoteCLIP rank-1−rank-2 < 0.05); `derive_resolution(low_margin_regions=N)` → non-blocking `resolution.advisories` (`LOW_MARGIN: N region tag(s)…`) — answer still surfaced, weak tags flagged not dropped. +3 tests → **121/121**. `API_CONTRACT.md` + `FAILURE_AWARE_ROUTING.md` step 3 DONE. **Decision (ADR-017): stop re-running the remote-execution gate** — no new evidence is produced by another "still blocked" report; the next move is provisioning one Linux GPU box + running the 3 committed batch scripts. A/B/D/E, confidence, model freeze all remain blocked on that. |
@@ -181,19 +183,16 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **Finish capability B: measure RemoteSAM.** B is now REPRODUCED + INTEGRATED
-   (G10) but **not benchmarked**. On a machine that can fetch DIOR-RSVG (Google
-   Drive) or with a GPU: resolve the frozen 25-expression sample and run
-   `run_grounding` → **acc@IoU0.5** vs the 0.30 gate; re-run on a CUDA build to
-   record **peak VRAM** and confirm `LOCAL-FITS-4GB` (currently `CPU-FALLBACK`,
-   ~8 GB RSS / ~16–22 s/query); get a **licence** statement from the RemoteSAM
-   authors (currently NOT STATED). This closes B independently of the VQA models.
-2. **Provision one remote Linux GPU box** for the still-blocked A/D/E work — run
-   `exp002_ab_gate.py` for **RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B** (VQA) +
-   EarthDial-4B / GeoChat-7B references on the frozen samples; DFC2020 →
-   **EXP-004 Run 2** → CROMA-vs-DOFA → **EXP-008** → **EXP-C1** calibration. Then
-   select the production VQA model on the 7 criteria + write one adapter +
-   route `/analyze` VQA to it (grounding is already RemoteSAM).
+1. **EXP-004 Run 2 + EXP-008 (D + E) — the last two unmeasured mandatory
+   capabilities.** `hf_transfer` + non-gated mirrors cleared the wall for A/B;
+   apply the same to the S1+S2 datasets: search HF for a non-gated DFC2020 /
+   So2Sat / reBEN mirror, fetch a bounded subset, run the committed 3-arm probe
+   (optical-only / CROMA-joint / DOFA-fused) → CROMA-vs-DOFA decision → frozen
+   encoder + linear probe → LoRA (EXP-008). Then the **model stack can freeze**.
+2. **Scale + GPU-verify A/B.** Grow the RSVQA-LR and DIOR-RSVG samples past
+   sanity scale (n=40/25 → a few hundred); on a CUDA build, measure TinyRS-2B
+   4-bit and RemoteSAM peak **VRAM** to confirm `LOCAL-FITS-4GB`. Get a **licence**
+   statement from the RemoteSAM authors.
 3. **EXP-006 — agentic `/analyze` planning** (after the capability set is closed):
    add the LLM intent→typed-task step, schema-validated against the registry, on
    top of the deterministic router. `/analyze` hardening (composed-semantic
@@ -220,8 +219,9 @@ criteria are met locally; A/B/D/E are blocked solely on provisioning
 | Novelty | 2 | — | contribution areas named; none measured on a benchmark |
 | Technical depth | 8 | — | `/analyze` unified layer + composed semantic baseline + EXP-007; 92 tests |
 | Prototype completeness | 7 | +1 | `/analyze` routes 5 specialist paths (scene / **grounding** / change / semantic-change / joint-repr) + failure-aware resolution; no agent/UI |
-| Accuracy | 1 | — | still only ChangeFormer reproduction (n=7); no benchmark |
-| Multimodal (optical–SAR) reasoning | 3 | — | joint-representation contract; **EXP-004 Run 2 blocked (dataset unacquirable)** |
+| Accuracy | 4 | +3 | **G11 first real task numbers:** VQA balanced acc 0.87 (TinyRS, RSVQA-LR n=40); grounding acc@IoU0.5 0.84 (RemoteSAM, DIOR-RSVG n=25); change IoU 0.83 (n=7). All sanity-scale, honestly labelled. |
+| Multimodal (optical–SAR) reasoning | 3 | — | joint-representation contract; **EXP-004 Run 2 pending** (S1+S2 dataset is the next hf_transfer/mirror target) |
+| Capability A (VQA) | 6 | +5 | **TinyRS-2B MEASURED (bal acc 0.87) + INTEGRATED (G11)** — `/analyze` `SINGLE_IMAGE_VQA`; Qwen2-VL-2B fallback; n=40 sanity-scale, GPU unverified |
 | Temporal reasoning | 6 | +1 | mask integrated + **composed semantic-change baseline** (isolated, disclaimed); learned semantic still NONE |
 | Geospatial integrity | 6 | +1 | **EXP-007: 15/15 safeguard cases pass**; live in all 3 endpoints |
 | Evidence / verification | 7 | +1 | `verify()` in all 3 APIs; **EXP-005 structural P/R/F1 = 1.00 (n=24)**; **EXP-005b (G7): model-independent semantic verifier P/R/F1 = 1.00 (n=34), INTEGRATED into the composed baseline**; residual label-correctness gap needs EXP-002/EXP-C2; confidence NONE (EXP-C1/C2 specified) |
@@ -231,7 +231,7 @@ criteria are met locally; A/B/D/E are blocked solely on provisioning
 | Impact | 4 | — | clear institutional relevance |
 | PPT quality | 4 | +1 | one unified endpoint + a demonstrable analysis story; still no measured numbers |
 | Demo quality | 4 | +1 | `POST /analyze` runs a real query → routed specialist → structured evidence; **grounding demo works end-to-end** (text → box + mask on the map, CPU) |
-| Capability B (grounding) | 5 | +4 | **RemoteSAM REPRODUCED + INTEGRATED (G10)** — dedicated local grounding specialist, `/analyze` `SINGLE_IMAGE_GROUNDING` path; not benchmarked (DIOR-RSVG blocked), licence NOT STATED |
+| Capability B (grounding) | 7 | +2 | **RemoteSAM MEASURED (acc@IoU0.5 0.84, DIOR-RSVG n=25) + INTEGRATED (G10→G11)** — dedicated local grounding specialist; n=25 sanity-scale, licence NOT STATED, GPU-VRAM unverified |
 
 **Read:** **G4 unified the system.** One deterministic `POST /analyze` entrypoint
 (interpret → validate → route → specialist → aggregate evidence/verification/

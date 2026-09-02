@@ -4,7 +4,7 @@
 > reached, with the artifact that proves it. Never promote a row without a real
 > run. Levels: `PAPER-REPORTED < DOCUMENTED < REPRODUCED < MEASURED < INTEGRATED
 > < VALIDATED`.
-> Updated: **2026-09-02 (G10)**.
+> Updated: **2026-09-02 (G11)**.
 
 ## Level definitions
 
@@ -32,15 +32,15 @@
 | **DOFA** | multi-sensor (S1/S2) embedding | **REPRODUCED** | `forward_features` for S1 + S2; `DofaAdapter` smoke (random) → dim 768 | |
 | DOFA | fused SAR-signal recovery | **MEASURED (sanity)** | EXP-004 Run 1: bal-acc 1.00 (S2⊕S1) vs 0.50 optical-only | same synthetic control |
 | DOFA | GEO-Bench results | PAPER-REPORTED | DOFA paper | not reproduced by us |
-| **RSCoVLM-3B** | single-image RS VQA / grounding (LOCAL A/B PRIMARY) | **DOCUMENTED** | HF `Qingyun/rscovlm` card; frozen sample specs + `exp002_ab_gate.py` harness committed | **G5A: N=0** — weights unfetchable (host↔HF CDN); PAPER: no single headline # in README |
-| **TinyRS-2B** | lightweight RS VQA / grounding (LOCAL A/B FALLBACK) | **DOCUMENTED** | HF card; `.venvs/tinyrs`; harness ready | **G5A: N=0** — weight download failed 5×; PAPER: authors ≈ 83.5 % RS-VQA acc |
+| RSCoVLM | RS multi-task VLM | **DOCUMENTED / no artifact** | `Qingyun/rscovlm` — **only 7B released** (`RSCoVLM-7B-2512`); NO 3B checkpoint (paper claim only) | REMOTE-ONLY (7B). "RSCoVLM-3B" is void — same as RS-MoE-1B. |
+| **TinyRS-2B** | single-image RS **VQA** (PRODUCTION PRIMARY, capability A) | **REPRODUCED + MEASURED + INTEGRATED** (G11) | `.venvs/tinyrs` CPU, 2026-09-02: **balanced acc 0.8736** on 40 RSVQA-LR yes/no (`dmarsili/RSVQA-LR-2k` mirror), fail_rate 0.0, p50 4.45 s, RSS peak 9.1 GB. `TinyRsAdapter` + `run_vqa` + router `SINGLE_IMAGE_VQA` + `/analyze` VQA path + `vqa` `EvidenceItem`. `exp002_vqa_rsvqa.py`. PAPER: authors ≈ 83.5 %. |
+| Qwen2-VL-2B | single-image VQA (control / FALLBACK) | **REPRODUCED + MEASURED** (G11) | same harness: **balanced acc 0.7033** — passes the 0.60 gate; the +0.17 TinyRS gap = measured value of RS instruction-tuning |
 | **Qwen2-VL-2B** | generic VQA / native bbox grounding (GENERIC CONTROL) | **DOCUMENTED** | HF `Qwen/Qwen2-VL-2B-Instruct` card | **G5A: N=0** — 6th acquisition failure (0-byte safetensors, 8-min bound); PAPER (generic, not RS): DocVQA 90.1 / MMBench-EN 74.9 |
 | **EarthDial-4B** | RS multi-task VLM +SAR +temporal (PRIMARY HIGH-CAPABILITY REFERENCE) | **DOCUMENTED** | README + HF `akshaydudhane/EarthDial_4B_*` (checkpoints verified to exist; weights licence unconfirmed) | REFERENCE CANDIDATE — remote-only; PAPER: 44-dataset eval, no README # |
 | GeoChat-7B | single-image VQA / grounding (SECONDARY / HISTORICAL REFERENCE) | DOCUMENTED | repo + `model_inventory.md` | BLOCKED locally (7B > 4 GB; deepspeed/bnb) — **not a project blocker**; PAPER: authors ≈ 90 % RSVQA-LR |
 | Change-Agent | temporal semantic + caption | DOCUMENTED | repo | BLOCKED (mmcv 1.3.1) |
 | ChangeChat | temporal change caption/VQA | DOCUMENTED | repo | REJECT — no released weights |
-| **RemoteSAM** | text-guided grounding (box) | **REPRODUCED + INTEGRATED** (G10) | `.venvs/remotesam` CPU smoke 2026-09-02: 3/5 phrases → in-bounds box+mask, prob ≈ 0.97–1.0; `RemoteSamAdapter` + `run_grounding` + router `SINGLE_IMAGE_GROUNDING` + `/analyze` grounding path + grounding `EvidenceItem` + structural verify; 25 tests. `docs/research/EXP-GROUNDING.md` |
-| RemoteSAM | grounding acc@IoU0.5 | **NOT MEASURED** | — | DIOR-RSVG unacquirable (Google-Drive only, multi-GB DIOR images). B is REPRODUCED, not MEASURED. |
+| **RemoteSAM** | text-guided grounding (box + mask; PRODUCTION, capability B) | **REPRODUCED + INTEGRATED + MEASURED** (G10 → G11) | G11: **acc@IoU0.5 = 0.84 (21/25)** on a frozen DIOR-RSVG sample (`pzhang1990/DIOR-RSVG` non-gated mirror), CPU, via the integrated bridge; 0 no_box, mean IoU 0.762, p50 29 s, RSS peak 6.08 GB. `RemoteSamAdapter` + `run_grounding` + `/analyze` `SINGLE_IMAGE_GROUNDING`. `exp_grounding_dior.py`. Sanity-scale n=25. |
 | RemoteSAM | referring segmentation (mask) | REPRODUCED | same smoke — mask dims match image, fg fraction sensible | not scored (no GT mask) |
 | RemoteSAM | 4 GB VRAM fit | **NOT VERIFIED** | CPU only on this host (~8 GB RSS, ~16–22 s/query) | classified `CPU-FALLBACK`; GPU measurement pending |
 | **DynamicVis** | vision encoder (Mamba SSM) — classif/detect/seg/change/retrieval | **DOCUMENTED** | `KyanChen/DynamicVis` README + HF | **REJECT for product** — Mamba is Windows + CPU incompatible; NOT a VLM (no A/B). Watch-item. |

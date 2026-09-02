@@ -48,9 +48,10 @@ repositories were added; the core SatQuery architecture is unchanged.
 
 | Role | Model | Repo | Licence | Evidence state | Where it runs |
 |------|-------|------|---------|----------------|---------------|
-| **LOCAL A/B PRIMARY** | **RSCoVLM-3B** | github.com/VisionXLab/RSCoVLM | code MIT / data CC-BY-4.0 | DOCUMENTED | RTX 3050 Ti @ 4-bit / CPU |
-| **LOCAL A/B FALLBACK** | **TinyRS-2B** | github.com/aybora/TinyRS | Apache-2.0 (code) | DOCUMENTED — weight DL **BLOCKED** from this host | RTX 3050 Ti @ 4-bit / CPU |
-| **GENERIC CONTROL** | **Qwen2-VL-2B** | github.com/QwenLM/Qwen2-VL | Apache-2.0 | runnable (generic) | anywhere @ 4-bit / CPU |
+| **VQA PRIMARY (A)** | **TinyRS-2B** | github.com/aybora/TinyRS | Apache-2.0 (code) | **MEASURED + INTEGRATED (G11)** — bal acc 0.87 on RSVQA-LR n=40, CPU | CPU verified; GPU 4-bit unverified |
+| **VQA FALLBACK / CONTROL** | **Qwen2-VL-2B** | github.com/QwenLM/Qwen2-VL | Apache-2.0 | **MEASURED (G11)** — bal acc 0.70 (generic) | CPU verified |
+| ~~RSCoVLM-3B~~ | — | Qingyun/rscovlm | — | **NO 3B ARTIFACT** — only 7B released (remote-only) | — |
+| **GROUNDING PRIMARY (B)** | **RemoteSAM** | github.com/1e12Leon/RemoteSAM | **NOT STATED** | **MEASURED + INTEGRATED (G11)** — acc@IoU0.5 0.84 on DIOR-RSVG n=25, CPU | CPU verified (~6 GB RSS); GPU unverified |
 | **TEMPORAL** | **ChangeFormer** | github.com/wgcban/ChangeFormer | MIT | **INTEGRATED** — MEASURED IoU 0.83 / F1 0.91 (n=7) | CPU / 4 GB GPU |
 | **OPTICAL-SAR PRIMARY** | **CROMA** | github.com/antofuller/CROMA | MIT | **REPRODUCED** — decide vs DOFA in EXP-004 Run 2 | CPU / 4 GB GPU |
 | **OPTICAL-SAR CHALLENGER** | **DOFA** | github.com/zhu-xlab/DOFA | MIT | **REPRODUCED** | CPU / 4 GB GPU |
@@ -93,7 +94,7 @@ section" — **exact entrypoint not confirmed, not run**. Repo health: 45 commit
 | 13 | **LRS-VQA** | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (Qwen2-7B / Vicuna-7B on HF/ModelScope) | **no** (7B, A100-tested) | DOCUMENTED — useful as a **VQA benchmark** |
 | 14 | **RSCoVLM** | multi-task RS VLM (VQA + grounding + detect) | **code MIT / data CC-BY-4.0** | yes (HF collection); **3B and 7B** (Qwen2.5-VL) | **borderline yes (3B)** | DOCUMENTED — **strong TinyRS challenger** (best licence) |
 | 15 | **SARLANG-1M** | SAR-language **dataset/benchmark** (1M pairs, 7 tasks) | not stated | n/a — **data only**, no model (`YiminJimmy/SARLANG-1M`) | n/a | DOCUMENTED — **SAR-language eval + fine-tune data** |
-| 16 | **RemoteSAM** (`1e12Leon/RemoteSAM`) | GROUNDING/SEGMENTATION specialist — text→box+mask; NOT a VLM | **NOT STATED** | yes (`RemoteSAMv1.pth` 2.57 GB, Swin-B+BERT ~200 M, ACM MM 2025) | **`CPU-FALLBACK` verified**; env solved (`mmcv` lite 1.7.1) | **KEEP — capability-B grounding specialist, REPRODUCED + INTEGRATED (G10, ADR-019)**; not benchmarked; `EXP-GROUNDING.md` |
+| 16 | **RemoteSAM** (`1e12Leon/RemoteSAM`) | GROUNDING/SEGMENTATION specialist — text→box+mask; NOT a VLM | **NOT STATED** | yes (`RemoteSAMv1.pth` 2.57 GB, Swin-B+BERT ~200 M, ACM MM 2025) | **`CPU-FALLBACK` verified** (~6 GB RSS); env solved (`mmcv` lite) | **KEEP — capability-B grounding specialist, REPRODUCED + INTEGRATED + MEASURED (G11): acc@IoU0.5 0.84 on DIOR-RSVG n=25**; licence NOT STATED; `EXP-GROUNDING.md`, ADR-020 |
 | 17 | **DynamicVis** (`KyanChen/DynamicVis`) | PERCEPTION/ENCODER (Mamba SSM); NOT a VLM | Apache-2.0 | yes (b/l) | VRAM easy (~800 MB) but **Windows+CPU incompatible** | **REJECT for product** (portability); watch-item |
 | 18 | **RS-MoE** (`CongcongWen1208/RS-MoE`) | GENERAL VLM (claim) — caption + VQA | not stated | **no** (training-only; base Vicuna-13B) | ❌ | **REJECT (no artifact)** |
 
@@ -155,7 +156,7 @@ for the reference comparison **only** once the local arms are measured.
 
 | Candidate | Status | Notes |
 |-----------|--------|-------|
-| **RemoteSAM** | **KEEP — REPRODUCED + INTEGRATED (G10)** | dedicated ~200 M grounding specialist (**mask + box**), ACM MM 2025. Runs on CPU (`.venvs/remotesam`, `mmcv` lite); `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING` route + grounding evidence. Licence **NOT STATED**; not benchmarked (DIOR-RSVG blocked); GPU/4 GB unverified (`CPU-FALLBACK`). `EXP-GROUNDING.md`, ADR-019 |
+| **RemoteSAM** | **KEEP — MEASURED + INTEGRATED (G11)** | dedicated ~200 M grounding specialist (**mask + box**), ACM MM 2025. CPU; **acc@IoU0.5 = 0.84 (21/25) on frozen DIOR-RSVG** via the integrated bridge. `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING`. Licence **NOT STATED**; GPU/4 GB unverified. `EXP-GROUNDING.md`, ADR-020 |
 | RSCoVLM grounding | DOCUMENTED, local | spatial grounding at 3B — fallback |
 | TinyRS grounding | DOCUMENTED, local | boxes-in-text at 2B |
 | Qwen2-VL-2B | DOCUMENTED | native `<box>` tokens — generic control |

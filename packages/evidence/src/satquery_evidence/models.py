@@ -15,7 +15,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 EvidenceType = Literal[
-    "change-mask", "embedding", "ranking", "grounding", "metadata", "statistic", "citation"
+    "change-mask", "embedding", "ranking", "grounding", "vqa",
+    "metadata", "statistic", "citation"
 ]
 EvidenceStatus = Literal["ok", "degraded", "error"]
 

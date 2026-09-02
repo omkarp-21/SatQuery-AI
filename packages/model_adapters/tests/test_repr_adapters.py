@@ -24,7 +24,7 @@ _RC_IMG = _REPO / "external/research/RemoteCLIP/assets/airport.jpg"
 
 
 def test_all_adapters_registered():
-    assert set(ADAPTERS) == {"changeformer", "remoteclip", "croma", "dofa", "remotesam"}
+    assert set(ADAPTERS) == {"changeformer", "remoteclip", "croma", "dofa", "remotesam", "tinyrs"}
 
 
 def test_remoteclip_rejects_vqa():

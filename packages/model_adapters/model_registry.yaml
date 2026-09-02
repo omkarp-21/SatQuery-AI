@@ -107,6 +107,31 @@ models:
     fallback: "croma"
     note: "One wavelength-conditioned encoder for any sensor; fusion is a downstream choice."
 
+  tinyrs:
+    adapter: satquery_model_adapters.tinyrs:TinyRsAdapter
+    source_repo: https://github.com/aybora/TinyRS
+    paper: "TinyRS-R1: Compact Multimodal Language Model for Remote Sensing (IEEE GRSL 2025, arXiv 2505.12099)"
+    hf: aybora/Qwen2-VL-TinyRS
+    license: "Apache-2.0 (code); weights inherit Qwen2-VL-2B terms"
+    capabilities: [vqa]
+    modalities: [optical-single]
+    deployment_tier: LOCAL_PREFERRED   # the VQA specialist; runs on the 4 GB target (CPU verified)
+    input: "1 RGB image + a question (context['question'] or request.query)"
+    output: "answer text + a yes/no parse; score = None (greedy-decoded, no calibrated probability)"
+    environment: ".venvs/tinyrs (py3.11, torch 2.13 cpu, transformers 4.49); base model Qwen2-VL-2B-Instruct"
+    checkpoint: "models/cache/tinyrs/Qwen2-VL-TinyRS (model.safetensors 4.4 GB; 2 B params)"
+    hardware: "CPU verified: ~9.1 GB peak RSS (fp32), p50 ~4.5 s/query. GPU / 4 GB VRAM: 4-bit ~1.8 GB (plausible, NOT verified here - torch is a CPU build)."
+    quantization: "not attempted (fp32 CPU); 4-bit bitsandbytes is the GPU path"
+    latency: "~4.5 s/query (CPU, warm); first call slower incl. lazy init"
+    memory: "~9.1 GB peak CPU RSS (2 B fp32)"
+    params: "2 B (Qwen2-VL-2B base)"
+    benchmark: "authors: base TinyRS ~83.5% RS-VQA acc (their number, NOT ours)"
+    our_measured_result: "MEASURED (CPU, 2026-09-02): balanced accuracy 0.8736 on 40 RSVQA-LR yes/no questions (dmarsili/RSVQA-LR-2k mirror), fail_rate 0.0, p50 4.45 s. Sanity-scale n=40, not a full benchmark. docs/research/EXP-002.md"
+    evidence_level: measured
+    status: KEEP (local VQA specialist, MEASURED) - pending GPU-VRAM check + a larger RSVQA sample
+    fallback: "none integrated (Qwen2-VL-2B is the generic control; RSCoVLM-7B is remote-only)"
+    note: "VQA only. Grounding is RemoteSAM (UnsupportedTaskError on non-VQA tasks). No confidence value. Subprocess to .venvs/tinyrs; product code never imports the weights."
+
   remotesam:
     adapter: satquery_model_adapters.remotesam:RemoteSamAdapter
     source_repo: https://github.com/1e12Leon/RemoteSAM
@@ -125,10 +150,10 @@ models:
     latency: "~17-22 s/query (CPU, warm, 896^2); first call ~96 s incl. lazy init"
     memory: "~8 GB peak CPU RSS (896^2 Swin-B forward, fp32 CPU)"
     params: "~200 M (Swin-Base + BERT-base)"
-    benchmark: "authors: oIoU 76.21 / mIoU 64.79 on referring-seg (their number, NOT ours)"
-    our_measured_result: "REPRODUCED (CPU, 2026-09-02): 3/5 smoke groundings returned in-bounds box + mask with prob ~0.97-1.0; 2/5 no_box (one OOD 256 px tile). Spatial correspondence verified. NOT measured on DIOR-RSVG (dataset unacquirable). docs/research/EXP-GROUNDING.md"
-    evidence_level: reproduced
-    status: KEEP (local grounding specialist) — pending DIOR-RSVG measurement + GPU-VRAM check + licence
+    benchmark: "authors: oIoU 76.21 / mIoU 64.79 on referring-seg (their number, NOT ours; different task+metric+n)"
+    our_measured_result: "MEASURED (CPU, via the integrated bridge, 2026-09-02): acc@IoU0.5 = 0.84 (21/25) on a frozen DIOR-RSVG sample (pzhang1990 non-gated mirror), 0 no_box, mean IoU 0.762, p50 latency 29 s. Sanity-scale n=25, not a full benchmark. docs/research/EXP-GROUNDING.md"
+    evidence_level: measured
+    status: KEEP (local grounding specialist, MEASURED) — pending GPU-VRAM check + licence
     fallback: "none integrated (RSCoVLM-3B grounding head is the documented fallback — EXP-002, blocked)"
     note: "text -> box + mask. NOT a VQA/captioning model (UnsupportedTaskError). Score is a raw probability, not a confidence. Runs via subprocess to .venvs/remotesam; product code never imports the research repo."
 
@@ -157,7 +182,7 @@ routing:
   bitemporal_change_mask: [changeformer]
   single_image_scene_or_retrieval: [remoteclip]
   optical_sar_representation: [croma, dofa]   # bake-off BLOCKED (EXP-004 Run 2 - no dataset)
-  single_image_vqa: []             # unresolved - EXP-002 BLOCKED (weights unfetchable); -> NO_VQA_SPECIALIST
+  single_image_vqa: [tinyrs]   # TinyRS-2B VQA specialist (REPRODUCED + MEASURED: bal acc 0.87 on RSVQA-LR n=40). Qwen2-VL-2B = fallback/control (bal acc 0.70). EXP-002.md
   single_image_grounding: [remotesam]   # RemoteSAM grounding specialist (REPRODUCED; not benchmarked). See LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md + EXP-GROUNDING.md
   bitemporal_semantic_change:      # composed baseline only (NOT learned / NOT validated)
     composed_baseline: [changeformer, remoteclip]   # COMPOSED_SEMANTIC_CHANGE_BASELINE
