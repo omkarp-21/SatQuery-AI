@@ -50,7 +50,11 @@ evidence-first synthesis. Planner unavailable / plan rejected → deterministic
   "resolution": { "qualifier": "RESULT_OK", "answer_surfaced": true, "note": "deterministic post-execution qualifier — NOT a confidence value" },
   "provenance": { "layer": "agent", "planner_used": "rule_based", "plan_status": "valid", "mission_family": "multi_step",
                   "plan_steps": [...], "tool_calls": 4, "contributing_tool_calls": 4, "unnecessary_tool_calls": 0,
-                  "replans": [...], "early_stopped": false, "mask_source": "...", "input_files": ["/artifact?req=<id>&name=t1_optical.tif"] },
+                  "replans": [...], "early_stopped": false, "mask_source": "...", "input_files": ["/artifact?req=<id>&name=t1_optical.tif"],
+                  "planner_attempt": { "planner": "llm", "parse_status": "ok|salvaged|json_error|no_json",
+                                       "schema_status": "ok|invalid", "repair_status": "none|applied|applied_insufficient",
+                                       "repairs": ["..."], "final_source": "llm|llm_repaired|rule_based_fallback",
+                                       "fallback_reason": null } },
   "execution_trace": [ {"ts":"13:17:01","event":"Mission received"}, {"ts":"13:17:10","event":"REPLAN [NEW_EVIDENCE] from s2: ..."} ],
   "warnings": [ "PLANNER FALLBACK: ...", "SAR input missing — optical+SAR analysis was not performed" ],
   "failures": [], "models_used": ["ChangeFormer","RemoteSAM","CROMA"], "timings": { "total_s": 41.2 }
@@ -67,6 +71,20 @@ evidence-first synthesis. Planner unavailable / plan rejected → deterministic
   policy-rejected → `mode:"ask-fallback"`, `resolution.qualifier` in
   `{PLANNER_UNAVAILABLE, SPECIALIST_DEGRADED}`, a `AGENT FALLBACK` warning, and
   the blocking policy-check names in `execution_trace`.
+- **LLM planner (G16, opt-in `SATQUERY_PLANNER=llm`):** local Qwen2-VL-2B,
+  text-only, schema-constrained. Output is parsed → **safely repaired**
+  (renumber ids, coerce deps, map near-miss tool names, prepend VALIDATE /
+  append VERIFY+FINALIZE, salvage truncated JSON) → validated; anything still
+  invalid → `RuleBasedPlanner`. `planner_used` gains `"llm"` / `"llm_repaired"`.
+  The **raw model text is never returned** — only the `planner_attempt` status
+  block above.
+- **Plan-intent cross-check (G16):** after the policy layer, an LLM plan is also
+  checked against the deterministic query interpreter. A `change` /
+  `semantic-change` / `optical-sar` mission (or any ≥2-image mission) answered
+  with nothing but single-image analysis → `resolution.qualifier =
+  PLANNER_UNAVAILABLE`, `plan_rejection_reasons = ["intent_mismatch: …"]`,
+  `AGENT FALLBACK: PLAN_INTENT_MISMATCH` warning, deterministic `/analyze` used.
+  The policy layer guards *structural* legality; this guards *mission fit*.
 - Errors: 0 or > 4 files → `400 bad_file_count`; bad type → `400`; > 64 MB →
   `413`; agent exception → sanitized `500 agent_error`.
 

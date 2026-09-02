@@ -9,10 +9,35 @@ from __future__ import annotations
 
 import json
 
-from .registry import registry_digest
+from .registry import registry_digest, registry_lines
 from .schemas import MAX_STEPS, TaskType
 
 _TASKS = ", ".join(t.value for t in TaskType)
+
+# --------------------------------------------------------------------------- #
+# COMPACT prompt (G16) — default for the small local planner. ~900 tokens vs the
+# ~2800-token verbose version below; a 2B CPU model needs the short prompt to
+# answer in minutes instead of tens of minutes.
+# --------------------------------------------------------------------------- #
+
+COMPACT_SYSTEM_PROMPT = f"""You are a planner. Output ONE flat JSON object and then STOP. No prose. No markdown.
+
+Tools (use ONLY these):
+{registry_lines()}
+
+Hard rules:
+- "steps" is a FLAT list. NEVER put a "steps" key inside a step.
+- Every step has exactly: step_id, task, tool, inputs, depends_on, reason. Keep "reason" under 6 words.
+- step 1 = validate_geospatial_input (task VALIDATE_INPUT) whenever an image is given.
+- include exactly one verify_result step (task VERIFY) near the end.
+- the LAST step = finalize_answer (task FINALIZE).
+- add a specialist ONLY if the mission needs it. run_grounding = locate only (not VQA).
+  run_optical_sar needs a 2-band SAR image. run_temporal_change needs a 2-image pair.
+- <= {MAX_STEPS} specialist steps. Nothing fits -> just validate then finalize, reason "unsupported".
+- tasks allowed: {_TASKS}
+
+Format (a minimal single-image example — extend the middle for harder missions):
+{{"goal":"describe the image","inputs":["img0"],"steps":[{{"step_id":"s1","task":"VALIDATE_INPUT","tool":"validate_geospatial_input","inputs":{{"images":["img0"]}},"depends_on":[],"reason":"check image"}},{{"step_id":"s2","task":"VQA","tool":"run_vqa","inputs":{{"image":"img0","question":"what is shown"}},"depends_on":["s1"],"reason":"answer question"}},{{"step_id":"s3","task":"VERIFY","tool":"verify_result","inputs":{{}},"depends_on":["s2"],"reason":"check answer"}},{{"step_id":"s4","task":"FINALIZE","tool":"finalize_answer","inputs":{{}},"depends_on":["s3"],"reason":"report"}}],"constraints":[],"expected_output":"an evidence-backed summary"}}"""
 
 SYSTEM_PROMPT = f"""YOU ARE A GEO-SPATIAL TASK PLANNER for SatQuery.
 
@@ -138,3 +163,26 @@ def build_user_prompt(mission: str, image_count: int, modalities: list[str]) -> 
         f"IMAGES AVAILABLE: {image_count}   MODALITIES: {mods}\n"
         f"Return ONLY the JSON AgentPlan.\n"
     )
+
+
+def build_compact_user_prompt(mission: str, image_count: int, modalities: list[str]) -> str:
+    mods = ", ".join(modalities) if modalities else "unknown"
+    return (
+        f"Choose specialists by what the mission asks:\n"
+        f"- what / how-many / describe about ONE image -> run_vqa\n"
+        f"- WHERE something is / locate / outline -> run_grounding\n"
+        f"- what CHANGED between two images -> run_temporal_change "
+        f"(add extract_changed_regions if it asks which/where)\n"
+        f"- compare OPTICAL vs SAR (needs a 2-band SAR image) -> run_optical_sar\n"
+        f"- multi-part investigation -> several of the above in order, then cross_check_evidence\n\n"
+        f"MISSION: {mission}\n"
+        f"IMAGES: {image_count}   MODALITIES: {mods}\n"
+        f"JSON plan (flat steps, stop after the closing braces):"
+    )
+
+
+def build_prompt(mission: str, image_count: int, modalities: list[str], *, compact: bool = True) -> str:
+    """Full planner prompt (system + user). Compact by default (small local model)."""
+    if compact:
+        return COMPACT_SYSTEM_PROMPT + "\n\n" + build_compact_user_prompt(mission, image_count, modalities)
+    return SYSTEM_PROMPT + "\n\n" + build_user_prompt(mission, image_count, modalities)

@@ -32,8 +32,9 @@ from satquery_agents.agent import (
     StepObservation,
     TaskType,
     TimelineEntry,
+    RuleBasedPlanner,
     assess_step,
-    plan_with_fallback,
+    plan_with_fallback_ex,
     validate_plan,
 )
 from satquery_core.routing import RoutingRequest, route
@@ -76,6 +77,37 @@ def _mission_family(plan) -> str:
     if tasks & {TaskType.TEMPORAL_CHANGE, TaskType.SEMANTIC_CHANGE}:
         return "temporal"
     return "single_step"
+
+
+_SINGLE_IMAGE_TOOLS = {"run_vqa", "run_scene_retrieval"}
+
+
+def _plan_intent_mismatch(mission: str, image_count: int, plan) -> str | None:
+    """Return a reason string if an LLM plan is clearly under-scoped for the mission.
+
+    Uses the deterministic query interpreter as an independent second opinion. Only
+    fires on an unambiguous mismatch: the mission needs bi-temporal / optical-SAR /
+    multi-step work, but the plan does nothing but single-image analysis. Deliberately
+    conservative - a plan that is merely *different* (valid alternative ordering, an
+    extra check) is NOT a mismatch.
+    """
+    from app.services.analyze import interpret_query
+
+    intent = interpret_query(mission).intent  # change | semantic-change | optical-sar | scene | grounding | vqa | unknown
+    spec_tools = {s.tool for s in plan.steps if s.tool.startswith("run_")}
+    only_single = spec_tools and spec_tools <= _SINGLE_IMAGE_TOOLS
+
+    if intent in ("change", "semantic-change") and only_single:
+        return f"mission intent '{intent}' needs run_temporal_change; plan only does {sorted(spec_tools)}"
+    if intent == "optical-sar" and only_single and image_count >= 2:
+        return f"mission intent 'optical-sar' needs run_optical_sar; plan only does {sorted(spec_tools)}"
+    if intent == "grounding" and spec_tools == {"run_vqa"}:
+        return "mission intent 'grounding' (locate/where) answered with a single run_vqa step"
+    # a >=2-image mission that isn't a plain VQA/grounding/scene ask, answered with one run_vqa
+    if image_count >= 2 and intent in ("unknown", "change", "semantic-change", "optical-sar") \
+            and spec_tools == {"run_vqa"}:
+        return f"{image_count}-image mission answered with a single run_vqa step"
+    return None
 
 
 def _band_count(p: str) -> int:
@@ -397,11 +429,15 @@ def run_investigation(
 
     # --- PLAN ---
     res.phase = "PLANNING"
-    plan, planner_used, notes = plan_with_fallback(mission, len(paths), mods, planner=planner)
+    plan, planner_used, notes, attempt = plan_with_fallback_ex(
+        mission, len(paths), mods, planner=planner)
     res.plan, res.planner_used = plan, planner_used
     tl.append(TimelineEntry(ts=_now(), event=f"Plan generated ({planner_used}, {len(plan.steps)} steps)"))
     for nt in notes:
         res.warnings.append(f"planner: {nt}")
+    if attempt is not None:
+        # audit only - the raw LLM text is never surfaced to users
+        res.provenance["planner_attempt"] = attempt.public()
 
     # --- POLICY ---
     res.phase = "PLAN_VALIDATION"
@@ -420,6 +456,37 @@ def run_investigation(
     if planner_used == "rule_based_fallback":
         res.warnings.append("PLANNER FALLBACK: the LLM planner was unavailable/failed — the "
                             "deterministic rule planner produced this plan.")
+
+    # --- PLAN-INTENT SANITY CROSS-CHECK (G16) ---
+    # The policy layer checks a plan is *structurally* legal (right tool for its own
+    # declared task, valid deps, image count, ...). It CANNOT tell that a plan which
+    # answers "investigate the changes between these two images" with a single
+    # run_vqa step is under-scoped for the mission. G16 measured a weak LLM planner
+    # doing exactly this. Cross-check the plan shape against the deterministic query
+    # interpreter; on a clear mismatch, RE-PLAN with the RuleBasedPlanner (which can
+    # handle multi-image missions the /analyze fallback cannot) and continue.
+    if planner_used in ("llm", "llm_repaired"):
+        mismatch = _plan_intent_mismatch(mission, len(paths), plan)
+        if mismatch:
+            tl.append(TimelineEntry(ts=_now(), event=f"Plan INTENT MISMATCH: {mismatch}"))
+            res.warnings.append(f"AGENT FALLBACK: PLAN_INTENT_MISMATCH - the LLM plan was "
+                                f"under-scoped for the mission ({mismatch}); the deterministic "
+                                f"rule planner produced this plan instead.")
+            rb_plan = RuleBasedPlanner().plan(mission, len(paths), mods)
+            rb_pr = validate_plan(rb_plan, pctx)
+            if rb_pr.ok:
+                plan, planner_used = rb_plan, "rule_based_fallback"
+                res.plan, res.planner_used = plan, planner_used
+                res.plan_status = "fallback"
+                res.plan_rejection_reasons = [f"intent_mismatch: {mismatch}"]
+                tl.append(TimelineEntry(ts=_now(),
+                                        event=f"Re-planned with RuleBasedPlanner ({len(plan.steps)} steps)"))
+            else:
+                res.plan_status = "rejected"
+                res.plan_rejection_reasons = [f"intent_mismatch: {mismatch}"] + rb_pr.reasons
+                return _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir,
+                                               reason="PLAN_INTENT_MISMATCH")
+
     tl.append(TimelineEntry(ts=_now(), event="Plan validated"))
 
     # --- EXECUTE ---
@@ -901,7 +968,8 @@ def _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir, *,
         res.evidence = n.evidence
         res.verification = n.verification or {"status": "INSUFFICIENT_EVIDENCE", "checks": []}
         res.resolution = {
-            "qualifier": "PLANNER_UNAVAILABLE" if reason in ("PLANNER_UNAVAILABLE", "PLAN_REJECTED")
+            "qualifier": "PLANNER_UNAVAILABLE" if reason in (
+                "PLANNER_UNAVAILABLE", "PLAN_REJECTED", "PLAN_INTENT_MISMATCH")
             else "SPECIALIST_DEGRADED",
             "answer_surfaced": bool(a.ok),
             "reasons": res.plan_rejection_reasons or [reason],

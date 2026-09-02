@@ -231,3 +231,62 @@ the specialists of the single‑shot baseline. Structured replanning and explici
 early termination are in place and measured. SatQuery's differentiating feature.
 Next: scale the mission set further, wire the local LLM planner into the eval's
 second arm, add labelled ground‑truth plans, and confirm on non‑demo imagery.
+
+## G16 — real LLM planner arm (2026‑09‑02)
+
+Full write‑up: `docs/G16_REAL_LLM_EVALUATION.md`, `docs/G16_AGENT_VALUE_ANALYSIS.md`,
+`docs/G16_ADVERSARIAL_TESTS.md`, `docs/G16_PLANNER_AUDIT.md`. Eval:
+`evaluation/agent/run_g16_eval.py` → `evaluation/agent/reports/G16_REAL_LLM_EVALUATION.{md,json}`.
+
+Audit finding: G15's planning numbers were **100 % `RuleBasedPlanner`** — the
+`LlmPlanner` had never run (wrong checkpoint path, 60 s timeout vs a >600 s cold
+call, ~2 800‑token prompt on a CPU‑only 2 B model). G16 fixes the path, adds a
+compact ~1.4 k‑token prompt, a persistent model server, a safe schema‑repair +
+truncation‑salvage layer, `PlannerAttempt` provenance (raw text never shown to
+users), and the `planner_used="llm_repaired"` tag.
+
+Method: same 50 frozen missions. **ARM A** `RuleBasedPlanner` (n=50). **ARM B**
+local `Qwen2‑VL‑2B‑Instruct`, text‑only, CPU (n=`<FILL>` stratified subset — full
+50 is ~4 h on this host; a GPU host runs all 50). Semantic plan scoring
+(`plan_scorer.py`) — multiple valid orderings accepted; `EXACT_MATCH_RATE`
+reported but not gating.
+
+Results (`evaluation/agent/reports/G16_REAL_LLM_EVALUATION.{md,json}`):
+
+| metric | ARM A rule (N=50) | ARM B LLM (N=15) |
+|---|:--:|:--:|
+| SCHEMA_VALIDITY_RATE | 0.96 | **1.00** |
+| PLAN_VALIDITY_RATE (semantic, supported) | **1.00** (44) | **0.25** (12) |
+| TOOL_SELECTION_ACCURACY | **1.00** | **0.40** |
+| DEPENDENCY_VALIDITY | 1.00 (203) | 1.00 (45) |
+| UNSUPPORTED_ACTION_RATE (plan, executable) | **0.00** (47) | 0.27 (15) |
+| PLANNING_LATENCY (median) | <0.01 s | ~100 s |
+| by category (PLAN_VALIDITY): single/temporal/opt‑sar/multi/adv | 1.0/1.0/1.0/1.0/0.5 | 1.0/0.0/0.0/0.0/0.0 |
+
+LLM health: 15/15 parse ok, 15/15 schema‑valid with **no repair**, 0 fell back.
+The 2 B model echoes the prompt's worked example — same 4‑step
+`VALIDATE→run_vqa→VERIFY→FINALIZE` plan for every mission (right for the 3 VQA
+missions, wrong for the 9 temporal/opt‑SAR/multi‑step). Without a worked example
+it emits malformed recursive JSON instead. Paraphrase (Part 10): RULE arm 1.00
+family‑consistency over 40 paraphrases / 5 families (after a grounding‑keyword
+patch).
+
+**Exec phase (N=6, LLM planner in the loop):** the echo plans are *structurally*
+valid, so they passed the 12‑check policy layer and **executed** —
+FINAL_ANSWER_FACTUAL_CONSISTENCY **0.33**, forbidden‑tool‑that‑RAN **0.67**; the
+LLM‑agent answered investigation missions with a single VQA sentence marked
+"Verification: SUPPORTED". **G16 fix:** `agent_runner._plan_intent_mismatch` — an
+intent cross‑check against the deterministic query interpreter (LLM plans only,
+after policy). A `change`/`semantic‑change`/`optical‑sar` mission (or any
+≥2‑image mission) answered with nothing but single‑image analysis →
+`PLAN_INTENT_MISMATCH` → visible deterministic fallback. Fires for 5/6 of the
+exec missions. Validated by `test_g16_agent.py::test_plan_intent_cross_check_*`.
+CASE A/B flagship: see `docs/G16_REAL_LLM_EVALUATION.md`.
+
+Decision: **KEEP the agent. `RuleBasedPlanner` stays the DEFAULT planner** (and
+is in practice the primary — the LLM falls back on every non‑VQA mission). The
+local 2 B LLM stays **opt‑in** behind the schema‑repair + 12‑check policy +
+deterministic‑fallback guard. **No invalid action reached execution.** The
+weakest measured component is the planner model, not the architecture — revisit
+with a GPU host + a ≥7 B / planning‑tuned model, or an LLM‑proposes / rules‑fill
+hybrid.

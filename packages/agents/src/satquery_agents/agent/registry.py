@@ -236,3 +236,15 @@ def registry_digest() -> list[dict[str, object]]:
         }
         for s in TOOL_REGISTRY.values()
     ]
+
+
+def registry_lines() -> str:
+    """One line per tool — a ~10x smaller prompt block for a small local planner."""
+    out = []
+    for s in TOOL_REGISTRY.values():
+        lo, hi = s.image_count
+        imgs = f"{lo}" if lo == hi else f"{lo}-{hi}"
+        mod = f" [{','.join(s.modality_requirements)}]" if s.modality_requirements else ""
+        one = s.summary.split(".")[0].strip()
+        out.append(f"- {s.tool_name} (task {s.task_type.value}, images {imgs}{mod}): {one}")
+    return "\n".join(out)

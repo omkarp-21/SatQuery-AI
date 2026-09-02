@@ -18,8 +18,10 @@ from .planner import (
     RuleBasedPlanner,
     make_planner,
     plan_with_fallback,
+    plan_with_fallback_ex,
 )
 from .policy import PlanContext, PolicyResult, validate_plan
+from .repair import PlannerAttempt, build_plan_from_raw, repair_plan_dict
 from .registry import TOOL_REGISTRY, ToolSpec, registry_digest, tool_names
 from .schemas import (
     MAX_STEPS,
@@ -40,10 +42,11 @@ from .verifier import assess_step
 
 __all__ = [
     "AgentInvestigationResult", "AgentMemory", "AgentPhase", "AgentPlan", "MAX_STEPS",
-    "MissionFeatures", "PlanContext", "PlanStep", "Planner", "PolicyResult", "RegionRef",
-    "LlmPlanner", "ReplanEvent", "ReplanReason", "RuleBasedPlanner", "SpatialFinding",
+    "MissionFeatures", "PlanContext", "PlanStep", "Planner", "PlannerAttempt", "PolicyResult",
+    "RegionRef", "LlmPlanner", "ReplanEvent", "ReplanReason", "RuleBasedPlanner", "SpatialFinding",
     "StepObservation", "StepVerdict",
     "TOOL_REGISTRY", "TaskType", "TimelineEntry", "ToolName", "ToolSpec",
-    "assess_step", "make_planner", "plan_with_fallback", "registry_digest", "tool_names",
+    "assess_step", "build_plan_from_raw", "make_planner", "plan_with_fallback",
+    "plan_with_fallback_ex", "registry_digest", "repair_plan_dict", "tool_names",
     "validate_plan",
 ]

@@ -87,9 +87,32 @@ the request falls back to `/analyze`.
 # reports -> evaluation/agent/reports/G15_AGENT_EVALUATION.{md,json}
 # see docs/G15_AGENT_IMPLEMENTATION.md + docs/G15_AGENT_EVALUATION.md
 
-# optional local LLM planner (Qwen2-VL-2B text-only; always falls back to the rule planner)
+# optional local LLM planner (Qwen2-VL-2B text-only; schema-repair + always falls back to the rule planner)
 SATQUERY_PLANNER=llm .venvs/satquery/Scripts/python.exe -m uvicorn app.main:app --port 8000
 ```
+
+**G16 — real LLM planner validation** (two planning arms, same 50 missions):
+
+```bash
+# 1. cache the local-LLM raw plans (slow: CPU-only 2B, ~5 min/mission -> a subset is used)
+SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe evaluation/agent/run_g16_eval.py --llm-cache --only ss-01,tm-01,os-01,mi-01,ad-01
+# 2. score ARM A (RuleBasedPlanner) vs ARM B (LLM) + write the report (fast)
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_g16_eval.py --plan
+# 3. real-model execution: baseline (/analyze) vs LLM agent
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_g16_eval.py --exec 8
+# reports -> evaluation/agent/reports/G16_REAL_LLM_EVALUATION.{md,json}
+# see docs/G16_REAL_LLM_EVALUATION.md, docs/G16_AGENT_VALUE_ANALYSIS.md, docs/G16_ADVERSARIAL_TESTS.md
+
+# flagship with the ACTUAL local LLM, two environments (change vs no-change) to show adaptivity
+SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe scripts/demo/run_g16_flagship.py
+```
+
+**G16 finding (short):** the local 2 B LLM planner echoes its prompt example and
+does not plan (semantic plan validity 0.25 vs the rule planner's 1.00, N=15).
+Its plans are *structurally* valid, so a G16 **plan-intent cross-check**
+(`_plan_intent_mismatch`) routes mission-wrong LLM plans to the visible
+deterministic fallback. `RuleBasedPlanner` stays the default; the LLM is opt-in.
+See `docs/G16_REAL_LLM_EVALUATION.md`.
 
 | Demo | Query | Task → model |
 |------|-------|--------------|

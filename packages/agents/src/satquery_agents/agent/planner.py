@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -29,7 +28,8 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
-from .prompts import SYSTEM_PROMPT, build_user_prompt
+from .prompts import build_prompt
+from .repair import PlannerAttempt, build_plan_from_raw
 from .schemas import AgentPlan, PlanStep, TaskType
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
@@ -49,8 +49,9 @@ _KW = {
                  "describe what kind", "explain the change", "semantic change",
                  "nature of the change", "characterize the change", "characterise the change"),
     # grounding = a locative VERB phrase, never a bare noun (nouns also occur in VQA questions)
-    "ground": ("where is", "where's", "where are", "locate", "identify the", "point to", "point at",
-               "show me the", "which region", "pinpoint", "mark the", "highlight the"),
+    "ground": ("where is", "where's", "where are", "where the", "locate", "identify the", "point to",
+               "point at", "show me the", "show me where", "which region", "which part of the image",
+               "pinpoint", "mark the", "outline the", "find and outline", "highlight the"),
     "scene": ("what type of scene", "what kind of scene", "land cover", "classify the scene",
               "airport or", "retrieve similar"),
     "vqa": ("how many", "count", "is there", "are there", "does the", "what color", "what is in",
@@ -278,38 +279,141 @@ def _ground_phrase(mission: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
-class LlmPlanner:
-    name = "llm"
+_PLANNER_MAX_NEW_TOKENS = 700  # safety net; a brace-balance stopper ends most calls sooner
 
-    def __init__(self, *, timeout_s: float = 60.0, provider: str | None = None):
+
+def _weights_dir() -> Path | None:
+    base = _REPO_ROOT / "models" / "cache" / "qwen2vl2b"
+    if (base / "config.json").exists():
+        return base
+    if base.is_dir():
+        subs = [d for d in base.iterdir() if d.is_dir() and (d / "config.json").exists()]
+        if len(subs) == 1:
+            return subs[0]
+    return None
+
+
+class _PersistentServer:
+    """A long-lived `planner_infer.py --serve` subprocess (loads the 4 GB model once).
+
+    Opt-in via `SATQUERY_PLANNER_PERSISTENT=1` (the evaluation sets this). One
+    instance per process; NOT used by the default one-shot product path.
+    """
+
+    _inst: "_PersistentServer | None" = None
+
+    def __init__(self, timeout_s: float):
         self.timeout_s = timeout_s
-        self.provider = provider or os.environ.get("SATQUERY_PLANNER_PROVIDER", "local_qwen")
-
-    def plan(self, mission: str, image_count: int, modalities: list[str]) -> AgentPlan:
-        prompt = SYSTEM_PROMPT + "\n\n" + build_user_prompt(mission, image_count, modalities)
-        if self.provider == "local_qwen":
-            raw = self._local_qwen(prompt)
-        else:  # pragma: no cover - API provider wiring
-            raw = self._http(prompt)
-        obj = _first_json_object(raw)
-        if obj is None:
-            raise ValueError("planner produced no JSON object")
-        obj.setdefault("planner", "llm")
-        return AgentPlan.model_validate(obj)
-
-    def _local_qwen(self, prompt: str) -> str:
         py = _REPO_ROOT / ".venvs" / "tinyrs" / "Scripts" / "python.exe"
         bridge = _REPO_ROOT / "scripts" / "research" / "planner_infer.py"
-        weights = _REPO_ROOT / "models" / "cache" / "qwen2vl2b"
-        if not py.exists() or not bridge.exists() or not (weights / "config.json").exists():
+        weights = _weights_dir()
+        if not py.exists() or not bridge.exists() or weights is None:
             raise FileNotFoundError("local planner model / venv / bridge not available")
+        self.proc = subprocess.Popen(  # noqa: S603 - explicit arg list
+            [str(py), str(bridge), "--weights", str(weights), "--serve",
+             "--max-new-tokens", str(_PLANNER_MAX_NEW_TOKENS)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+        )
+        ready = self.proc.stdout.readline()  # blocks until the model is loaded
+        if '"ready": true' not in ready.lower():
+            raise RuntimeError(f"planner server did not become ready: {ready[:200]}")
+        self._n = 0
+
+    @classmethod
+    def get(cls, timeout_s: float) -> "_PersistentServer":
+        if cls._inst is None or cls._inst.proc.poll() is not None:
+            cls._inst = cls(timeout_s)
+        return cls._inst
+
+    def generate(self, prompt: str) -> tuple[str, float]:
+        self._n += 1
+        req = json.dumps({"id": self._n, "prompt": prompt, "max_new_tokens": _PLANNER_MAX_NEW_TOKENS})
+        self.proc.stdin.write(req + "\n")
+        self.proc.stdin.flush()
+        # bounded wait: a planner that cannot answer in `timeout_s` is unusable in
+        # production -> treat it as a failure (caller falls back). Reap the server
+        # so the next call starts a fresh one.
+        import threading
+
+        box: dict[str, str] = {}
+
+        def _rd() -> None:
+            try:
+                box["line"] = self.proc.stdout.readline()
+            except Exception as exc:  # noqa: BLE001
+                box["err"] = str(exc)
+
+        th = threading.Thread(target=_rd, daemon=True)
+        th.start()
+        th.join(self.timeout_s)
+        if th.is_alive():
+            try:
+                self.proc.kill()
+            except Exception:  # noqa: BLE001
+                pass
+            _PersistentServer._inst = None
+            raise subprocess.TimeoutExpired("planner_infer --serve", self.timeout_s)
+        line = box.get("line") or ""
+        if not line:
+            _PersistentServer._inst = None
+            raise RuntimeError("planner server closed the pipe")
+        resp = json.loads(line)
+        if "error" in resp:
+            raise RuntimeError(f"planner server: {resp['error']}")
+        return resp["raw"], float(resp.get("gen_s", 0.0))
+
+
+class LlmPlanner:
+    """Schema-constrained LLM planner. `plan()` keeps the `Planner` protocol
+    (returns an `AgentPlan` or raises); `plan_ex()` also returns the full
+    `PlannerAttempt` audit record (raw output, parse/schema/repair status)."""
+
+    name = "llm"
+
+    def __init__(self, *, timeout_s: float = 240.0, provider: str | None = None):
+        self.timeout_s = timeout_s
+        self.provider = provider or os.environ.get("SATQUERY_PLANNER_PROVIDER", "local_qwen")
+        self.persistent = os.environ.get("SATQUERY_PLANNER_PERSISTENT", "") == "1"
+        # compact prompt by default (small CPU model); SATQUERY_PLANNER_VERBOSE=1 for the long one
+        self.compact = os.environ.get("SATQUERY_PLANNER_VERBOSE", "") != "1"
+        self.last_attempt: PlannerAttempt | None = None
+
+    def plan(self, mission: str, image_count: int, modalities: list[str]) -> AgentPlan:
+        plan, att = self.plan_ex(mission, image_count, modalities)
+        self.last_attempt = att
+        if plan is None:
+            raise ValueError(att.fallback_reason or "planner produced no valid plan")
+        return plan
+
+    def plan_ex(
+        self, mission: str, image_count: int, modalities: list[str]
+    ) -> tuple[AgentPlan | None, PlannerAttempt]:
+        prompt = build_prompt(mission, image_count, modalities, compact=self.compact)
+        if self.provider == "local_qwen":
+            raw, gen_s = self._local_qwen(prompt)
+        else:  # pragma: no cover - API provider wiring
+            raw, gen_s = self._http(prompt), None
+        plan, att = build_plan_from_raw(raw, image_count=image_count, gen_s=gen_s)
+        self.last_attempt = att
+        return plan, att
+
+    def _local_qwen(self, prompt: str) -> tuple[str, float]:
+        if self.persistent:
+            return _PersistentServer.get(self.timeout_s).generate(prompt)
+        py = _REPO_ROOT / ".venvs" / "tinyrs" / "Scripts" / "python.exe"
+        bridge = _REPO_ROOT / "scripts" / "research" / "planner_infer.py"
+        weights = _weights_dir()
+        if not py.exists() or not bridge.exists() or weights is None:
+            raise FileNotFoundError("local planner model / venv / bridge not available")
+        t0 = time.time()
         out = subprocess.run(  # noqa: S603 - explicit arg list, timeout
-            [str(py), str(bridge), "--weights", str(weights), "--max-new-tokens", "700"],
+            [str(py), str(bridge), "--weights", str(weights),
+             "--max-new-tokens", str(_PLANNER_MAX_NEW_TOKENS)],
             input=prompt, capture_output=True, text=True, timeout=self.timeout_s,
         )
         if out.returncode != 0:
             raise RuntimeError(f"planner bridge exited {out.returncode}: {out.stderr[-500:]}")
-        return out.stdout
+        return out.stdout, round(time.time() - t0, 2)
 
     def _http(self, prompt: str) -> str:  # pragma: no cover
         import urllib.request
@@ -326,28 +430,6 @@ class LlmPlanner:
             return json.loads(r.read())["choices"][0]["message"]["content"]
 
 
-def _first_json_object(text: str) -> dict | None:
-    if not text:
-        return None
-    # strip code fences
-    text = re.sub(r"```(?:json)?", "", text)
-    depth = 0
-    start = -1
-    for i, ch in enumerate(text):
-        if ch == "{":
-            if depth == 0:
-                start = i
-            depth += 1
-        elif ch == "}":
-            depth -= 1
-            if depth == 0 and start >= 0:
-                try:
-                    return json.loads(text[start : i + 1])
-                except json.JSONDecodeError:
-                    start = -1
-    return None
-
-
 # --------------------------------------------------------------------------- #
 # factory + fallback
 # --------------------------------------------------------------------------- #
@@ -360,28 +442,61 @@ def make_planner() -> Planner:
     return RuleBasedPlanner()
 
 
-def plan_with_fallback(
+_FALLBACK_EXC = (FileNotFoundError, RuntimeError, subprocess.TimeoutExpired, ValueError,
+                 ValidationError, json.JSONDecodeError)
+
+
+def plan_with_fallback_ex(
     mission: str, image_count: int, modalities: list[str], *, planner: Planner | None = None
-) -> tuple[AgentPlan, str, list[str]]:
-    """Return (plan, planner_used, notes). LLM failure -> rule-based plan, never raises."""
+) -> tuple[AgentPlan, str, list[str], PlannerAttempt | None]:
+    """Return (plan, planner_used, notes, attempt).
+
+    Hierarchy: LOCAL LLM PLANNER -> schema validation -> (safe repair) -> ok,
+    else RULE-BASED PLANNER -> deterministic execution. Never raises.
+    `planner_used` in {"rule_based", "llm", "llm_repaired", "rule_based_fallback"}.
+    """
     p = planner or make_planner()
     notes: list[str] = []
     if isinstance(p, RuleBasedPlanner):
-        return p.plan(mission, image_count, modalities), p.name, notes
+        return p.plan(mission, image_count, modalities), p.name, notes, None
+
+    rb = RuleBasedPlanner()
+    if isinstance(p, LlmPlanner):
+        try:
+            t0 = time.time()
+            plan, att = p.plan_ex(mission, image_count, modalities)
+            if plan is not None:
+                used = "llm_repaired" if att.final_source == "llm_repaired" else "llm"
+                notes.append(f"{used} ok in {time.time() - t0:.1f}s"
+                             + (f" (repairs: {len(att.repairs)})" if att.repairs else ""))
+                return plan, used, notes, att
+            notes.append(f"llm plan unusable ({att.fallback_reason}) -> rule-based fallback")
+            return rb.plan(mission, image_count, modalities), "rule_based_fallback", notes, att
+        except _FALLBACK_EXC as exc:
+            att = getattr(p, "last_attempt", None) or PlannerAttempt(
+                fallback_reason=f"{type(exc).__name__}: {str(exc)[:160]}")
+            att.fallback_reason = att.fallback_reason or f"{type(exc).__name__}"
+            notes.append(f"llm planner failed ({type(exc).__name__}: {str(exc)[:160]}) -> rule-based fallback")
+            return rb.plan(mission, image_count, modalities), "rule_based_fallback", notes, att
+        except Exception as exc:  # noqa: BLE001 - any planner crash must still fall back
+            notes.append(f"llm planner crashed ({type(exc).__name__}) -> rule-based fallback")
+            att = PlannerAttempt(fallback_reason=f"crash_{type(exc).__name__}")
+            return rb.plan(mission, image_count, modalities), "rule_based_fallback", notes, att
+
+    # a custom Planner (tests): keep the old best-effort behaviour
     try:
-        t0 = time.time()
-        plan = p.plan(mission, image_count, modalities)
-        notes.append(f"llm planner ok in {time.time() - t0:.1f}s")
-        return plan, "llm", notes
-    except (FileNotFoundError, RuntimeError, subprocess.TimeoutExpired, ValueError,
-            ValidationError, json.JSONDecodeError) as exc:
-        notes.append(f"llm planner failed ({type(exc).__name__}: {str(exc)[:160]}) -> rule-based fallback")
-        rb = RuleBasedPlanner()
-        return rb.plan(mission, image_count, modalities), "rule_based_fallback", notes
-    except Exception as exc:  # noqa: BLE001 - any planner crash must still fall back
-        notes.append(f"llm planner crashed ({type(exc).__name__}) -> rule-based fallback")
-        rb = RuleBasedPlanner()
-        return rb.plan(mission, image_count, modalities), "rule_based_fallback", notes
+        return p.plan(mission, image_count, modalities), "llm", notes, None
+    except Exception as exc:  # noqa: BLE001
+        notes.append(f"planner failed ({type(exc).__name__}) -> rule-based fallback")
+        return rb.plan(mission, image_count, modalities), "rule_based_fallback", notes, None
+
+
+def plan_with_fallback(
+    mission: str, image_count: int, modalities: list[str], *, planner: Planner | None = None
+) -> tuple[AgentPlan, str, list[str]]:
+    """Back-compat 3-tuple wrapper around :func:`plan_with_fallback_ex`."""
+    plan, used, notes, _att = plan_with_fallback_ex(mission, image_count, modalities, planner=planner)
+    return plan, used, notes
 
 
 if __name__ == "__main__":  # tiny manual check

@@ -1,0 +1,90 @@
+{
+  "note": "G16 Part 10 - prompt robustness. Each family has >=6 paraphrases that a correct planner must map to the SAME capability family (expected_family / must contain / must not contain). Scored by evaluation/agent/run_paraphrase_eval.py against BOTH planner arms.",
+  "families": [
+    {
+      "family": "temporal_change",
+      "image_count": 2,
+      "modalities": ["optical"],
+      "must_contain": ["run_temporal_change"],
+      "must_not_contain": ["run_vqa", "run_scene_retrieval", "run_optical_sar"],
+      "paraphrases": [
+        "Find significant changes between these two images.",
+        "What has changed substantially between the two dates?",
+        "Identify major temporal differences in this area.",
+        "Compare the before and after images and tell me what moved.",
+        "Detect land-cover change between the two acquisitions.",
+        "Where did the scene change the most between these two observations?",
+        "Show me what is different now versus the earlier image.",
+        "Quantify how much of this area changed over time."
+      ]
+    },
+    {
+      "family": "grounding",
+      "image_count": 1,
+      "modalities": ["optical"],
+      "must_contain": ["run_grounding"],
+      "must_not_contain": ["run_temporal_change", "run_optical_sar", "run_scene_retrieval"],
+      "paraphrases": [
+        "Where is the largest building in this image?",
+        "Locate the runway.",
+        "Point to the ships in the harbour.",
+        "Mark the bridge on this scene.",
+        "Which part of the image contains the storage tanks?",
+        "Highlight the aircraft on the apron.",
+        "Find and outline the main road.",
+        "Show me where the stadium is."
+      ]
+    },
+    {
+      "family": "vqa",
+      "image_count": 1,
+      "modalities": ["optical"],
+      "must_contain": ["run_vqa"],
+      "must_not_contain": ["run_grounding", "run_temporal_change", "run_optical_sar"],
+      "paraphrases": [
+        "What is in this satellite image?",
+        "How many aircraft can you see?",
+        "Is there a body of water in this scene?",
+        "Describe the land use shown here.",
+        "What kind of infrastructure is visible?",
+        "Are there any signs of flooding?",
+        "Tell me about the vegetation in this image.",
+        "What time of year does this look like?"
+      ]
+    },
+    {
+      "family": "optical_sar",
+      "image_count": 2,
+      "modalities": ["optical", "sar"],
+      "must_contain": ["run_optical_sar"],
+      "must_not_contain": ["run_temporal_change", "run_vqa"],
+      "paraphrases": [
+        "Compare the optical and SAR imagery for this area.",
+        "Fuse the Sentinel-2 and Sentinel-1 views of this site.",
+        "Use the radar image alongside the optical one to characterise this area.",
+        "What complementary information does the SAR add to the optical scene?",
+        "Combine the optical and backscatter data into a joint view.",
+        "Analyse this location with both optical and SAR together.",
+        "Give me an optical-plus-radar representation of this scene.",
+        "Cross-reference the optical picture with the SAR picture."
+      ]
+    },
+    {
+      "family": "multi_step_investigation",
+      "image_count": 4,
+      "modalities": ["optical", "sar"],
+      "must_contain": ["run_temporal_change", "run_grounding"],
+      "must_not_contain": ["run_vqa", "run_scene_retrieval"],
+      "paraphrases": [
+        "Investigate this area: identify significant changes, locate the affected structures, and use SAR to characterise them.",
+        "Something happened here between these two dates - work out what changed, where the changed buildings are, and bring in the radar to back it up.",
+        "Run a full change investigation: detect the change, pull out the changed regions, find the buildings involved, and cross-check with the SAR.",
+        "Do a comprehensive assessment of change at this site, pinpoint the impacted structures, and verify with optical and SAR evidence.",
+        "I need an evidence-backed report on what changed here, which structures were hit, and how the SAR corroborates it.",
+        "Analyse the temporal difference, extract the changed areas, ground the affected buildings, and compare optical vs SAR.",
+        "Perform a remote sensing investigation of this location covering change, affected structures, and SAR corroboration.",
+        "Work through this step by step: change detection, changed-region extraction, building localisation, SAR characterisation, verification."
+      ]
+    }
+  ]
+}
