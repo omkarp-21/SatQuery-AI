@@ -4,11 +4,13 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-02** (refreshed after **G11** — `hf_transfer` cleared the
-> download wall + non-gated HF mirrors found: **A MEASURED + INTEGRATED**
-> (TinyRS-2B, bal acc 0.87), **B MEASURED + INTEGRATED** (RemoteSAM, acc@IoU0.5
-> 0.84). RSCoVLM-3B confirmed non-existent. Earlier: G10 RemoteSAM integrated;
-> G7 semantic verifier; G8/G9 failure-aware routing). Experiment write-ups:
+> Date: **2026-09-02** (refreshed after **G12** — EXP-004 Run 2 + EXP-008 on
+> real DFC2020: **D MEASURED + INTEGRATED** (CROMA joint macro-F1 0.793 vs
+> optical 0.726 on DFC2020; SAR help positive but not significant at n=200),
+> **E** — see EXP-008. **G11:** A MEASURED + INTEGRATED (TinyRS-2B, bal acc
+> 0.87), B MEASURED + INTEGRATED (RemoteSAM, acc@IoU0.5 0.84), RSCoVLM-3B
+> non-existent. Earlier: G10 RemoteSAM; G7 semantic verifier; G8/G9 failure-aware
+> routing). Experiment write-ups:
 > `EXP-002.md`, `EXP-004.md`, `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
@@ -70,23 +72,23 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 | | |
 |---|---|
-| **Current model/tool** | **CROMA** + **DOFA** — both **REPRODUCED** on CPU (G1.6, `runtime_validation.md`). RemoteCLIP / ChangeFormer / GeoChat remain optical-only. |
-| **Evidence status** | **REPRODUCED** (was NONE at G1.5). CROMA produces joint SAR+optical embeddings; DOFA encodes S1 (2ch) and S2 (12ch) via one wavelength-conditioned encoder. **Not yet MEASURED** on a task. |
-| **Missing capability** | A **measured** SAR-vs-no-SAR delta on a real task; a downstream head. |
-| **Candidate solution** | **CROMA** (native joint radar-optical cross-encoder, MIT, 194 M, `antofuller/CROMA`) — **primary**. **DOFA** (one wavelength-conditioned encoder, MIT, 111 M, `XShadow/DOFA`) — **challenger** (fuse S1⊕S2 downstream). MaRS = watch-item (VHR ≠ Sentinel scale; release unverified). |
-| **Validation plan** | **EXP-004 (still the recommended next — see below):** 3 arms — optical-only probe / CROMA `joint_GAP` probe / DOFA S1⊕S2 probe — on a **small** fixed reBEN (BigEarthNet v2) subset, held-out split, same head/budget. Metric: built-up F1 (+ 2–3 classes); report abs + rel SAR delta, where SAR helps, where it hurts. **Local.** |
-| **Risk** | Sentinel-1/2 preprocessing (12-band S2, 2-band S1 in dB, channel norm, 120-px tiling for CROMA); probe capacity; SAR handled as backscatter, never RGB. Do **not** claim "SAR improves accuracy" before EXP-004 produces the number. |
+| **Current model/tool** | **CROMA** (optical–SAR **PRIMARY**, MIT) + **DOFA** (challenger/fallback, MIT) — both **REPRODUCED + INTEGRATED** (`MULTIMODAL_REPR` route). |
+| **Evidence status** | **MEASURED + INTEGRATED (G12, EXP-004 Run 2).** Real DFC2020 dominant-land-cover probe, frozen features + `LogisticRegression`, 400/200, seed 20260902, CPU: **CROMA joint macro-F1 0.793 vs CROMA optical 0.726 (+0.067)** — bootstrap 95 % CI **[−0.024, +0.153] includes 0**, McNemar p=0.45 → **positive but not significant at n=200**. DOFA S2⊕S1 concat −0.018 (no gain). |
+| **Missing capability** | A **significant** SAR delta — needs a larger eval split (full 986 / DFC2020 test ROIs). A task-level `/fusion` endpoint (deferred until significant). |
+| **Candidate solution** | **CROMA** — **won the EXP-004 Run 2 bake-off** on downstream macro-F1 (0.793 vs 0.708) and is the only arm where SAR helped; native joint radar-optical cross-encoder. DOFA = challenger/fallback (lighter + faster but its late concat-fusion showed no SAR benefit at this scale). |
+| **Validation plan** | **DONE (EXP-004 Run 2).** Next: re-run on the full 986-patch validation + 5128-patch test ROIs with bootstrapped deltas for significance; then decide on a `/fusion` task endpoint. |
+| **Risk** | The SAR delta is real but under-powered — **do not claim "SAR improves accuracy" as significant** until the larger-split run. SAR handled as backscatter (dB), never RGB — preserved. |
 
 ### E. Remote-sensing adaptation — ≥1 visual/VL component fine-tuned/adapted on BigEarthNet or another open source  *(mandatory)*
 
 | | |
 |---|---|
-| **Current model/tool** | NONE integrated — but the **encoders are now reproduced** (CROMA, DOFA), so the probe is directly executable. |
-| **Evidence status** | **NONE** (plan ready and unblocked). |
-| **Missing capability** | A documented adaptation with a before→after measurement. |
-| **Candidate solution** | Linear-probe → LoRA on a **frozen** CROMA (or DOFA) encoder over a **reBEN / BigEarthNet v2** subset (S1+S2, 19-class multilabel, 549 k patches, Zenodo `10891137`; use ~10–50 k). Both encoders reproduced → feasible on the 4 GB laptop. Shares EXP-004's data + split. Method labels kept distinct: linear probe ≠ LoRA ≠ full fine-tune ≠ instruction tuning. |
-| **Validation plan** | **EXP-E (new):** frozen encoder + linear probe vs LoRA-adapted, on a fixed reBEN subset split. Report multilabel mAP / micro-F1 **before → after** (SatQuery number #3), with seed / split / hardware / date. |
-| **Risk** | Scope creep into full fine-tuning — must stay a bounded linear/LoRA probe (`.claude/rules/scope.md`). reBEN full download is large — **subset only**; record exactly which patches. |
+| **Current model/tool** | **LoRA adaptation of frozen CROMA** (EXP-008) — **adopted as the E method**. Frozen CROMA encoder integrated in `MULTIMODAL_REPR`. |
+| **Evidence status** | **MEASURED + INTEGRATED (G12, EXP-008).** LoRA r=8 (811 k trainable params = 0.4 % of CROMA, 3.24 MB adapter) on the frozen DFC2020 split: held-out macro-F1 **0.643 (frozen) → 0.704 (adapted), +0.061** — clears the pre-registered +0.03 bar. CPU; no VRAM figure. **Not significance-tested (n=200).** |
+| **Missing capability** | A larger-split, bootstrapped confirmation; a persisted adapter (harness now has `--save-adapter`); flipping the production default from frozen → adapted. |
+| **Candidate solution** | **Done** — LoRA on frozen CROMA. Method labels kept distinct: linear probe ≠ LoRA ≠ full fine-tune ≠ instruction tuning. No full fine-tune. |
+| **Validation plan** | **DONE (EXP-008).** Next: re-run on the full validation + test ROIs with bootstrapped before→after deltas, persist the adapter, then integrate the opt-in `--lora-weights` load path in the CROMA adapter. |
+| **Risk** | LoRA overfit 400 patches (train loss 0.15) — the held-out gain must be re-confirmed at larger scale before the production default flips. Stayed a bounded PEFT probe (`.claude/rules/scope.md`) — no full fine-tune. |
 
 ### F. Agentic routing — interpret, inspect, select tools, configure params, execute, combine, confidence, evidence, audit summary  *(mandatory)*
 
@@ -127,12 +129,12 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 | Gap | Status (post-G2) | Blocking? | Cheapest path to next evidence |
 |-----|--------|-----------|--------------------------------|
-| **D. Optical–SAR** | **REPRODUCED** + probe machinery validated (EXP-004 Run 1, synthetic); joint-repr contract in `/analyze` | mandatory + differentiation | **EXP-004 Run 2 BLOCKED** — no acquirable real S1+S2 set (DFC 11 GB / So2Sat 7 GB). Needs a remote box. |
-| **E. RS adaptation** | NONE — harness ready | mandatory | **EXP-008 BLOCKED** on EXP-004 Run 2. Needs a remote box. |
+| **D. Optical–SAR** | **MEASURED + INTEGRATED (G12)** — EXP-004 Run 2 on **real DFC2020** (`125oii/dfc2020` mirror, `hf_transfer`): frozen **CROMA** `joint_GAP` → linear probe on dominant-land-cover (400/200, seed 20260902, CPU) = **macro-F1 0.793 vs optical-only 0.726 (+0.067)**; bootstrap 95% CI includes 0 → **positive, not significant at n=200**. DOFA concat-fusion −0.018 (no gain). **KEEP CROMA** (D primary); DOFA challenger. `MULTIMODAL_REPR` route in `/analyze`. | mandatory + differentiation | larger eval split (full 986 / DFC2020 test ROIs) for a significant SAR delta; a `/fusion` task endpoint |
+| **E. RS adaptation** | **MEASURED + INTEGRATED (G12)** — EXP-008: LoRA (r=8, 811 k trainable params = 0.4 % of CROMA, 3.24 MB adapter) on the frozen DFC2020 split lifts held-out macro-F1 **0.643 (frozen) → 0.704 (adapted), +0.061** — clears the pre-registered +0.03 adoption bar. Frozen CROMA encoder is integrated (`MULTIMODAL_REPR`); LoRA **adopted as the E method**; prod default stays frozen pending a larger-split bootstrap. CPU; no VRAM figure. **Not significance-tested (n=200).** | mandatory | larger-split re-run with bootstrapped deltas + persist the adapter (`--save-adapter`); then flip the prod default |
 | **A. Single-image VQA** | **REPRODUCED + MEASURED + INTEGRATED (G11)** — **TinyRS-2B** (PRIMARY, RS-instruction-tuned Qwen2-VL-2B): **balanced acc 0.8736** on 40 RSVQA-LR yes/no (non-gated mirror), CPU, p50 4.45 s. **Qwen2-VL-2B** (FALLBACK/control): 0.7033. `TinyRsAdapter` + `/analyze` `SINGLE_IMAGE_VQA` route + `vqa` `EvidenceItem`. **RSCoVLM-3B does not exist** (only 7B released). n=40 sanity-scale; GPU/4 GB unverified. | mandatory | larger RSVQA-LR sample; GPU/4-bit VRAM check. `EXP-002.md`. |
 | **B. Extra single-image task** | **REPRODUCED + MEASURED + INTEGRATED (G10→G11)** — **RemoteSAM** (~200 M grounding/referring-seg specialist, text→box+mask): **acc@IoU0.5 = 0.84 (21/25)** on a frozen DIOR-RSVG sample (non-gated mirror), CPU, via the integrated bridge; 0 no_box, mean IoU 0.762, p50 29 s. `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING`. **Licence: NOT STATED** (`REMOTESAM_LICENSE.md`). GPU/4 GB fit **unverified** (`CPU-FALLBACK`, ~6 GB RSS). | mandatory | larger DIOR-RSVG sample; peak-VRAM on a CUDA build; upstream licence. `EXP-GROUNDING.md`. |
 | **C. Semantic change (language)** | mask **INTEGRATED + MEASURED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE`** wired into `/analyze` — experimental, disclaimed. **G6 EXP-003b: crop strategy measured** (tight/expanded/mask_aware; agreement 4/6 on the demo pair; `expanded` provisional default). **Learned** semantic change NONE. | mandatory | EXP-003a with a real VLM (**EarthDial**, native temporal+change) on the remote box; then set the crop default with a labelled caption metric |
-| **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) needs EXP-004 Run 2 data |
+| **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs. Also exercised on real DFC2020 GeoTIFFs in EXP-004 Run 2 (CRS/band/NoData handling, 986 patches, 0 failures). | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) — a targeted experiment |
 | **H. Evidence/confidence/audit** | `EvidenceItem` + `Provenance` + `verify()` in all 3 APIs. **EXP-005 (G6):** structural detection **P/R/F1 = 1.00** (n=24). **EXP-005b (G7):** model-independent `verify_semantic()` — **P/R/F1 = 1.00** (n=34), **INTEGRATED** into the composed baseline; residual label-correctness gap (BEYOND_SCOPE miss 1.00) needs a second model. Confidence = NONE (EXP-C1/C2 specified, blocked). | mandatory | `independent_model_agreement` + `optical_sar_agreement` semantic checks (need EXP-002 / EXP-C2, remote box); then EXP-C1 calibration |
 | **F. Agentic routing** | **deterministic router INTEGRATED** in `/analyze` (spec + 8 tests, observable routing info). **G8: failure-aware routing INTEGRATED** — `derive_resolution()` (6 qualifiers, pure fn of `verify()` + `verify_semantic()` + sub status) + single-step `image_difference_fallback`; 10 tests. LLM planner not built. | mandatory | LLM intent-parsing step (EXP-006), schema-validated against the registry — **local**, deferred until the capability stack is frozen |
 

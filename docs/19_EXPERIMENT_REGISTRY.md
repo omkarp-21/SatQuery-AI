@@ -1,9 +1,11 @@
 # SatQuery Experiment Registry
 
-> Status: **Active — binding** · Owner: _TBD_ · Last updated: 2026-09-01
-> No experiment has a **benchmark** result yet. EXP-004 Run 1 is a *synthetic
-> sanity check* (labelled as such); ChangeFormer's IoU 0.83 (n=7) is a
-> *reproduction sanity*, not a benchmark. Results are filled only from real runs
+> Status: **Active — binding** · Owner: _TBD_ · Last updated: 2026-09-02 (G12)
+> Real **integrated, sanity-scale** results now exist for EXP-002 (VQA/grounding,
+> G11), EXP-004 Run 2 (DFC2020 optical+SAR probe, G12) and EXP-008 (LoRA
+> adaptation, G12) — each labelled sanity-scale, none a full benchmark. EXP-004
+> Run 1 is a *synthetic sanity check*; ChangeFormer's IoU 0.83 (n=7) is a
+> *reproduction sanity*. Results are filled only from real runs
 > (see [`18_RESEARCH_TO_ACCURACY.md`](18_RESEARCH_TO_ACCURACY.md)). Do not invent numbers.
 > The canonical set of seven experiments is defined in `chatgpt.context.md` §11.
 
@@ -127,12 +129,14 @@ what we measured, what we decided.
 
 ## EXP-004 — Optical-only vs optical + SAR  ⭐ (G1.5, ADR-005)
 
-- Status: **Run 1 done (synthetic sanity, NOT a benchmark); Run 2 BLOCKED**
-  (`docs/research/EXP-004.md`). Run 1: 3-arm frozen-feature linear probe on real
-  CROMA + DOFA — SAR-only signal recovered by fusion (1.00) vs chance for
-  optical-only (~0.49); machinery + directional H3 only. **Run 2 blocker (G4):** no
-  acquirable real S1+S2 set from this host — DFC `.pt` **11 GB**, So2Sat **7 GB**,
-  EuroSAT-SAR **922 MB** (SAR-only). Needs a better-connected machine.
+- Status: **DONE (G12, 2026-09-02)** (`docs/research/EXP-004.md`). Run 1 =
+  synthetic sanity. **Run 2 = real DFC2020 probe** — `hf_transfer` +
+  non-gated mirror `125oii/dfc2020` pulled the validation split (s1 947 MB +
+  s2 633 MB + dfc 6 MB) in ~2.5 min. 400 train / 200 eval, seed 20260902, CPU,
+  frozen encoder + `LogisticRegression` probe on dominant-land-cover (8 classes).
+  **CROMA joint macro-F1 0.793 vs CROMA optical 0.726 (+0.067, bootstrap 95% CI
+  includes 0 → positive but NOT significant at n=200, McNemar p=0.45).** DOFA
+  concat-fusion −0.018 (no gain). Reports: `evaluation/reports/exp004_run2_*.json`.
 - Hypothesis: H3
 - Question: For suitable queries (built-up / informal-settlement classification),
   does a **joint optical+SAR** representation improve the result vs optical-only?
@@ -152,24 +156,31 @@ what we measured, what we decided.
 - Result: _not measured_.
 - Notes: also produces the adaptation evidence for requirement E — the probe head
   IS a bounded BigEarthNet adaptation (see EXP-008, shares this pipeline).
-- DECISION: _pending_ — KEEP the better of CROMA/DOFA for the SAR path, or, if the
-  SAR delta ≈ 0, INVESTIGATE preprocessing then re-measure (`EXPERIMENT_DECISION_TREE.md`).
+- DECISION (G12): **KEEP CROMA** for the optical–SAR path (won the bake-off on
+  downstream macro-F1, 0.793 vs 0.708; the only arm where SAR helped). DOFA =
+  challenger/fallback. **H3 = INVESTIGATE → lean KEEP** — SAR helps CROMA
+  (+0.067) but not significantly at n=200; a larger eval split is the honest next
+  step before a strong claim.
 
-## EXP-008 — RS adaptation probe on BigEarthNet v2 (requirement E)
+## EXP-008 — RS adaptation probe on DFC2020 (requirement E)
 
-- Status: PLANNED (shares infrastructure with EXP-004)
+- Status: **DONE (G12, 2026-09-02)** (`docs/research/EXP-008.md`). Ran on the
+  EXP-004 Run 2 winner (**CROMA**), the same frozen DFC2020 split (400/200, seed
+  20260902), CPU. 3 arms, one shared torch linear head, 6 epochs each.
 - Hypothesis: n/a — mandatory-capability evidence (PS §Adaptation)
-- Question: Does a bounded adaptation (linear probe → LoRA) of a frozen RS encoder
-  on a BigEarthNet-v2 subset measurably improve multilabel classification, and is a
-  linear/LoRA probe *sufficient* to satisfy the PS adaptation requirement?
-- Models / methods: frozen CROMA (or RemoteCLIP) encoder + (a) linear probe vs
-  (b) LoRA-adapted, same reBEN subset + split as EXP-004.
-- Metric: multilabel micro-F1 / mAP **before → after**, with n, seed, hardware, date.
-- Baseline: frozen encoder + linear probe.
-- Result: _not measured_.
-- Notes: keep it a bounded probe — no full fine-tuning (`.claude/rules/scope.md`).
-  Record exactly which patches.
-- DECISION: _pending_.
+- Question: Does a bounded PEFT adaptation (LoRA) of a frozen RS encoder
+  measurably improve the downstream task vs the frozen encoder, and is it
+  *sufficient* (no full fine-tune)?
+- Method: LoRA r=8 α=16 on CROMA attention Linear layers (42 wrapped, **811 k
+  trainable params = 0.4 % of the backbone; 3.24 MB adapter**) + linear head vs
+  frozen encoder + linear head vs optical-only + linear head.
+- Result: **macro-F1 — optical-only 0.656 · frozen fused 0.643 · LoRA-adapted
+  0.704.** Adapted − frozen = **+0.061** (clears the pre-registered +0.03
+  threshold). Not significance-tested (n_eval 200). Inference cost unchanged.
+- DECISION (G12): **ADOPT LoRA as the E adaptation method** (rule met; no
+  deployment blocker). Production default stays the **frozen** encoder until a
+  larger-split, bootstrapped re-run confirms the gain. Additive opt-in load path,
+  not an architecture change.
 
 ## EXP-005 — Structural verifier detection
 
@@ -244,13 +255,13 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image VLM A/B gate — **RSCoVLM-3B** primary / TinyRS-2B fallback / Qwen2-VL-2B control (local); EarthDial-4B + GeoChat-7B reference (remote) | selection | **BLOCKED** — G5A ran the gate; weights unfetchable (**6 dl attempts**, fresh org same failure); RSVQA-LR/DIOR-RSVG unfetchable; **remote reference gate OPEN (ADR-013)**; harness + frozen samples committed | — |
+| EXP-002 | single-image VLM A/B gate — VQA + grounding | selection | **DONE (G11)** — TinyRS-2B VQA bal-acc 0.87 (PRIMARY) / Qwen2-VL-2B 0.70 (fallback); RemoteSAM grounding acc@IoU0.5 0.84; RSCoVLM-3B does not exist. ADR-020 | KEEP TinyRS-2B + RemoteSAM |
 | EXP-003 | temporal-language — composed baseline vs remote VLMs (a); crop strategy (b) | selection (→H2) | **EXP-003b RUN** (crop strategy: agreement 4/6, `expanded` provisional); EXP-003a BLOCKED (remote) | `EXP-003.md` |
-| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | Run 1 (synthetic sanity) done; **Run 2 BLOCKED** — no acquirable S1+S2 set | — |
+| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **DONE (G12)** — Run 2 real DFC2020 probe: CROMA joint 0.793 vs optical 0.726 macro-F1 (+0.067, n.s. at n=200); DOFA fusion no gain | **KEEP CROMA** (D primary); H3 lean-KEEP |
 | EXP-005 | verifier detection — structural (a) + model-independent semantic (b) | H4 | **RUN** — 005a structural P/R/F1 = 1.00 (n=24); 005b semantic P/R/F1 = 1.00 (n=34), INTEGRATED; label-correctness gap remains | `EXP-005.md` |
 | EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
 | EXP-007 | geospatial safeguard stress test | H5 | **RUN — 15/15 pass** (`EXP-007.md`) | KEEP the gate |
-| EXP-008 | RS adaptation probe (req. E) | n/a | **BLOCKED** on EXP-004 Run 2 | — |
+| EXP-008 | RS adaptation probe (req. E) | n/a | **DONE (G12)** — LoRA on CROMA: macro-F1 0.643 (frozen) → 0.704 (adapted), +0.061; 811 k trainable params | **ADOPT LoRA** as the E method; prod default frozen pending larger split |
 
 Hypothesis coverage: H1→EXP-001, H2→EXP-006 (informed by EXP-003), H3→EXP-004,
 H4→EXP-005, H5→EXP-007. Mandatory-capability coverage without a hypothesis:

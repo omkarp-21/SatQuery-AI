@@ -77,11 +77,13 @@ models:
     memory: "~1.1-1.8 GB RSS (CPU)"
     params: "194.4 M"
     benchmark: "authors: SOTA-class linear-probe on BigEarthNet / DFC2020 (2023) — NOT reproduced by us"
-    our_measured_result: "official example reproduced (joint SAR+optical embeddings, shapes+finite); EXP-004 Run 1 synthetic control: SAR-only signal recovered 1.00 vs optical-only 0.49 — SANITY, not a benchmark"
-    evidence_level: reproduced   # official example; probe machinery validated on synthetic control (EXP-004 Run 1)
-    status: KEEP FOR TOURNAMENT   # primary optical-SAR candidate; adopt pending EXP-004 Run 2
-    fallback: "dofa (the other optical-SAR encoder) - decide in EXP-004 Run 2"
-    note: "Representations only — needs a downstream head. Native joint radar-optical encoder."
+    our_measured_result: "MEASURED (G12, CPU, 2026-09-02). EXP-004 Run 2: frozen joint_GAP -> LogisticRegression probe on DFC2020 dominant-land-cover (400 train / 200 eval, seed 20260902) = macro-F1 0.793 vs optical-only 0.726 (+0.067; bootstrap 95% CI [-0.024,+0.153] includes 0 -> POSITIVE but NOT significant at n=200; McNemar p=0.45); beats DOFA-fused 0.708 on the primary criterion. EXP-008 (adaptation): LoRA r=8 (811k trainable params = 0.4% of the backbone, 3.24 MB adapter) on the same frozen split lifts held-out macro-F1 0.643 -> 0.704 (+0.061, same torch linear head) -> LoRA ADOPTED as the capability-E method. EXP-004 Run 1 synthetic control: SAR-only signal recovered 1.00 vs optical-only 0.49."
+    evidence_level: measured   # EXP-004 Run 2 + EXP-008, real DFC2020, sanity-scale
+    deployment_tier: LOCAL_PREFERRED
+    status: KEEP (optical-SAR PRIMARY + capability-E base, MEASURED) - won the EXP-004 Run 2 bake-off; EXP-008 LoRA adaptation adopted. Production default = FROZEN encoder; flip to LoRA-adapted after a larger-split bootstrapped re-run. Pending a significant SAR-delta.
+    adaptation: "EXP-008 LoRA (r=8, alpha=16) on attention Linear layers; adapter NOT yet persisted (harness has --save-adapter); opt-in --lora-weights load path is a tracked follow-up"
+    fallback: "dofa (challenger; concat-fusion showed no SAR gain at sanity scale)"
+    note: "Representations only — needs a downstream head. Native joint radar-optical cross-encoder; the joint attention is what recovered the SAR signal that DOFA's late concat did not."
 
   dofa:
     adapter: satquery_model_adapters.dofa:DofaAdapter
@@ -101,11 +103,12 @@ models:
     memory: "~1.3 GB RSS (CPU)"
     params: "111.3 M"
     benchmark: "authors: competitive with sensor-specific FMs on GEO-Bench (2024) — NOT reproduced by us"
-    our_measured_result: "forward_features reproduced for S1 (2ch) + S2 (12ch), finite (B,768); EXP-004 Run 1 synthetic: S2+S1 fused recovers SAR signal 1.00 vs optical-only 0.50 — SANITY"
-    evidence_level: reproduced
-    status: KEEP FOR TOURNAMENT   # CROMA challenger; decide in EXP-004 Run 2
+    our_measured_result: "MEASURED (G12, EXP-004 Run 2, CPU, 2026-09-02): frozen S2 (+) S1 concat -> linear probe on DFC2020 dominant-land-cover (same split) = macro-F1 0.708 vs DOFA-optical 0.725 (-0.018; NOT significant). Late concat-fusion did NOT recover a SAR benefit here. Lost the bake-off to CROMA (0.793). EXP-004 Run 1 synthetic: S2+S1 fused recovers SAR signal 1.00 vs optical-only 0.50."
+    evidence_level: measured
+    deployment_tier: LOCAL_FALLBACK
+    status: CHALLENGER / FALLBACK (MEASURED) - lighter + faster than CROMA (1.20 vs 1.47 GB RSS, 0.26 vs 0.38 s/patch) but concat-fusion showed no downstream SAR gain; CROMA is the optical-SAR primary.
     fallback: "croma"
-    note: "One wavelength-conditioned encoder for any sensor; fusion is a downstream choice."
+    note: "One wavelength-conditioned encoder for any sensor; fusion is a downstream choice — and at sanity scale the downstream concat choice did not beat optical-only."
 
   tinyrs:
     adapter: satquery_model_adapters.tinyrs:TinyRsAdapter
@@ -181,7 +184,7 @@ routing:
   # Called by POST /analyze (G4).
   bitemporal_change_mask: [changeformer]
   single_image_scene_or_retrieval: [remoteclip]
-  optical_sar_representation: [croma, dofa]   # bake-off BLOCKED (EXP-004 Run 2 - no dataset)
+  optical_sar_representation: [croma, dofa]   # G12: CROMA won EXP-004 Run 2 (macro-F1 0.793 vs 0.708); DOFA = fallback
   single_image_vqa: [tinyrs]   # TinyRS-2B VQA specialist (REPRODUCED + MEASURED: bal acc 0.87 on RSVQA-LR n=40). Qwen2-VL-2B = fallback/control (bal acc 0.70). EXP-002.md
   single_image_grounding: [remotesam]   # RemoteSAM grounding specialist (REPRODUCED; not benchmarked). See LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md + EXP-GROUNDING.md
   bitemporal_semantic_change:      # composed baseline only (NOT learned / NOT validated)

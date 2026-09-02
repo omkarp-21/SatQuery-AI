@@ -8,9 +8,12 @@
       -> deterministic structural verification
       -> JointReprResult
 
-**Representation-level capability only.** This does NOT satisfy the mandatory
-optical-SAR *reasoning* requirement - that needs a task-level benefit measured in
-EXP-004 Run 2. No `/fusion` endpoint until that contract is proven useful.
+**Representation-level integration.** EXP-004 Run 2 (G12) measured the task-level
+benefit on real DFC2020: frozen CROMA `joint_GAP` -> linear probe = macro-F1
+0.793 vs optical-only 0.726 (+0.067) - **positive but not significant at n=200**
+(bootstrap CI includes 0). CROMA is the optical-SAR primary (beat DOFA 0.708).
+Still **no `/fusion` endpoint**: the SAR benefit is real but under-powered, so a
+production fusion task waits for a larger eval split to confirm significance.
 """
 
 from __future__ import annotations

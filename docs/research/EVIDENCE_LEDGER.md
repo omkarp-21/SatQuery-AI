@@ -4,7 +4,7 @@
 > reached, with the artifact that proves it. Never promote a row without a real
 > run. Levels: `PAPER-REPORTED < DOCUMENTED < REPRODUCED < MEASURED < INTEGRATED
 > < VALIDATED`.
-> Updated: **2026-09-02 (G11)**.
+> Updated: **2026-09-02 (G12)**.
 
 ## Level definitions
 
@@ -26,11 +26,14 @@
 | **ChangeFormer** | bi-temporal change mask | **INTEGRATED** | `ChangeFormerAdapter` + `/change` API + `temporal_slice.run_change_slice`; e2e tests pass | provenance: checkpoint sha256, input digest, bridge |
 | ChangeFormer | change-mask accuracy | **MEASURED** | change-IoU 0.832 / F1 0.908, 7 bundled LEVIR-CD samples, CPU, 2026-09-01 | n=7 — **sanity, not a benchmark** |
 | ChangeFormer | LEVIR-CD test accuracy | PAPER-REPORTED | checkpoint `log.txt`: overall acc 0.9495 | authors' number |
-| **CROMA** | joint radar-optical embedding | **REPRODUCED** | `use_croma.py` official example; `CromaAdapter` smoke (random) → dim 768 | |
-| CROMA | SAR-signal recovery vs optical-only | **MEASURED (sanity)** | EXP-004 Run 1: bal-acc 1.00 (SAR-only) vs 0.49 optical-only, synthetic control, N=240/160, seed 20260901 | **NOT a benchmark** — synthetic injected signal |
+| **CROMA** | joint radar-optical embedding (capability D **PRIMARY**) | **REPRODUCED + INTEGRATED** | `use_croma.py` official example; `CromaAdapter` smoke → dim 768; `run_joint_representation(model=croma)` in `/analyze` `MULTIMODAL_REPR` path | representation-level; MIT (code + weights) |
+| **CROMA** | optical+SAR downstream benefit (H3) | **MEASURED** | EXP-004 Run 2 (G12): frozen `joint_GAP` → linear probe on DFC2020 dominant-land-cover, 400 train / 200 eval, seed 20260902, CPU → **macro-F1 0.793 vs optical-only 0.726 (+0.067)**; bootstrap 95% CI [−0.024,+0.153] **includes 0**, McNemar p=0.45 | **positive but NOT significant at n=200**; sanity-scale (600/986); `exp004_run2_*.json` |
+| **CROMA** | RS adaptation — LoRA vs frozen (capability E) | **MEASURED** | EXP-008 (G12): LoRA r=8 (811 k trainable params, 3.24 MB adapter) on the frozen DFC2020 split → held-out macro-F1 **0.643 → 0.704 (+0.061)** vs same-head frozen baseline; clears the pre-registered +0.03 bar → **ADOPT LoRA** as the E method | sanity-scale (400/200); **not significance-tested**; prod default stays frozen pending a larger-split re-run; CPU (no VRAM) |
+| CROMA | SAR-signal recovery vs optical-only | MEASURED (sanity) | EXP-004 Run 1: bal-acc 1.00 (SAR-only) vs 0.49 optical-only, synthetic control | **NOT a benchmark** — synthetic injected signal |
 | CROMA | linear-probe accuracy on DFC2020 / BigEarthNet | PAPER-REPORTED | CROMA paper (NeurIPS 2023) | not reproduced by us |
-| **DOFA** | multi-sensor (S1/S2) embedding | **REPRODUCED** | `forward_features` for S1 + S2; `DofaAdapter` smoke (random) → dim 768 | |
-| DOFA | fused SAR-signal recovery | **MEASURED (sanity)** | EXP-004 Run 1: bal-acc 1.00 (S2⊕S1) vs 0.50 optical-only | same synthetic control |
+| **DOFA** | multi-sensor (S1/S2) embedding (capability D **CHALLENGER/FALLBACK**) | **REPRODUCED + INTEGRATED** | `forward_features` for S1 + S2; `DofaAdapter` smoke → dim 768; available in `/analyze` `MULTIMODAL_REPR` | MIT (code + weights) |
+| **DOFA** | optical+SAR downstream benefit (H3) | **MEASURED** | EXP-004 Run 2 (G12): frozen S2⊕S1 concat → linear probe, same split → **macro-F1 0.708 vs DOFA-optical 0.725 (−0.018)** | late concat-fusion gave **no** SAR gain; lost the bake-off to CROMA (0.793) |
+| DOFA | fused SAR-signal recovery | MEASURED (sanity) | EXP-004 Run 1: bal-acc 1.00 (S2⊕S1) vs 0.50 optical-only | same synthetic control |
 | DOFA | GEO-Bench results | PAPER-REPORTED | DOFA paper | not reproduced by us |
 | RSCoVLM | RS multi-task VLM | **DOCUMENTED / no artifact** | `Qingyun/rscovlm` — **only 7B released** (`RSCoVLM-7B-2512`); NO 3B checkpoint (paper claim only) | REMOTE-ONLY (7B). "RSCoVLM-3B" is void — same as RS-MoE-1B. |
 | **TinyRS-2B** | single-image RS **VQA** (PRODUCTION PRIMARY, capability A) | **REPRODUCED + MEASURED + INTEGRATED** (G11) | `.venvs/tinyrs` CPU, 2026-09-02: **balanced acc 0.8736** on 40 RSVQA-LR yes/no (`dmarsili/RSVQA-LR-2k` mirror), fail_rate 0.0, p50 4.45 s, RSS peak 9.1 GB. `TinyRsAdapter` + `run_vqa` + router `SINGLE_IMAGE_VQA` + `/analyze` VQA path + `vqa` `EvidenceItem`. `exp002_vqa_rsvqa.py`. PAPER: authors ≈ 83.5 %. |
@@ -55,7 +58,7 @@
 | Temporal vertical slice (`run_change_slice`) | **INTEGRATED** | e2e tests; `POST /change`; now emits evidence + verification |
 | `POST /change` API | **INTEGRATED** | `test_change_api.py` — 200 + structured JSON incl. evidence/verification; guards |
 | `POST /scene` API | **INTEGRATED** (G3) | `test_scene_api.py` — RemoteCLIP ranking + evidence + verification; NOT a VQA endpoint |
-| Multimodal joint-repr contract (`run_joint_representation`) | **INTEGRATED** (internal, G3) | `test_multimodal_slice.py`; representation-level only |
+| Multimodal joint-repr contract (`run_joint_representation`) | **INTEGRATED + task-MEASURED** (G3; EXP-004 Run 2 G12) | `test_multimodal_slice.py`; `MULTIMODAL_REPR` route; **EXP-004 Run 2**: frozen CROMA `joint_GAP` → DFC2020 land-cover probe macro-F1 0.793 vs optical 0.726 (+0.067, not sig. at n=200). No `/fusion` endpoint yet. |
 | SpecialistAdapter interface | **INTEGRATED** | 4 adapters implement `validate/execute/normalize_output/provenance` + `run()`; `AdapterResult` carries status/timing/model_meta |
 | `EvidenceItem` + `Provenance` (`packages/evidence`) | **INTEGRATED** (G3) | 9 tests; wired into `/change`, `/scene`, multimodal |
 | Deterministic verifier (`verify()`) — structural | **VALIDATED (structural)** (G6) | **EXP-005**: structural-defect detection **P/R/F1 = 1.00** on a curated n=24 corpus (TP 8/FP 0/TN 12/FN 0); `evaluation/scripts/exp005_verifier_detection.py` + 3 lock tests. Structural only. |

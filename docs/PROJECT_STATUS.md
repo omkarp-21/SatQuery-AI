@@ -2,8 +2,8 @@
 
 > Living status file (see `chatgpt.context.md` §24). Update every significant
 > session. No fabricated numbers — "not measured" is the honest value until a real
-> run exists. Last updated: **2026-09-02 (G11)**. Tests: **141 fast pass**; full
-> suite (incl. slow model e2e) green.
+> run exists. Last updated: **2026-09-02 (G12)**. Tests: **141 fast pass**; slow
+> VQA/grounding e2e green (G11). **MODEL STACK FROZEN (ADR-021).**
 
 ---
 
@@ -40,6 +40,7 @@
 | **G4 · confidence plan** | `docs/research/CONFIDENCE_PLAN.md` — candidate sources + required experiments (EXP-005, EXP-C1, EXP-C2). **No confidence number emitted anywhere.** |
 | **G4 · EXP-002 / EXP-004 Run 2 / EXP-008** | **BLOCKED — artifact/dataset acquisition fails from this host** (TinyRS 4 attempts <1 MB/s; DFC 11 GB / So2Sat 7 GB / EuroSAT-SAR 922 MB all too large). **Remote GPU now justified on infrastructure grounds.** |
 | **G4 · tests** | **92 passed, 0 failed** (baseline 59). No regressions. |
+| **G12 — D + E closed on real DFC2020; MODEL STACK FROZEN (ADR-021)** | Same `hf_transfer` + non-gated mirror recipe cleared the S1+S2 dataset wall that blocked EXP-004 Run 2 for 4 gates. `125oii/dfc2020` → DFC2020 `ROIs0000_validation` (S1 947 MB + S2 633 MB + labels) in ~2.5 min. **No synthetic substitution.** Frozen split `evaluation/datasets/dfc2020_exp004_split.json` (400 train / 200 eval, seed 20260902), task = dominant DFC land-cover (8 classes). **EXP-004 Run 2 (D):** frozen encoder → LogisticRegression probe + 2000× bootstrap + McNemar. **CROMA joint macro-F1 0.793 vs CROMA optical 0.726 (+0.067; 95% CI [−0.024,+0.153] includes 0 → positive, NOT significant at n=200; McNemar p=0.45).** DOFA concat-fusion −0.018 (no gain). **KEEP CROMA** (optical-SAR PRIMARY; won 0.793 vs DOFA 0.708); DOFA = fallback. H3 = lean-KEEP. **EXP-008 (E):** LoRA r=8 (811k trainable params = 0.4% of CROMA, 3.24 MB adapter) on the same split → held-out macro-F1 0.643 (frozen) → 0.704 (adapted), **+0.061 ≥ +0.03 threshold → ADOPT LoRA** as the E method (prod default stays frozen pending a larger-split bootstrap; adapter not yet persisted). CPU throughout — no VRAM figure. New `exp004_run2_{extract,features,probe}.py` + `exp008_adapt.py`. Registry: croma/dofa `evidence_level: measured`. **FREEZE GATE: A✅ B✅ D✅ E✅ + routing/geo/evidence pass + no arch blocker → MODEL STACK FROZEN.** 141 fast tests green. ADR-021. |
 | **G11 — A + B both MEASURED + INTEGRATED; download wall cleared** | `HF_HUB_ENABLE_HF_TRANSFER=1` pulled TinyRS-2B / Qwen2-VL-2B / RemoteSAM weights (all previously failed 7×); non-gated HF mirrors found for DIOR-RSVG (`pzhang1990`) + RSVQA-LR (`dmarsili`). **A (VQA):** TinyRS-2B = **balanced acc 0.8736** on 40 RSVQA-LR yes/no (CPU, p50 4.45 s) → PRODUCTION PRIMARY; Qwen2-VL-2B control 0.7033 → FALLBACK. `TinyRsAdapter` + `run_vqa` + router `SINGLE_IMAGE_VQA` + `/analyze` VQA path + `vqa` `EvidenceItem`. **RSCoVLM-3B confirmed non-existent** (only 7B). **B (grounding):** RemoteSAM = **acc@IoU0.5 = 0.84 (21/25)** on frozen DIOR-RSVG (CPU, p50 29 s, 0 no_box). Registry: tinyrs + remotesam `evidence_level: measured`. **RemoteSAM licence: NOT STATED** (`REMOTESAM_LICENSE.md`, verified). GPU/4 GB-VRAM unverified for both (CPU host). **Track F (resolution):** on 10 in-domain DIOR cases downscaled to 256 px, native-256 grounding = acc@IoU0.5 **0.90 / 0 no_box**; 2× pre-upscale did not help (0.90), padded canvas hurt (0.70) → **production preprocessing unchanged**; the G10 LEVIR `no_box` reclassified as a **domain** limit, not resolution (`REMOTE_SAM_RESOLUTION.md`). +15 tests. **Two-specialist A/B design is real + measured.** ADR-020. |
 | **G10 — RemoteSAM grounding specialist REPRODUCED + INTEGRATED** | Capability **B: DOCUMENTED → REPRODUCED + INTEGRATED** (not MEASURED). RemoteSAM (`1e12Leon/RemoteSAM`, ~200 M Swin-B+BERT, ACM MM 2025) runs locally on **CPU** via `.venvs/remotesam` (`mmcv` **lite** 1.7.1 — the grounding path needs no compiled mmcv/mmdet/mmseg). Checkpoint `RemoteSAMv1.pth` 2.57 GB downloaded. Smoke: **3/5** phrases → in-bounds box+mask, prob ≈ 0.97–1.0; 2 `no_box` (1 OOD 256 px tile). Peak RSS ~8 GB, ~16–22 s/query steady-state. `RemoteSamAdapter` + `grounding_slice.run_grounding` + router `SINGLE_IMAGE_GROUNDING → [remotesam]` + `/analyze` grounding intent + grounding `EvidenceItem` + structural `verify()` (box-valid, mask-artifact). **VQA still `NO_VQA_SPECIALIST`** (RemoteSAM never routed for VQA). **Licence: NOT STATED** upstream — recorded verbatim. **DIOR-RSVG acc@IoU0.5 NOT measured** (Google-Drive-only dataset). GPU/4 GB-VRAM **unverified** → classified `CPU-FALLBACK`. +25 tests → **131/131**. Docs: `EXP-GROUNDING.md`, `GROUNDING_PIPELINE.md`. ADR-019. |
 | **Local Lightweight Model Tournament** | `docs/research/LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`. Inspected 3 new candidates from official GitHub/HF (no capability inferred from titles). **RemoteSAM** (`1e12Leon/RemoteSAM`, ~200 M Swin-B+BERT referring-seg + visual-grounding, mask+box, ACM MM 2025) → **TEST FURTHER, lead capability-B candidate** — a dedicated grounding *specialist*, not a VLM side-task; `LOCAL-FITS-4GB`, repro BLOCKED on `mmcv-full==1.7.1` env + unstated licence. **RS-MoE** (`CongcongWen1208/RS-MoE`) → **REJECT** — training-only, "MoE not yet implemented", base Vicuna-13B, "RS-MoE-1B" is a paper claim. **DynamicVis** (`KyanChen/DynamicVis`) → **REJECT for product** — Mamba SSM is Windows + CPU incompatible (breaks the 4 GB ASUS + CPU-fallback target); encoder-only, no A/B. **Product confirmed to have NO mandatory 7B/16 GB dependency** — EarthDial/GeoChat/GeoGround stay research-only. `model_registry.yaml` excluded block + `MODEL_TOURNAMENT.md` + `CAPABILITY_GAP_MATRIX.md` (B row) + `model_inventory.md` + `EVIDENCE_LEDGER.md` updated. No code, no new deps, no repos cloned. ADR-018. |
@@ -83,19 +84,21 @@ A/D/E.**
 | **GeoChat un-runnable on the dev host** — 7B merged model > 4 GB VRAM (RTX 3050 Ti); `deepspeed==0.9.5` fails to build on Windows; `bitsandbytes==0.41.0` Linux-only | **Not a project blocker** (ADR-012) — GeoChat is now the *secondary / historical* reference. The A/B path is local: RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B. GeoChat + EarthDial are reproduced on a remote box as references only. | provision a Linux GPU ≥16 GB (cloud) *after* the local EXP-002 arms are measured, then reproduce `geochat_demo.py` / `batch_geochat_*` + EarthDial |
 | **Change-Agent un-runnable** — `mmcv==1.3.1` unbuildable (no wheels; ancient setup.py; needs CUDA toolkit + MSVC); internal `transformers` 4.33 vs ≥4.34 conflict | Temporal bake-off (EXP-003) can't include Change-Agent yet | Linux + conda + `mmcv` source build, or port to modern mmcv/mmseg |
 | **ChangeChat has no released weights** + no `requirements.txt` at pinned commit | Nothing to run — **REJECT for now** | revisit only on a weights + dependency release |
-| **No GPU-backed research env** (Windows 11, 4 GB laptop GPU, no conda/Docker/WSL) | CUDA-only stacks and 7B models can't run locally; CPU-only for the two that work | decide GPU path: cloud Linux box vs local WSL2+Docker+NVIDIA toolkit |
+| **No GPU-backed research env** (Windows 11, 4 GB laptop GPU, no conda/Docker/WSL) | **No longer a capability blocker** — A/B (G11) + D/E (G12) all closed on CPU via `hf_transfer` + non-gated mirrors. GPU now only needed to (a) verify 4 GB-VRAM fit for TinyRS / RemoteSAM / CROMA, (b) reproduce the 7B *reference* models (EarthDial, GeoChat) — neither on the critical path. | a short cloud GPU session for the VRAM check + reference repro |
 
 ---
 
 ## MISSING (required, not yet built)
 
-- Reproduced model **benchmarks** (number #2) — none on a real benchmark. (Two
-  smoke-level reproductions exist from G1: RemoteCLIP official example correct;
-  ChangeFormer IoU 0.83 on 7 bundled samples. Not benchmarks.)
-- Baseline metrics and full SatQuery metrics (number #3) — none.
-- Fine-tuning / adaptation proof (BigEarthNet requirement, PS §Adaptation) — not scoped.
-- Real evaluation harness — `evaluation/scripts/run_suite.py` is a stub; no metrics, no cases.
-- Datasets — none downloaded (RSVQA, VRSBench, CDVQA, LEVIR-MCI, BigEarthNet).
+- **Full benchmarks** (larger n, significance) — every real result so far is
+  *sanity-scale* (VQA n=40, grounding n=25, optical-SAR n=200, adaptation n=200).
+  Larger-split re-runs with bootstrapped deltas are the top post-freeze action.
+- ~~Fine-tuning / adaptation proof~~ — **DONE (EXP-008, G12):** LoRA on frozen
+  CROMA, +0.061 macro-F1, on real DFC2020. Sanity-scale; not significance-tested.
+- Real evaluation harness — `evaluation/scripts/run_suite.py` is a stub; per-EXP
+  harnesses exist (`exp002_*`, `exp004_run2_*`, `exp008_*`, `exp_grounding_*`).
+- Datasets — RSVQA-LR, DIOR-RSVG, DFC2020 acquired (G11/G12, `models/cache/`,
+  gitignored). Still not local: VRSBench, CDVQA, LEVIR-MCI, full BigEarthNet.
 - End-to-end prototype (V0) — not started.
 - API — only `/health`; no `/query`.
 - Frontend — directory skeleton only.
@@ -140,13 +143,16 @@ A/D/E.**
 
 ## METRICS
 
-No **benchmark** numbers yet; all `docs/19` experiments are `PLANNED`. The only
-real measurements are two G1 runtime smoke checks (tiny n — sanity, not benchmark).
-Do not add anything that is not a real run, tagged and labelled paper /
-reproduction / SatQuery.
+No **full benchmark** numbers. Real **integrated, sanity-scale** results now exist
+for A (VQA), B (grounding), D (optical–SAR), E (adaptation) — all labelled
+sanity-scale, none a full benchmark. Do not add anything that is not a real run,
+tagged and labelled paper / reproduction / SatQuery.
 
 | Metric | Value | Dataset | Split | Date | Number type | Notes |
 |--------|-------|---------|-------|------|-------------|-------|
+| **EXP-004 Run 2 — CROMA optical+SAR vs optical-only** | joint macro-F1 **0.793** vs optical-only **0.726** (+0.067; 95% CI [−0.024,+0.153] **includes 0**; McNemar p=0.45) | **real DFC2020** `ROIs0000_validation` (`125oii/dfc2020` mirror), dominant-land-cover 8-class | 400 train / 200 eval, seed 20260902 | 2026-09-02 | **integrated (SatQuery, sanity-scale)** | CPU; frozen CROMA `joint_GAP` → LogisticRegression probe; SAR help **positive, not significant at n=200**; DOFA concat-fusion −0.018 (no gain) → **KEEP CROMA** |
+| **EXP-008 — LoRA adaptation of frozen CROMA** | macro-F1 **0.643 (frozen) → 0.704 (adapted), +0.061** | same DFC2020 split | 400 / 200, seed 20260902 | 2026-09-02 | **integrated (SatQuery, sanity-scale)** | CPU; LoRA r=8, 811k trainable params (0.4% of backbone), 3.24 MB adapter; clears +0.03 adopt bar → **ADOPT LoRA** as the E method; not significance-tested |
+| ChangeFormer / RemoteCLIP / CROMA / DOFA rows below | — | — | — | 2026-09-01 | — | — |
 | ChangeFormerV6 change-IoU | 0.832 | LEVIR-CD bundled `samples_LEVIR` | 7 labelled samples (demo) | 2026-09-01 | **reproduction** | CPU, `.venvs/changeformer` torch 2.5.1; n=7 — sanity check only |
 | ChangeFormerV6 change-F1 | 0.908 | LEVIR-CD bundled `samples_LEVIR` | 7 labelled samples (demo) | 2026-09-01 | **reproduction** | same run |
 | ChangeFormerV6 overall acc (LEVIR-CD test) | 0.9495 | LEVIR-CD | test | (upstream) | **paper / author** | from checkpoint `log.txt` — not ours |
@@ -156,7 +162,7 @@ reproduction / SatQuery.
 | **Temporal slice / `POST /change` e2e (demo pair)** | changed_fraction **0.2526**, area 4138 m² / 0.414 ha, change bbox + centroid | LEVIR sample `test_2_0000_0000` wrapped as EPSG:32650 GeoTIFF pair | n=1 pair | 2026-09-01 | **integrated (SatQuery API path)** | matches G1 `demo_LEVIR.py` (25.3%); via `/change` → `run_change_slice` → `ChangeFormerAdapter`; **not a benchmark** |
 | RemoteCLIP adapter smoke (via `run()`) | top = "an airport", score 0.989 | `assets/airport.jpg`, 3 prompts | n=1 | 2026-09-01 | **reproduction (integrated path)** | score = softmax over given prompts, not calibrated |
 | CROMA / DOFA adapter smoke | dim-768 embeddings, finite | random tensors | n/a | 2026-09-01 | **reproduction (integrated path)** | representations only; no task metric |
-| **EXP-004 sanity: SAR-only signal recovery** | optical-only 0.485/0.502 (chance) · CROMA-joint 1.00 · DOFA-fused 1.00 | **synthetic** paired S1/S2, controlled injected signal | train 240 / test 160, seed 20260901 | 2026-09-01 | **sanity check — NOT a benchmark** | validates the 3-arm probe machinery + directional H3; real DFC2020/reBEN run pending |
+| EXP-004 **Run 1** sanity: SAR-only signal recovery | optical-only 0.485/0.502 (chance) · CROMA-joint 1.00 · DOFA-fused 1.00 | **synthetic** paired S1/S2, controlled injected signal | train 240 / test 160, seed 20260901 | 2026-09-01 | **sanity check — NOT a benchmark** | validated the 3-arm probe machinery; **superseded by Run 2 above (real DFC2020)** |
 | CROMA-base reproduced | official example OK (joint SAR+optical embeddings, shapes correct, finite) | random S1/S2 tensors | n/a | 2026-09-01 | **reproduction** | CPU `.venvs/croma`; 194 M params; NOT measured on a task |
 | CROMA-base latency | ~340 ms/sample (joint forward) | — | — | 2026-09-01 | measured (host) | CPU, batch 8 |
 | DOFA ViT-B reproduced | `forward_features` OK for S1 (2ch) + S2 (12ch), finite (B,768) | random tensors | n/a | 2026-09-01 | **reproduction** | CPU `.venvs/dofa`; 111 M params; NOT measured on a task |
@@ -183,31 +189,30 @@ reproduction / SatQuery.
 
 ## NEXT 3 ACTIONS (highest leverage only)
 
-1. **EXP-004 Run 2 + EXP-008 (D + E) — the last two unmeasured mandatory
-   capabilities.** `hf_transfer` + non-gated mirrors cleared the wall for A/B;
-   apply the same to the S1+S2 datasets: search HF for a non-gated DFC2020 /
-   So2Sat / reBEN mirror, fetch a bounded subset, run the committed 3-arm probe
-   (optical-only / CROMA-joint / DOFA-fused) → CROMA-vs-DOFA decision → frozen
-   encoder + linear probe → LoRA (EXP-008). Then the **model stack can freeze**.
-2. **Scale + GPU-verify A/B.** Grow the RSVQA-LR and DIOR-RSVG samples past
-   sanity scale (n=40/25 → a few hundred); on a CUDA build, measure TinyRS-2B
-   4-bit and RemoteSAM peak **VRAM** to confirm `LOCAL-FITS-4GB`. Get a **licence**
-   statement from the RemoteSAM authors.
-3. **EXP-006 — agentic `/analyze` planning** (after the capability set is closed):
-   add the LLM intent→typed-task step, schema-validated against the registry, on
-   top of the deterministic router. `/analyze` hardening (composed-semantic
-   failure corpus, `MULTIMODAL_REPR` real `.npy` path, OpenAPI examples) rides
-   along.
+**Model stack is FROZEN (ADR-021).** These are post-freeze — confirmation +
+additive layers, none changes which models are in the stack.
 
-~~EXP-005 verifier~~ — **done**: structural P/R/F1 = 1.00 (G6, n=24); model-independent
-semantic verifier P/R/F1 = 1.00 (G7/EXP-005b, n=34), INTEGRATED into the composed
-baseline. Residual label-correctness gap → EXP-002 + EXP-C2. `FAILURE_AWARE_ROUTING.md`
-design is ready; implementation queued **after the model freeze**. EXP-C1/C2 specified,
-blocked on the A/B model.
+1. **Larger-split D + E re-run + significance.** Re-run EXP-004 Run 2 and EXP-008
+   on the full 986-patch DFC2020 validation (and/or the 5128-patch test ROIs)
+   with **bootstrapped before→after deltas**, so the SAR benefit (D) and the LoRA
+   gain (E) get a significance verdict instead of "positive at n=200". Persist the
+   LoRA adapter (`--save-adapter`) and add the opt-in `--lora-weights` load path
+   to `CromaAdapter`; flip the production default frozen→adapted only if it holds.
+2. **GPU / 4 GB-VRAM verification.** On any CUDA machine, measure peak **VRAM**
+   for TinyRS-2B (4-bit), RemoteSAM, and CROMA to confirm `LOCAL-FITS-4GB`
+   (all CPU-only so far — no VRAM figure exists). Also chase the **RemoteSAM
+   licence** (still NOT STATED — `REMOTESAM_LICENSE.md`).
+3. **EXP-006 — agentic `/analyze` planning + EXP-C1/C2 confidence.** Add the LLM
+   intent→typed-task step (schema-validated against the registry) on top of the
+   deterministic router; then EXP-C1/C2 (a defined confidence method) now that
+   the A/B models exist. `/analyze` hardening (composed-semantic failure corpus,
+   `MULTIMODAL_REPR` real `.npy` path, OpenAPI examples) rides along.
 
-Remote GPU: **the one blocking action for capability closure.** 4/8 G6 exit
-criteria are met locally; A/B/D/E are blocked solely on provisioning
-(`G6_CAPABILITY_CLOSURE.md`, `docs/deployment/REMOTE_GPU_SETUP.md`).
+~~EXP-005 verifier~~ — done (structural + semantic P/R/F1 = 1.00). ~~Remote GPU~~ —
+no longer a blocker: `hf_transfer` + non-gated HF mirrors closed A/B (G11) and
+D/E (G12) on the local CPU box. GPU is now only needed for the VRAM verification
+in action 2 and the high-capability *reference* reproductions (EarthDial/GeoChat),
+which are not on the critical path.
 
 ---
 
@@ -215,31 +220,35 @@ criteria are met locally; A/B/D/E are blocked solely on provisioning
 
 | Dimension | Score | Δ (since G1) | Why |
 |-----------|:----:|:--:|-----|
-| Problem fit | 5 | +1 | one unified `/analyze` entrypoint maps queries → the A–H capabilities honestly |
-| Novelty | 2 | — | contribution areas named; none measured on a benchmark |
-| Technical depth | 8 | — | `/analyze` unified layer + composed semantic baseline + EXP-007; 92 tests |
-| Prototype completeness | 7 | +1 | `/analyze` routes 5 specialist paths (scene / **grounding** / change / semantic-change / joint-repr) + failure-aware resolution; no agent/UI |
-| Accuracy | 4 | +3 | **G11 first real task numbers:** VQA balanced acc 0.87 (TinyRS, RSVQA-LR n=40); grounding acc@IoU0.5 0.84 (RemoteSAM, DIOR-RSVG n=25); change IoU 0.83 (n=7). All sanity-scale, honestly labelled. |
-| Multimodal (optical–SAR) reasoning | 3 | — | joint-representation contract; **EXP-004 Run 2 pending** (S1+S2 dataset is the next hf_transfer/mirror target) |
-| Capability A (VQA) | 6 | +5 | **TinyRS-2B MEASURED (bal acc 0.87) + INTEGRATED (G11)** — `/analyze` `SINGLE_IMAGE_VQA`; Qwen2-VL-2B fallback; n=40 sanity-scale, GPU unverified |
-| Temporal reasoning | 6 | +1 | mask integrated + **composed semantic-change baseline** (isolated, disclaimed); learned semantic still NONE |
-| Geospatial integrity | 6 | +1 | **EXP-007: 15/15 safeguard cases pass**; live in all 3 endpoints |
-| Evidence / verification | 7 | +1 | `verify()` in all 3 APIs; **EXP-005 structural P/R/F1 = 1.00 (n=24)**; **EXP-005b (G7): model-independent semantic verifier P/R/F1 = 1.00 (n=34), INTEGRATED into the composed baseline**; residual label-correctness gap needs EXP-002/EXP-C2; confidence NONE (EXP-C1/C2 specified) |
+| Problem fit | 6 | +2 | one unified `/analyze` entrypoint maps queries → the A–H capabilities; **every mandatory capability now has a real integrated measurement** |
+| Novelty | 3 | +1 | optical+SAR (CROMA joint) measurably beats optical-only on real DFC2020 (+0.067 macro-F1, not yet significant); LoRA adaptation adopted — first measured deltas, not benchmark-strength |
+| Technical depth | 8 | — | `/analyze` unified layer + composed semantic baseline + EXP-007 + real DFC2020 probe/adaptation harness; 141 tests |
+| Prototype completeness | 8 | +1 | `/analyze` routes 6 specialist paths (scene / grounding / VQA / change / semantic-change / joint-repr) + failure-aware resolution; **model stack frozen**; no agent/UI |
+| Accuracy | 5 | +1 | **G12 adds D + E:** optical+SAR macro-F1 0.793 (DFC2020 n=200); LoRA adaptation +0.061. Plus G11 VQA 0.87 / grounding 0.84 / change 0.83. **All sanity-scale, honestly labelled; none significance-tested.** |
+| Multimodal (optical–SAR) reasoning | 5 | +2 | **EXP-004 Run 2 MEASURED on real DFC2020** — CROMA joint 0.793 vs optical 0.726 (+0.067, CI includes 0). CROMA = PRIMARY, DOFA = fallback. No `/fusion` endpoint yet (delta not significant). |
+| Capability A (VQA) | 6 | — | TinyRS-2B MEASURED (bal acc 0.87) + INTEGRATED (G11); n=40 sanity-scale, GPU unverified |
+| Capability D (optical–SAR) | 6 | new | **CROMA MEASURED (macro-F1 0.793 vs 0.726) + INTEGRATED (G12)** — won the CROMA-vs-DOFA bake-off; n=200 sanity-scale, SAR delta not significant, GPU-VRAM unverified |
+| Capability E (RS adaptation) | 6 | new | **EXP-008 MEASURED (G12)** — LoRA on frozen CROMA +0.061 macro-F1, 811k params; ADOPTED as the method; prod default still frozen pending a larger-split bootstrap; adapter not yet persisted |
+| Temporal reasoning | 6 | — | mask integrated + composed semantic-change baseline (disclaimed); learned semantic still NONE |
+| Geospatial integrity | 7 | +1 | EXP-007 15/15; + 986 real DFC2020 GeoTIFFs read with 0 failures in EXP-004 |
+| Evidence / verification | 7 | — | `verify()` + `verify_semantic()` P/R/F1 = 1.00 (n=24 / n=34), INTEGRATED; confidence NONE (EXP-C1/C2 specified) |
 | UI / UX | 1 | — | skeleton + design skill |
-| Benchmark readiness | 2 | — | harnesses ready; **real datasets unacquirable from this host** (needs a better-connected machine) |
-| Feasibility | 7 | -1 | system is solid, but EXP-002/004/008 now need a remote box — local-only path is exhausted for those |
+| Benchmark readiness | 4 | +2 | real datasets now acquired (RSVQA-LR, DIOR-RSVG, DFC2020) via `hf_transfer` + non-gated mirrors; harnesses run end-to-end; **need larger splits + significance** |
+| Feasibility | 8 | +1 | **the local CPU box closed A/B/D/E** — the "needs a remote box" premise is retired; GPU now only for VRAM verification + reference models |
 | Impact | 4 | — | clear institutional relevance |
-| PPT quality | 4 | +1 | one unified endpoint + a demonstrable analysis story; still no measured numbers |
-| Demo quality | 4 | +1 | `POST /analyze` runs a real query → routed specialist → structured evidence; **grounding demo works end-to-end** (text → box + mask on the map, CPU) |
-| Capability B (grounding) | 7 | +2 | **RemoteSAM MEASURED (acc@IoU0.5 0.84, DIOR-RSVG n=25) + INTEGRATED (G10→G11)** — dedicated local grounding specialist; n=25 sanity-scale, licence NOT STATED, GPU-VRAM unverified |
+| PPT quality | 5 | +1 | one unified endpoint + real (sanity-scale) numbers for every mandatory capability + a frozen stack story |
+| Demo quality | 4 | — | `POST /analyze` runs a real query → routed specialist → structured evidence; grounding + VQA demos work end-to-end (CPU) |
+| Capability B (grounding) | 7 | — | RemoteSAM MEASURED (acc@IoU0.5 0.84) + INTEGRATED; n=25 sanity-scale, licence NOT STATED, GPU-VRAM unverified |
 
-**Read:** **G4 unified the system.** One deterministic `POST /analyze` entrypoint
-(interpret → validate → route → specialist → aggregate evidence/verification/
-provenance), a composed semantic-change baseline for C (isolated, honestly
-disclaimed), and EXP-007 proving the geospatial safeguards (15/15). **92 tests, no
-regressions.** But the intelligence-stack experiments are now **hard-blocked on
-data**: EXP-002 (TinyRS/RSCoVLM weights) and EXP-004 Run 2 / EXP-008 (real S1+S2)
-cannot be fetched from this host — every candidate is multi-GB and the network
-drops them. **A remote Linux GPU box is now justified** (bandwidth + GPU). Still
-**no LLM agent, no UI, no confidence value (by design), and no *measured
-benchmark* number for A/D/E.**
+**Read:** **G12 froze the model stack.** Every mandatory capability A–H now has a
+real *integrated* measurement on real data, not a paper number: VQA 0.87
+(TinyRS-2B), grounding 0.84 (RemoteSAM), change IoU 0.83 (ChangeFormer),
+optical+SAR macro-F1 0.793 (CROMA joint, DFC2020), adaptation +0.061 (LoRA on
+CROMA), routing / geospatial / evidence all integrated + verified. The
+`hf_transfer` + non-gated-mirror recipe retired the "needs a remote GPU box"
+premise — A/B (G11) and D/E (G12) all closed on the local CPU machine. **Model
+stack FROZEN (ADR-021).** What's left is *confirmation and additive layers*:
+larger-split D/E re-runs with bootstrapped significance, GPU-VRAM verification,
+the LLM planner (EXP-006), and a defined confidence method (EXP-C1/C2). Still
+**no LLM agent, no UI, no confidence value (by design)**; D/E deltas are
+**sanity-scale (n=200), not significance-tested**.

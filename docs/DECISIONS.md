@@ -5,6 +5,116 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-021 — G12: D + E closed on real DFC2020 — CROMA wins the optical–SAR path, LoRA adaptation adopted; **MODEL STACK FROZEN**
+
+- **Date:** 2026-09-02
+- **Status:** Accepted
+- **Context:** G12 = close capability **D** (optical–SAR) and **E** (RS
+  adaptation) scientifically so the model stack can freeze. The G11 download
+  recipe (`HF_HUB_ENABLE_HF_TRANSFER=1` + non-gated HF mirror) was applied to the
+  dataset wall that had blocked EXP-004 Run 2 for four gates.
+- **Dataset unblocked:** `125oii/dfc2020` (non-gated mirror of IEEE GRSS DFC2020)
+  → `ROIs0000_validation` split as separate zips (S1 947 MB + S2 633 MB + DFC
+  labels 6 MB) fetched in **~2.5 min**. **No synthetic substitution.** Frozen
+  split: 400 train / 200 eval, seed 20260902, patch ids in
+  `evaluation/datasets/dfc2020_exp004_split.json`. Task: dominant DFC land-cover
+  class (8 classes). Harness: `evaluation/scripts/exp004_run2_{extract,features,probe}.py`.
+- **EXP-004 Run 2 (D) — `evaluation/reports/exp004_run2_20260902T111643.json`:**
+  frozen encoder → `LogisticRegression` probe, 2000× bootstrap CIs + paired McNemar.
+
+  | arm | macro-F1 | accuracy |
+  |-----|:--------:|:--------:|
+  | CROMA optical-only | 0.726 | 0.865 |
+  | **CROMA joint (SAR+opt)** | **0.793** | 0.885 |
+  | DOFA optical-only | 0.725 | 0.890 |
+  | DOFA fused (S2⊕S1 concat) | 0.708 | 0.875 |
+
+  - **Does SAR help?** CROMA joint − optical = **+0.067 macro-F1**, bootstrap 95%
+    CI **[−0.024, +0.153] (includes 0)**, McNemar p=0.45 → **positive but NOT
+    significant at n=200**. P(SAR helps) ≈ 0.89. SAR lifts Barren F1 0.00→0.40,
+    Forest 0.83→0.87. DOFA's late concat-fusion: −0.018 (no gain).
+  - **CROMA vs DOFA** (pre-declared rule: PRIMARY = downstream macro-F1):
+    **CROMA wins** 0.793 vs 0.708 (Δ 0.085, P(CROMA>DOFA) 0.95, not a practical
+    tie) — and it's the only arm where SAR helped. **DOFA = challenger/fallback**
+    (lighter: 1.20 vs 1.47 GB RSS, faster: 0.26 vs 0.38 s/patch — consulted only
+    on a tie, which this is not). Both MIT (code + weights).
+  - **H3 verdict: INVESTIGATE → lean KEEP** — real SAR signal via CROMA's joint
+    attention, under-powered at n=200. A larger eval split is the honest next
+    step before any strong "SAR improves accuracy" claim.
+- **EXP-008 (E) — `evaluation/reports/exp008_20260902T120050.json`:** LoRA r=8
+  α=16 on CROMA's attention Linear layers (`to_qkv`/`to_q`/`to_k`/`to_v`; **42
+  layers, 811,008 trainable params = 0.4 % of the 194 M backbone, 3.24 MB fp32
+  adapter**), same frozen DFC2020 split, one shared torch linear head, 6 epochs,
+  CPU.
+
+  | arm | macro-F1 | accuracy |
+  |-----|:--------:|:--------:|
+  | optical-only (frozen) | 0.656 | 0.82 |
+  | fused (frozen) | 0.643 | 0.85 |
+  | **fused (LoRA-adapted)** | **0.704** | 0.835 |
+
+  - **adapted − frozen fused = +0.061 macro-F1** → clears the pre-registered
+    **+0.03** adoption threshold; 0.8 M trainable params, no latency penalty
+    (0.378 vs 0.385 s/patch), no deployment blocker.
+  - **DECISION: ADOPT LoRA as the E adaptation method.** Not a full fine-tune.
+    Caveats: not significance-tested (n=200); train loss fell to 0.15 (capacity
+    to overfit 400 patches); the frozen-fused torch-head baseline here (0.643) is
+    weaker than EXP-004's `LogisticRegression` probe (0.793) — the two absolute
+    frozen numbers are not comparable across experiments, only the *within-EXP-008*
+    adapted−frozen delta is. Production keeps the **frozen** encoder as default
+    until a larger-split, bootstrapped re-run confirms the gain; the LoRA adapter
+    from this run was **not persisted** (`--save-adapter` added to the harness
+    afterwards). Flipping the default is additive (opt-in `--lora-weights`), not
+    an architecture change.
+- **Registry:** `croma` → `evidence_level: measured`, `deployment_tier:
+  LOCAL_PREFERRED`, optical-SAR PRIMARY + capability-E base, `adaptation:` field
+  added. `dofa` → `measured`, `LOCAL_FALLBACK`, challenger. `routing.optical_sar_representation`
+  comment updated (CROMA won).
+- **MODEL FREEZE GATE — all criteria met:**
+
+  | criterion | status |
+  |-----------|--------|
+  | A measured | ✅ TinyRS-2B VQA bal-acc 0.87 (G11), INTEGRATED |
+  | B measured | ✅ RemoteSAM grounding acc@IoU0.5 0.84 (G11), INTEGRATED |
+  | D measured | ✅ EXP-004 Run 2 — CROMA joint 0.793 vs optical 0.726, INTEGRATED (repr path) |
+  | E measured | ✅ EXP-008 — LoRA +0.061 over frozen; method ADOPTED; frozen encoder INTEGRATED |
+  | routing passes | ✅ deterministic router + failure-aware resolution; tests green |
+  | geospatial validation passes | ✅ EXP-007 15/15; + 986 real DFC2020 GeoTIFFs, 0 failures |
+  | evidence/provenance passes | ✅ verify + verify_semantic P/R/F1 = 1.00, INTEGRATED |
+  | no unresolved architecture blocker | ✅ none — outstanding items are additive/confirmatory |
+
+  → **MODEL STACK FROZEN.** The freeze is on *model selection*: every A–H slot is
+  now decided by a real integrated measurement, not a paper number. Sanity-scale
+  deltas (D, E at n=200, not significance-tested) are flagged for a larger-split
+  re-run that would refine *confidence in the deltas*, not *which model is
+  chosen* (CROMA already won; LoRA already adopted). Confidence values (EXP-C1/C2)
+  and the LLM planner (EXP-006) are additive layers, out of scope of the freeze.
+
+- **Frozen stack:**
+
+  | Capability | Model / component | Evidence |
+  |-----------|-------------------|----------|
+  | A — single-image VQA | **TinyRS-2B** primary · Qwen2-VL-2B fallback | bal-acc 0.87 / 0.70, RSVQA-LR n=40 |
+  | B — text-guided grounding | **RemoteSAM** | acc@IoU0.5 0.84, DIOR-RSVG n=25 (licence NOT STATED) |
+  | C — bi-temporal change mask | **ChangeFormer** | IoU 0.83 / F1 0.91, LEVIR n=7 |
+  | C — semantic-change language | **composed baseline** (ChangeFormer + RemoteCLIP tagging) | experimental, disclaimed; learned VLM = NONE |
+  | D — optical–SAR | **CROMA** primary · DOFA fallback | joint macro-F1 0.793 vs optical 0.726, DFC2020 n=200 |
+  | E — RS adaptation | **LoRA on frozen CROMA** | +0.061 macro-F1 over frozen, DFC2020 |
+  | scene / retrieval | **RemoteCLIP** | zero-shot ranking, INTEGRATED |
+  | F — agentic routing | deterministic router + failure-aware `resolution` | INTEGRATED, tested |
+  | G — geospatial validation | `packages/geospatial` | EXP-007 15/15 |
+  | H — evidence / verification | `packages/evidence` | verify + verify_semantic P/R/F1 = 1.00 |
+
+- **Consequence:** new `evaluation/scripts/exp004_run2_{extract,features,probe}.py`
+  + `exp008_adapt.py` + `evaluation/datasets/dfc2020_exp004_split.json`; updated
+  `EXP-004.md`, `EXP-008.md`, `19_EXPERIMENT_REGISTRY.md`, `CAPABILITY_GAP_MATRIX.md`,
+  `EVIDENCE_LEDGER.md`, `model_registry.yaml`, `multimodal_slice.py` (docstring),
+  `PROJECT_STATUS.md`. **No product-code behaviour change; 141 fast tests green.**
+  DFC2020 data lives in `models/cache/dfc2020/` (gitignored). Post-freeze work:
+  larger-split D/E re-run + bootstrap; persist + opt-in-load the LoRA adapter;
+  GPU-VRAM verification for TinyRS / RemoteSAM / CROMA; EXP-C1/C2 (confidence);
+  EXP-006 (LLM planner).
+
 ## ADR-020 — G11: `hf_transfer` clears the download wall — A (TinyRS-2B) + B (RemoteSAM) both MEASURED + INTEGRATED; RSCoVLM-3B does not exist; RemoteSAM licence confirmed NOT STATED
 
 - **Date:** 2026-09-02
