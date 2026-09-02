@@ -114,6 +114,26 @@ AgentPhase = Literal[
 StepStatus = Literal["pending", "running", "completed", "skipped", "failed"]
 StepVerdict = Literal["COHERENT", "INCOHERENT", "INSUFFICIENT", "NOT_APPLICABLE"]
 
+#: Why the executor deviated from the validated plan. A closed set — the executor
+#: never "replans" for an un-enumerated reason.
+ReplanReason = Literal[
+    "NEW_EVIDENCE",                 # an observation makes downstream steps unnecessary
+    "TOOL_FAILURE",                 # a specialist failed; downstream that needed it is pruned
+    "MISSING_INPUT",               # a required modality/input is absent (e.g. no SAR)
+    "INSUFFICIENT_EVIDENCE",       # a step produced nothing usable
+    "VERIFICATION_CONTRADICTION",  # verification contradicts a proposed conclusion
+    "TASK_COMPLETE",               # mission-completion condition met -> stop early
+]
+
+
+class ReplanEvent(BaseModel):
+    reason: ReplanReason
+    triggering_step: str
+    previous_phase: AgentPhase
+    detail: str
+    steps_skipped: list[str] = Field(default_factory=list)
+    ts: str
+
 
 class StepObservation(BaseModel):
     step_id: str
@@ -127,12 +147,14 @@ class StepObservation(BaseModel):
     evidence_ids: list[str] = Field(default_factory=list)
     verification_status: str | None = None
     resolution_qualifier: str | None = None
+    findings: dict[str, Any] = Field(default_factory=dict)  # compact structured observation
     numeric: dict[str, float] = Field(default_factory=dict)  # e.g. {"changed_fraction": 0.25}
     failure: str | None = None
+    contributed: bool = True  # did this call contribute to mission completion? (for UNNECESSARY_TOOL_CALL_RATE)
     started_at: str | None = None
     finished_at: str | None = None
     runtime_s: float | None = None
-    replan_note: str | None = None  # why the executor deviated from the plan here
+    replan_note: str | None = None  # short human note; the structured record is in AgentInvestigationResult.replans
 
 
 class TimelineEntry(BaseModel):
@@ -163,15 +185,20 @@ class AgentInvestigationResult(BaseModel):
     # --- execution ---
     phase: AgentPhase = "INITIAL"
     ok: bool = False
+    mission_family: str = "unknown"  # single_step | temporal | optical_sar | multi_step | unsupported
     steps: list[StepObservation] = Field(default_factory=list)
+    replans: list[ReplanEvent] = Field(default_factory=list)
     tool_calls: int = 0
     max_steps: int = MAX_STEPS
     hit_step_cap: bool = False
+    early_stopped: bool = False
+    completion_reason: str | None = None  # why the mission was considered complete
 
     # --- findings ---
     conclusion: str | None = None
     key_findings: list[str] = Field(default_factory=list)
     spatial_findings: list[SpatialFinding] = Field(default_factory=list)
+    geojson: dict[str, Any] | None = None  # FeatureCollection of the spatial findings (EPSG:4326), when geo is available
 
     # --- audit ---
     evidence: list[dict[str, Any]] = Field(default_factory=list)

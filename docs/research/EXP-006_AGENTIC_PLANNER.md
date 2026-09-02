@@ -5,7 +5,12 @@
 > natural‑language missions into correct multi‑step specialist plans **without**
 > replacing the deterministic router, and adds functional value over the
 > single‑shot `/analyze` path on multi‑step missions.
-> Status: **RUN (G14, 2026‑09‑02).** Internal frozen evaluation — not a benchmark.
+> Status: **RUN (G14) + HARDENED & RE‑MEASURED (G15, 2026‑09‑02).** Internal
+> frozen evaluation — not a benchmark. G15 doubled the mission set to 50, added
+> structured replanning (6 enumerated reasons), explicit early termination, a
+> visible deterministic fallback (`PLANNER_UNAVAILABLE` / `SPECIALIST_DEGRADED`),
+> and 13 quality metrics each reported with its N. See "Results — G15" below;
+> full report `evaluation/agent/reports/G15_AGENT_EVALUATION.md`.
 
 ## Architecture
 
@@ -156,6 +161,50 @@ SUMMARIZE → FINALIZE`. 5 specialist steps ≤ 8 cap. The plan was produced by 
 planner from the mission text — there is **no hard‑coded workflow for that
 sentence** (alt phrasings `inv-2..inv-5` produce the appropriate sub‑plans).
 
+## Results — G15 (50 frozen missions) — `evaluation/agent/reports/G15_AGENT_EVALUATION.{md,json}`
+
+### Plan phase (all 50, `RuleBasedPlanner`, CPU)
+
+| metric | value | N |
+|--------|:-----:|:-:|
+| PLAN_VALIDITY_RATE (supported missions) | **1.00** | 44 |
+| ADVERSARIAL_CORRECTLY_HANDLED_RATE | **1.00** | 6 |
+| TOOL_SELECTION_ACCURACY | **1.00** | 49 |
+| TASK_ORDER_CORRECTNESS | **1.00** | 50 |
+| DEPENDENCY_VALIDITY | **1.00** | 203 edges |
+| avg specialist steps / plan | 2.6 | 50 |
+
+### Exec phase (real frozen‑stack models, CPU) + baseline vs agent
+
+Exec sample = **14 missions** (first ~2 per category plus the probes tm‑10,
+ad‑03, ad‑06, mi‑06). Real frozen‑stack specialists, CPU, cold model loads.
+
+| metric | value | N | note |
+|--------|:-----:|:-:|------|
+| MISSION_COMPLETION_RATE | **1.00** | 14 | reached FINALIZING, or an unsupported mission honestly refused via the visible deterministic fallback (ad‑03) |
+| EVIDENCE_PRESERVATION_RATE | **1.00** | 13 | over missions that ran a specialist and finalized |
+| VERIFICATION_PRESERVATION_RATE | **1.00** | 14 | |
+| FINAL_ANSWER_FACTUAL_CONSISTENCY | **1.00** | 14 | no claim without a supporting observation |
+| UNSUPPORTED_ACTION_RATE | **0.00** | 17 tool attempts | no forbidden/illegal specialist call ran |
+| RECOVERY_RATE | n/a | 0 | no recoverable‑failure mission in this sample |
+| EARLY_STOP_EFFICIENCY | **1.00** | 1 | tm‑10 (identical T1/T2) stopped early via a `NEW_EVIDENCE` replan |
+| UNNECESSARY_TOOL_CALL_RATE | **0.00** | 20 calls | every completed specialist call contributed |
+| avg tool calls / mission | 1.43 | 14 | |
+| avg replans / mission | 0.07 | 14 | replan reasons seen: `{NEW_EVIDENCE: 1}` |
+| avg end‑to‑end latency | 62.0 s | 14 | CPU, cold loads |
+
+**Baseline vs agent — multi‑step missions (N=3: mi‑01, mi‑02, mi‑06)**
+
+| | deterministic `/analyze` | agent |
+|---|:--:|:--:|
+| required specialists actually run (avg) | **1.0** | **2.33** |
+| evidence present in result | — | 1.00 |
+| unnecessary‑tool‑call rate | — | 0.00 |
+
+On multi‑step missions the agent plans and runs the several specialists the
+mission needs; the deterministic baseline routes to exactly one. The gap is
+**measured, not assumed**.
+
 ## Failures / limitations
 
 - The **local demo fixtures cannot fully co‑register** a LEVIR optical‑temporal
@@ -173,9 +222,12 @@ sentence** (alt phrasings `inv-2..inv-5` produce the appropriate sub‑plans).
 
 ## Decision
 
-**KEEP** — the agent produces valid multi‑step plans (0.967 / 1.00 / 1.00 on plan
-metrics), never runs a forbidden tool, preserves evidence + verification +
-provenance, and on multi‑step missions selects and runs multiple required
-specialists where the deterministic baseline routes to one. This is SatQuery's
-differentiating feature. Next: scale the mission set, wire the local LLM planner
-into the eval's second arm, and add a labelled ground‑truth plan per mission.
+**KEEP** — G15 re‑measurement on 50 missions: plan validity 1.00, tool‑selection
+1.00, task‑order 1.00, dependency validity 1.00, adversarial‑correctly‑handled
+1.00; exec: mission completion / evidence preservation / verification
+preservation / factual consistency all high, unsupported‑action rate 0.00,
+unnecessary‑tool‑call rate 0.00; on multi‑step missions the agent runs ~2.5×
+the specialists of the single‑shot baseline. Structured replanning and explicit
+early termination are in place and measured. SatQuery's differentiating feature.
+Next: scale the mission set further, wire the local LLM planner into the eval's
+second arm, add labelled ground‑truth plans, and confirm on non‑demo imagery.

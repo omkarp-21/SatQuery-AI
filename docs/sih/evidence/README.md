@@ -8,7 +8,7 @@
 > Status vocabulary: `TRACEABLE` (source or experiment recorded) ·
 > `PARTIAL` (some support, gap noted) · `BLOCKED` (needs the remote GPU box) ·
 > `TODO` (not yet collected).
-> Date: **2026-09-02 (G14)**. G14 added the agentic investigator (`/investigate`) — see rows 8 + 13. The G8 "BLOCKED — needs the remote box" rows are
+> Date: **2026-09-02 (G15)**. G14+G15 added the agentic investigator (`/investigate`) — see rows 8 + 13. G15: structured replanning, explicit early termination, visible deterministic fallback, 50 frozen missions, 13 measured metrics. The G8 "BLOCKED — needs the remote box" rows are
 > now mostly cleared: A/B (G11), D/E (G12) closed on the local CPU box via
 > `hf_transfer` + non-gated mirrors; G13 added real end-to-end demo captures
 > (`docs/sih/evidence/demos/g13_demo*.json`). Remaining hard gaps: 4 GB-VRAM
@@ -89,7 +89,7 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 | Observable routing info in every `/analyze` response | `docs/API_CONTRACT.md` | TRACEABLE |
 | VQA never routed to RemoteCLIP (`NO_VQA_SPECIALIST`) | `analyze.py`; `test_analyze_api.py` | TRACEABLE |
 | **Failure-aware routing IMPLEMENTED** — `derive_resolution()` (6 qualifiers, pure fn of `verify()` + `verify_semantic()` + sub status) + single-step `image_difference_fallback` | `FAILURE_AWARE_ROUTING.md`; `apps/backend/app/services/failure_aware.py`; `test_failure_aware.py` (10); `API_CONTRACT.md` `resolution` field | TRACEABLE |
-| **G14: AGENTIC investigator** — typed planner (`RuleBasedPlanner` / local `LlmPlanner`) → 12-check deterministic POLICY layer → bounded observe/replan executor (≤ 8 tool calls); router NOT replaced (execution guard). Eval (30 frozen missions): plan validity 0.967, tool-selection 1.00, task-order 1.00; exec success/evidence/verification preservation 1.00, forbidden-tool rate 0.00; agent runs 2.5× the specialists of the single-shot baseline on multi-step missions | `docs/G14_AGENTIC_REPORT.md`; `docs/research/EXP-006_AGENTIC_PLANNER.md`; `evaluation/agent/reports/latest.json`; `test_g14_agent.py` (~30, incl. 18 failure cases) | TRACEABLE (internal frozen eval, **not a benchmark**) |
+| **G14+G15: AGENTIC investigator** — typed planner (`RuleBasedPlanner` / local `LlmPlanner`) → 12-check deterministic POLICY layer → bounded observe/**structured-replan** executor (closed 6-reason enum) + explicit **early termination** + visible deterministic fallback (`PLANNER_UNAVAILABLE`/`SPECIALIST_DEGRADED`); router NOT replaced. **G15 eval (50 frozen missions, 13 metrics each with N):** plan validity 1.00 (44 supported), adversarial-correctly-handled 1.00 (6), tool-selection 1.00 (49), task-order 1.00, dependency-validity 1.00 (203 edges); exec phase (N=14, real frozen-stack models, CPU): MISSION_COMPLETION 1.00, EVIDENCE_PRESERVATION 1.00 (n=13), VERIFICATION_PRESERVATION 1.00, FACTUAL_CONSISTENCY 1.00, UNSUPPORTED_ACTION_RATE 0.00 (17), UNNECESSARY_TOOL_CALL_RATE 0.00 (20), EARLY_STOP_EFFICIENCY 1.00 (n=1); baseline-vs-agent (N=3): agent 2.33 vs deterministic 1.0 specialists | `docs/G15_AGENT_IMPLEMENTATION.md`; `docs/G15_AGENT_EVALUATION.md`; `docs/research/EXP-006_AGENTIC_PLANNER.md`; `evaluation/agent/reports/G15_AGENT_EVALUATION.{md,json}`; `test_g14_agent.py` + `test_g15_agent.py` (~57) | TRACEABLE (internal frozen eval, **not a benchmark**) |
 
 ## 9. Geospatial safeguards
 
@@ -132,6 +132,7 @@ A slide may say "SatQuery achieves X" **only** for a SatQuery-tagged number.
 | `POST /analyze` — NL query + 0–2 images → interpret → validate → route → specialist → evidence + verification + provenance | `API_CONTRACT.md` | TRACEABLE |
 | **G13: `POST /analyze/upload` + `GET /` UI + `NormalizedResponse`** — upload → same pipeline → one flat schema; local UI renders answer + overlay + evidence + verification + trace + provenance | `docs/G13_PRODUCTIZATION_REPORT.md`; `API_CONTRACT.md` | TRACEABLE |
 | **G14: `POST /investigate` — natural-language MISSION → agent plan → policy → observe/replan → evidence-first report** | `docs/G14_AGENTIC_REPORT.md`; `API_CONTRACT.md`; flagship capture `docs/sih/evidence/demos/g14_flagship_investigation.json` (9 steps COHERENT, ChangeFormer+RemoteSAM+CROMA, verification SUPPORTED) | TRACEABLE — **real models, planner-produced plan** |
+| **G15: flagship investigation, 2 phrasings** — `scripts/demo/run_g15_flagship.py` → `docs/sih/evidence/demos/g15_investigation_flagship_{0,2}.json` (real models, ~92 s; identical planner-produced 9-step plan `VALIDATE→TEMPORAL_CHANGE→EXTRACT_CHANGED_REGIONS→GROUND_OBJECT→OPTICAL_SAR_ANALYSIS→CROSS_CHECK→VERIFY→SUMMARIZE→FINALIZE`; 4 specialist calls; ChangeFormer+RemoteSAM+CROMA; ~25.3% changed, 6 regions, 6-feature GeoJSON; verification SUPPORTED) | TRACEABLE — **no hard-coded flagship workflow; plan emerges from planning** |
 | Demo captures (real outputs, all 5) | `docs/sih/evidence/demos/g13_demo{1..5}_*.json` — VQA 26.7 s, grounding 29.0 s (box `[169,453,380,650]`), temporal 8.1 s (25.3% changed, EPSG:32650), optical+SAR 6.3 s (dim-768), investigation 44.9 s (6 regions) | TRACEABLE — **5/5 real, nothing faked** |
 
 ---

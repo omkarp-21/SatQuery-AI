@@ -27,6 +27,8 @@ from .schemas import (
     AgentPhase,
     AgentPlan,
     PlanStep,
+    ReplanEvent,
+    ReplanReason,
     SpatialFinding,
     StepObservation,
     StepVerdict,
@@ -39,7 +41,8 @@ from .verifier import assess_step
 __all__ = [
     "AgentInvestigationResult", "AgentMemory", "AgentPhase", "AgentPlan", "MAX_STEPS",
     "MissionFeatures", "PlanContext", "PlanStep", "Planner", "PolicyResult", "RegionRef",
-    "LlmPlanner", "RuleBasedPlanner", "SpatialFinding", "StepObservation", "StepVerdict",
+    "LlmPlanner", "ReplanEvent", "ReplanReason", "RuleBasedPlanner", "SpatialFinding",
+    "StepObservation", "StepVerdict",
     "TOOL_REGISTRY", "TaskType", "TimelineEntry", "ToolName", "ToolSpec",
     "assess_step", "make_planner", "plan_with_fallback", "registry_digest", "tool_names",
     "validate_plan",

@@ -1,5 +1,10 @@
 # G14 — Agentic Geospatial Investigator
 
+> **G15 hardened this** — structured replanning (6 enumerated reasons), explicit
+> early termination, a visible deterministic fallback, 50 frozen missions, 13
+> measured quality metrics. See `docs/G15_AGENT_IMPLEMENTATION.md` +
+> `docs/G15_AGENT_EVALUATION.md`.
+
 > SatQuery's differentiating feature: a natural‑language **mission** becomes a
 > planned, policy‑checked, observed, verified, evidence‑backed multi‑specialist
 > investigation — **without** replacing the deterministic router and **without** a

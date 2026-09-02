@@ -27,6 +27,7 @@ from satquery_agents.agent import (
     AgentMemory,
     PlanContext,
     RegionRef,
+    ReplanEvent,
     SpatialFinding,
     StepObservation,
     TaskType,
@@ -59,6 +60,22 @@ _SCENE_PROMPTS = ["urban area", "farmland", "forest", "water body", "bare land",
 
 def _now() -> str:
     return time.strftime("%H:%M:%S", time.localtime())
+
+
+def _mission_family(plan) -> str:
+    tasks = {s.task for s in plan.steps}
+    specialist = {TaskType.VQA, TaskType.GROUND_OBJECT, TaskType.SCENE_UNDERSTANDING,
+                  TaskType.TEMPORAL_CHANGE, TaskType.SEMANTIC_CHANGE, TaskType.OPTICAL_SAR_ANALYSIS}
+    n_spec = len(tasks & specialist)
+    if n_spec == 0:
+        return "unsupported"
+    if n_spec >= 2 or TaskType.EXTRACT_CHANGED_REGIONS in tasks:
+        return "multi_step"
+    if TaskType.OPTICAL_SAR_ANALYSIS in tasks:
+        return "optical_sar"
+    if tasks & {TaskType.TEMPORAL_CHANGE, TaskType.SEMANTIC_CHANGE}:
+        return "temporal"
+    return "single_step"
 
 
 def _band_count(p: str) -> int:
@@ -325,6 +342,28 @@ _BOOKKEEPING = {"verify_result", "inspect_evidence", "finalize_answer", "cross_c
 # --------------------------------------------------------------------------- #
 
 
+def _preflight_geo(paths: list[str]) -> tuple[bool, bool | None]:
+    """(has_valid_crs, pair_co_registered | None) — read BEFORE planning so the
+    policy layer can reject e.g. a temporal plan on a genuinely misregistered pair."""
+    from satquery_geospatial import check_pair_compatibility, read_raster_meta
+
+    tifs = [p for p in paths if p.lower().endswith((".tif", ".tiff"))]
+    has_crs = False
+    if tifs:
+        try:
+            has_crs = bool(read_raster_meta(tifs[0]).crs)
+        except Exception:  # noqa: BLE001
+            has_crs = False
+    coreg: bool | None = None
+    if len(tifs) >= 2:
+        try:
+            coreg = check_pair_compatibility(read_raster_meta(tifs[0]),
+                                             read_raster_meta(tifs[1])).co_registered
+        except Exception:  # noqa: BLE001
+            coreg = None
+    return has_crs, coreg
+
+
 def _modalities(image_paths: list[str]) -> list[str]:
     mods = set()
     for p in image_paths:
@@ -353,6 +392,9 @@ def run_investigation(
     tl = res.execution_trace
     tl.append(TimelineEntry(ts=_now(), event="Mission received"))
 
+    # pre-plan facts the policy layer needs: CRS validity + pair co-registration
+    has_crs, coreg = _preflight_geo(paths)
+
     # --- PLAN ---
     res.phase = "PLANNING"
     plan, planner_used, notes = plan_with_fallback(mission, len(paths), mods, planner=planner)
@@ -364,29 +406,43 @@ def run_investigation(
     # --- POLICY ---
     res.phase = "PLAN_VALIDATION"
     pctx = PlanContext(image_count=len(paths), modalities=mods,
-                       has_valid_crs=False, pair_co_registered=None,
+                       has_valid_crs=has_crs, pair_co_registered=coreg,
                        available_capabilities=_registry_caps())
     pr = validate_plan(plan, pctx)
     res.plan_rejection_reasons = pr.reasons
     if not pr.ok:
-        tl.append(TimelineEntry(ts=_now(), event=f"Plan REJECTED: {pr.reasons}"))
+        blocked = [c for c, ok in pr.checks.items() if not ok]
+        tl.append(TimelineEntry(ts=_now(), event=f"Plan REJECTED by policy check(s) {blocked}: {pr.reasons}"))
         res.plan_status = "rejected"
-        return _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir)
+        return _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir,
+                                       reason="PLAN_REJECTED")
     res.plan_status = "valid" if planner_used != "rule_based_fallback" else "fallback"
+    if planner_used == "rule_based_fallback":
+        res.warnings.append("PLANNER FALLBACK: the LLM planner was unavailable/failed — the "
+                            "deterministic rule planner produced this plan.")
     tl.append(TimelineEntry(ts=_now(), event="Plan validated"))
 
     # --- EXECUTE ---
     mem = AgentMemory(goal=mission, image_ids=[f"img{i}" for i in range(len(paths))],
                       image_paths={f"img{i}": p for i, p in enumerate(paths)})
+    res.mission_family = _mission_family(plan)
     res.phase = "EXECUTING"
     done: set[str] = set()
     skipped: set[str] = set()
     order = _topo_order(plan)
 
+    def _replan(reason: str, trig: str, detail: str, skip_ids: list[str]) -> None:
+        res.replans.append(ReplanEvent(reason=reason, triggering_step=trig,
+                                       previous_phase=res.phase, detail=detail,
+                                       steps_skipped=list(skip_ids), ts=_now()))
+        tl.append(TimelineEntry(ts=_now(), event=f"REPLAN [{reason}] from {trig}: {detail}"))
+
     for sid in order:
         step = next(s for s in plan.steps if s.step_id == sid)
         obs = StepObservation(step_id=sid, task=step.task, tool=step.tool, status="pending",
                               started_at=_now())
+
+        is_specialist = step.tool not in _BOOKKEEPING and step.tool != "validate_geospatial_input"
 
         # dependency / skip propagation
         if any(d in skipped for d in step.depends_on) and step.tool not in ("verify_result",
@@ -394,19 +450,38 @@ def run_investigation(
                                                                             "finalize_answer"):
             obs.status = "skipped"
             obs.replan_note = "an upstream step was skipped"
+            obs.contributed = False
             res.steps.append(obs)
             skipped.add(sid)
             continue
 
         # bounded autonomy: cap specialist calls
-        is_specialist = step.tool not in _BOOKKEEPING and step.tool != "validate_geospatial_input"
         if is_specialist and res.tool_calls >= max_steps:
             obs.status = "skipped"
             obs.replan_note = f"step cap ({max_steps} specialist calls) reached"
+            obs.contributed = False
             res.hit_step_cap = True
             res.steps.append(obs)
             skipped.add(sid)
             continue
+
+        # MISSING_INPUT: an optical+SAR step needs a distinct 2-band SAR raster
+        if step.task == TaskType.OPTICAL_SAR_ANALYSIS:
+            sar_ref = step.inputs.get("sar", "img1")
+            opt_ref = step.inputs.get("optical", "img0")
+            sar_path = mem.image_paths.get(sar_ref)
+            missing = (sar_ref == opt_ref) or (not sar_path) or (_band_count(sar_path) != 2)
+            if missing:
+                obs.status = "skipped"
+                obs.contributed = False
+                obs.replan_note = "no distinct Sentinel-1 SAR raster supplied"
+                res.steps.append(obs)
+                skipped.add(sid)
+                _replan("MISSING_INPUT", sid,
+                        "no distinct 2-band SAR raster available — CROMA/DOFA not called; "
+                        "the optical+SAR leg is reported as not performed", [sid])
+                res.warnings.append("SAR input missing — optical+SAR analysis was not performed")
+                continue
 
         # --- run ---
         obs.status = "running"
@@ -452,36 +527,82 @@ def run_investigation(
         obs.verdict = verdict
         obs.summary = _step_summary(step.task, payload)
         obs.numeric = {k: float(x) for k, x in mem.numeric.items()}
+        obs.findings = _step_findings(step.task, payload)
         obs.status = "completed" if ok else "failed"
+        obs.contributed = ok and verdict != "INCOHERENT"
         if not ok:
             mem.failures.append(f"{sid} ({step.tool}): {payload.get('errors') or 'ok=false'}")
         res.steps.append(obs)
         tl.append(TimelineEntry(ts=_now(), event=f"{step.tool} -> {verdict} ({why})"))
 
-        # ---- OBSERVE / REPLAN: conditional pruning based on the observation ----
+        # ---- OBSERVE / REPLAN: conditional next-action selection ----
         res.phase = "REPLANNING"
-        if step.task == TaskType.TEMPORAL_CHANGE and ok:
+
+        # TOOL_FAILURE — a specialist returned ok=false; prune what depended on it
+        if not ok and is_specialist:
+            dep_skips = [ln.step_id for ln in plan.steps
+                         if sid in ln.depends_on and ln.step_id not in done and ln.step_id not in skipped
+                         and ln.tool not in ("verify_result", "inspect_evidence", "finalize_answer")]
+            for s2 in dep_skips:
+                skipped.add(s2)
+            _replan("TOOL_FAILURE", sid,
+                    f"{step.tool} failed; downstream steps that required it are skipped, "
+                    "no result is fabricated", dep_skips)
+
+        # VERIFICATION_CONTRADICTION — the step ran but its output is incoherent
+        elif verdict == "INCOHERENT":
+            _replan("VERIFICATION_CONTRADICTION", sid,
+                    f"{step.tool} output failed verification ({why}); its findings are recorded "
+                    "as disputed and are NOT asserted in the conclusion", [])
+            res.warnings.append(f"{step.tool}: verification contradicted the result — claim withheld")
+
+        # NEW_EVIDENCE — negligible change makes downstream localisation pointless
+        elif step.task == TaskType.TEMPORAL_CHANGE and ok:
             cf = mem.numeric.get("changed_fraction", 1.0)
             if cf < _NEGLIGIBLE_CHANGE:
-                for later in plan.steps:
-                    if later.task in (TaskType.EXTRACT_CHANGED_REGIONS, TaskType.GROUND_OBJECT,
-                                      TaskType.OPTICAL_SAR_ANALYSIS) and later.step_id not in done:
-                        skipped.add(later.step_id)
-                tl.append(TimelineEntry(
-                    ts=_now(),
-                    event=f"changed_fraction {cf:.4f} < {_NEGLIGIBLE_CHANGE} -> skipping region/grounding/SAR steps"))
+                dn = [ln.step_id for ln in plan.steps
+                      if ln.task in (TaskType.EXTRACT_CHANGED_REGIONS, TaskType.GROUND_OBJECT,
+                                     TaskType.OPTICAL_SAR_ANALYSIS)
+                      and ln.step_id not in done and ln.step_id not in skipped]
+                for s2 in dn:
+                    skipped.add(s2)
+                _replan("NEW_EVIDENCE", sid,
+                        f"changed_fraction {cf:.4f} < {_NEGLIGIBLE_CHANGE}: no significant change — "
+                        "region extraction / grounding / SAR steps are unnecessary", dn)
+                res.early_stopped = True
+                res.completion_reason = "no significant temporal change detected"
                 res.warnings.append("no significant change detected; downstream localisation steps were skipped")
-        if step.task == TaskType.GROUND_OBJECT:
-            if not payload.get("bbox_xyxy"):
-                res.warnings.append("grounding produced no region — not fabricating a location")
-        if step.task == TaskType.EXTRACT_CHANGED_REGIONS and not payload.get("regions"):
-            for later in plan.steps:
-                if later.task == TaskType.GROUND_OBJECT and later.step_id not in done:
-                    skipped.add(later.step_id)
-            tl.append(TimelineEntry(ts=_now(), event="no changed regions -> skipping region grounding"))
+
+        # INSUFFICIENT_EVIDENCE — grounding / regions produced nothing usable
+        elif step.task == TaskType.GROUND_OBJECT and not payload.get("bbox_xyxy"):
+            res.warnings.append("grounding produced no region — not fabricating a location")
+            _replan("INSUFFICIENT_EVIDENCE", sid,
+                    "grounding returned no region (explicit); the mission continues without a "
+                    "fabricated box", [])
+        elif step.task == TaskType.EXTRACT_CHANGED_REGIONS and not payload.get("regions"):
+            dn = [ln.step_id for ln in plan.steps if ln.task == TaskType.GROUND_OBJECT
+                  and ln.step_id not in done and ln.step_id not in skipped]
+            for s2 in dn:
+                skipped.add(s2)
+            _replan("INSUFFICIENT_EVIDENCE", sid,
+                    "no changed region above the size threshold; region grounding is skipped", dn)
 
         done.add(sid)
         res.phase = "EXECUTING"
+
+        # ---- EARLY TERMINATION: mission-completion condition met? ----
+        if _mission_complete(res.mission_family, plan, done, skipped, mem):
+            remaining = [s for s in order if s not in done and s not in skipped]
+            non_book = [s for s in remaining
+                        if next(x for x in plan.steps if x.step_id == s).tool not in _BOOKKEEPING]
+            if non_book:
+                for s2 in non_book:
+                    skipped.add(s2)
+                _replan("TASK_COMPLETE", sid,
+                        f"mission-completion condition for family '{res.mission_family}' is satisfied; "
+                        f"{len(non_book)} remaining specialist step(s) are unnecessary", non_book)
+                res.early_stopped = True
+                res.completion_reason = res.completion_reason or "required evidence set satisfied"
 
     # --- FINALIZE ---
     res.phase = "FINALIZING"
@@ -526,6 +647,69 @@ def _topo_order(plan) -> list[str]:
     for n in seq:
         visit(n)
     return out
+
+
+def _step_findings(task: TaskType, payload: dict) -> dict:
+    """A compact structured observation — never raw model output / arrays."""
+    if task == TaskType.TEMPORAL_CHANGE:
+        st = payload.get("stats") or {}
+        return {"changed_fraction": st.get("changed_fraction"),
+                "changed_area_ha": st.get("changed_area_ha")}
+    if task == TaskType.SEMANTIC_CHANGE:
+        return {"changed_fraction": payload.get("changed_fraction"),
+                "n_regions": len(payload.get("regions", []) or [])}
+    if task == TaskType.EXTRACT_CHANGED_REGIONS:
+        return {"n_regions": payload.get("n_regions", 0)}
+    if task == TaskType.GROUND_OBJECT:
+        return {"grounded": bool(payload.get("bbox_xyxy")),
+                "validation_status": payload.get("validation_status")}
+    if task == TaskType.OPTICAL_SAR_ANALYSIS:
+        return {"repr_dim": payload.get("repr_dim") or (payload.get("representation") or {}).get("dim")}
+    if task == TaskType.SCENE_UNDERSTANDING:
+        return {"top_label": (payload.get("answer") or {}).get("top_label")}
+    if task == TaskType.VQA:
+        return {"answer_len": len(payload.get("answer_text") or ""), "yesno": payload.get("yesno")}
+    if task == TaskType.CROSS_CHECK_EVIDENCE:
+        return {"boxes_checked": payload.get("boxes_checked"), "regions": payload.get("regions")}
+    return {}
+
+
+def _mission_complete(family: str, plan, done: set[str], skipped: set[str], mem: AgentMemory) -> bool:
+    """Has the mission's required-evidence set been satisfied? -> stop early."""
+    done_tasks = {next(s for s in plan.steps if s.step_id == d).task for d in done}
+    has_verify = TaskType.VERIFY in done_tasks
+    if family == "single_step":
+        # a specialist result exists and (verify is next / done)
+        return bool(done_tasks & {TaskType.VQA, TaskType.GROUND_OBJECT, TaskType.SCENE_UNDERSTANDING})
+    if family == "temporal":
+        return (TaskType.TEMPORAL_CHANGE in done_tasks or TaskType.SEMANTIC_CHANGE in done_tasks) and has_verify
+    if family == "optical_sar":
+        return TaskType.OPTICAL_SAR_ANALYSIS in done_tasks and has_verify
+    if family == "multi_step":
+        # complete once every planned specialist step has either run or been consciously skipped
+        planned_spec = [s for s in plan.steps
+                        if s.task in (TaskType.TEMPORAL_CHANGE, TaskType.SEMANTIC_CHANGE,
+                                      TaskType.EXTRACT_CHANGED_REGIONS, TaskType.GROUND_OBJECT,
+                                      TaskType.OPTICAL_SAR_ANALYSIS)]
+        return all(s.step_id in done or s.step_id in skipped for s in planned_spec) and has_verify
+    return False
+
+
+def _spatial_geojson(findings: list) -> dict | None:
+    feats = []
+    for f in findings:
+        ll = f.where_lonlat
+        if not ll or len(ll) != 4:
+            continue
+        x0, y0, x1, y1 = ll
+        feats.append({
+            "type": "Feature",
+            "properties": {k: v for k, v in {"label": f.label, "area_ha": f.area_ha,
+                                             "source_step": f.source_step}.items() if v is not None},
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]]},
+        })
+    return {"type": "FeatureCollection", "crs": "EPSG:4326", "features": feats} if feats else None
 
 
 def _step_summary(task: TaskType, payload: dict) -> str:
@@ -585,11 +769,18 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
 
     for o in res.steps:
         pay = mem.results.get(o.step_id, {})
+        # a step whose verification was INCOHERENT does NOT get its claim asserted
+        if o.verdict == "INCOHERENT":
+            findings.append(f"{o.tool}: result withheld — it failed verification (disputed, not asserted).")
+            continue
+        if o.task == TaskType.OPTICAL_SAR_ANALYSIS and o.status == "skipped":
+            findings.append("Optical+SAR analysis was not performed — no distinct SAR input was supplied.")
+            continue
         if o.task == TaskType.VQA and pay.get("answer_text"):
             findings.append(f"VQA: {pay['answer_text']}")
         if o.task == TaskType.GROUND_OBJECT:
             b = pay.get("bbox_xyxy")
-            if b:
+            if b and pay.get("validation_status") == "PASS":
                 findings.append(f"Grounding located a region at pixel box {[round(x, 1) for x in b]}.")
                 spatial.append(SpatialFinding(label="grounded structure", where_pixel=list(b),
                                               source_step=o.step_id))
@@ -603,7 +794,7 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
             dim = pay.get("repr_dim") or (pay.get("representation") or {}).get("dim")
             if dim and o.status == "completed":
                 findings.append(
-                    f"Optical+SAR: a joint representation (dim {dim}) was produced — "
+                    f"Optical+SAR: a joint representation (dim {dim}) was produced - "
                     "representation-level only; no textual fact is inferred from the embedding.")
         if o.task == TaskType.CROSS_CHECK_EVIDENCE:
             m = pay.get("matches") or []
@@ -629,21 +820,31 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
 
     res.key_findings = findings or ["The mission produced no positive findings within the executed plan."]
     res.spatial_findings = spatial
+    res.geojson = _spatial_geojson(spatial)
     res.evidence = mem.evidence
     res.warnings = _dedup(res.warnings + mem.warnings)
     res.failures = _dedup(res.failures + mem.failures)
     res.models_used = mem.models_used
+    contributing = sum(1 for o in res.steps if o.tool.startswith("run_") and o.contributed)
+    ran = sum(1 for o in res.steps if o.tool.startswith("run_") and o.status in ("completed", "failed"))
     res.provenance = {
         "layer": "agent",
         "mask_source": next(iter(mem.masks.values()), None),
         "planner_used": res.planner_used,
         "plan_status": res.plan_status,
+        "mission_family": res.mission_family,
         "plan_steps": [{"step_id": s.step_id, "task": s.task.value, "tool": s.tool,
                         "depends_on": s.depends_on} for s in plan.steps],
         "tool_calls": res.tool_calls,
+        "contributing_tool_calls": contributing,
+        "unnecessary_tool_calls": max(ran - contributing, 0),
+        "replans": [rp.model_dump() for rp in res.replans],
+        "early_stopped": res.early_stopped,
+        "completion_reason": res.completion_reason,
         "hit_step_cap": res.hit_step_cap,
-        "note": "the LLM/rule planner proposes steps; the deterministic policy layer + executor run them. "
-                "No confidence value is produced. Evidence and verification are preserved from each specialist.",
+        "note": "the LLM/rule planner proposes steps; the deterministic policy layer + executor run them, "
+                "observe each result, and conditionally replan (see `replans`). No confidence value is "
+                "produced. Evidence and verification are preserved from each specialist.",
     }
 
     parts = []
@@ -682,23 +883,37 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
         )
 
 
-def _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir):
-    """Planner unavailable / plan rejected -> run the deterministic /analyze path once."""
+def _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir, *,
+                            reason: str = "PLANNER_UNAVAILABLE"):
+    """Planner unavailable / plan rejected -> run the deterministic /analyze path once.
+    The fallback is NEVER invisible: `mode='ask-fallback'` and
+    `resolution.qualifier` in {PLANNER_UNAVAILABLE, SPECIALIST_DEGRADED}."""
     res.mode = "ask-fallback"
-    res.execution_trace.append(TimelineEntry(ts=_now(), event="Falling back to deterministic /analyze"))
+    res.execution_trace.append(TimelineEntry(
+        ts=_now(), event=f"Planner path unavailable ({reason}) — falling back to deterministic /analyze"))
     try:
         a = run_analyze(mission, paths, ctx, artifact_dir=artifact_dir)
         n = normalize(a, latency_s=round(time.time() - started, 2))
         res.ok = a.ok
-        res.conclusion = n.answer
+        res.conclusion = (n.answer or "deterministic path produced no answer") + \
+            f"  (via the deterministic fallback — {reason}.)"
         res.key_findings = [n.answer] if n.answer else ["deterministic path produced no answer"]
         res.evidence = n.evidence
         res.verification = n.verification or {"status": "INSUFFICIENT_EVIDENCE", "checks": []}
-        res.resolution = n.resolution
-        res.warnings = _dedup(res.warnings + n.warnings)
+        res.resolution = {
+            "qualifier": "PLANNER_UNAVAILABLE" if reason in ("PLANNER_UNAVAILABLE", "PLAN_REJECTED")
+            else "SPECIALIST_DEGRADED",
+            "answer_surfaced": bool(a.ok),
+            "reasons": res.plan_rejection_reasons or [reason],
+            "note": "the agent plan could not be produced/validated; the deterministic router handled "
+                    "the mission. This is surfaced, not hidden. NOT a confidence value.",
+        }
+        res.warnings = _dedup(res.warnings + n.warnings
+                              + [f"AGENT FALLBACK: {reason} - the deterministic /analyze path was used."])
         res.failures = _dedup(res.failures + n.failures)
         res.models_used = [n.model_used] if n.model_used else []
-        res.provenance = {"layer": "agent->deterministic_fallback", "routing_code": n.task_code,
+        res.provenance = {"layer": "agent->deterministic_fallback", "fallback_reason": reason,
+                          "routing_code": n.task_code, "plan_rejection_reasons": res.plan_rejection_reasons,
                           "note": "the agent plan could not be produced/validated; the deterministic "
                           "router handled the mission instead."}
         res.timings = {"total_s": round(time.time() - started, 2)}

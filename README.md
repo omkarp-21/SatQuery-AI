@@ -79,12 +79,13 @@ the request falls back to `/analyze`.
 
 ```bash
 # flagship mission (planner-produced, not a hard-coded workflow)
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --only inv-1
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --only mi-01
 
-# full agent evaluation — 30 frozen missions
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py            # plan phase
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --exec 2   # + exec 2/category
-# report -> evaluation/agent/reports/latest.json ; see docs/G14_AGENTIC_REPORT.md
+# full agent evaluation — 50 frozen missions, 13 quality metrics (each with its N)
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py            # plan phase, all 50
+.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --exec 2   # + real-model exec sample
+# reports -> evaluation/agent/reports/G15_AGENT_EVALUATION.{md,json}
+# see docs/G15_AGENT_IMPLEMENTATION.md + docs/G15_AGENT_EVALUATION.md
 
 # optional local LLM planner (Qwen2-VL-2B text-only; always falls back to the rule planner)
 SATQUERY_PLANNER=llm .venvs/satquery/Scripts/python.exe -m uvicorn app.main:app --port 8000

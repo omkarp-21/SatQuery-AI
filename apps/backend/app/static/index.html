@@ -205,61 +205,83 @@ document.getElementById("run").onclick = async () => {
 function renderInvestigation(b) {
   const out = document.getElementById("out");
   const mark = { completed: "✓", running: "→", pending: "○", failed: "!", skipped: "·" };
+  const statusWord = (b.verification||{}).status === "SUPPORTED" ? "Verified"
+    : (b.verification||{}).status === "CONTRADICTED" ? "Contradicted"
+    : "Partially verified / insufficient evidence";
+  const prov = b.provenance || {};
   let html = "";
 
-  html += `<div class="card"><h2>SatQuery Investigation ${b.ok ? '<span class="badge b-ok">ok</span>' : '<span class="badge b-warn">partial</span>'}</h2>
+  // ---- 1. INVESTIGATION RESULT (judge-facing) ----
+  html += `<div class="card">
+    <h2>Investigation result ${b.ok ? '<span class="badge b-ok">ok</span>' : '<span class="badge b-warn">partial</span>'}</h2>
     <div class="kv">
       <div>Mission</div><div>${esc(b.mission)}</div>
-      <div>Planner</div><div class="mono">${esc(b.planner_used)} · plan ${esc(b.plan_status)}</div>
-      <div>Phase</div><div>${esc(b.phase)}</div>
-      <div>Tool calls</div><div>${b.tool_calls} / ${b.max_steps}${b.hit_step_cap ? " (cap hit)" : ""}</div>
+      <div>Status</div><div>${verdictBadge((b.verification||{}).status)} <span class="empty">${esc(statusWord)}</span></div>
       <div>Models used</div><div>${(b.models_used||[]).map(esc).join(", ") || "—"}</div>
+      <div>Tool calls</div><div>${b.tool_calls} / ${b.max_steps}${b.hit_step_cap ? " · CAP HIT" : ""}${b.early_stopped ? " · stopped early ("+esc(b.completion_reason||"evidence sufficient")+")" : ""}</div>
+      <div>Replans</div><div>${(b.replans||[]).length ? b.replans.map(r=>esc(r.reason)).join(", ") : "none"}</div>
       <div>Total time</div><div>${num((b.timings||{}).total_s)} s</div>
     </div>
     <div class="answer" style="margin-top:12px">${esc(b.conclusion) || '<span class="empty">no conclusion</span>'}</div>
   </div>`;
 
-  if (b.plan_rejection_reasons && b.plan_rejection_reasons.length) {
+  if ((b.plan_rejection_reasons||[]).length) {
     html += `<div class="card"><h2>Plan rejected by the policy layer</h2>` +
       b.plan_rejection_reasons.map(r => `<div class="warnbox">${esc(r)}</div>`).join("") +
-      `<div class="hint">The agent fell back to the deterministic /analyze path.</div></div>`;
+      `<div class="hint">The agent fell back to the deterministic /analyze path (resolution: ${esc((b.resolution||{}).qualifier || "—")}).</div></div>`;
   }
 
-  // agent plan + live status
+  // ---- 2. AGENT PLAN + LIVE EXECUTION — the agent DECIDED what to do ----
   if (b.plan && b.plan.steps) {
     const stById = {}; (b.steps||[]).forEach(s => stById[s.step_id] = s);
-    html += `<div class="card"><h2>Agent plan &amp; execution</h2><ol class="plan">` +
+    html += `<div class="card"><h2>Agent plan &amp; execution — <span class="empty">the agent generated this plan (planner: ${esc(b.planner_used)})</span></h2><ol class="plan">` +
       b.plan.steps.map(p => {
         const s = stById[p.step_id] || { status: "pending", verdict: "", summary: "" };
         return `<li class="st-${s.status}"><span class="stmark">${mark[s.status] || "○"}</span> ${esc(p.step_id)} · <b>${esc(p.task)}</b> → ${esc(p.tool)}` +
           (s.summary ? `<br><span style="color:var(--muted)">${esc(s.summary)}</span>` : "") +
           (s.verdict && s.verdict !== "NOT_APPLICABLE" ? ` <span class="badge ${s.verdict==='COHERENT'?'b-ok':s.verdict==='INCOHERENT'?'b-bad':'b-warn'}">${esc(s.verdict)}</span>` : "") +
-          (s.replan_note ? `<br><span class="badge b-warn">replan</span> <span style="color:var(--muted)">${esc(s.replan_note)}</span>` : "") +
+          (s.replan_note ? `<br><span class="badge b-warn">deviated</span> <span style="color:var(--muted)">${esc(s.replan_note)}</span>` : "") +
           `</li>`;
       }).join("") + `</ol></div>`;
   }
 
-  html += `<div class="card"><h2>Key findings</h2><ul class="trace">` +
-    (b.key_findings||[]).map(f => `<li>${esc(f)}</li>`).join("") + `</ul></div>`;
-
-  if ((b.spatial_findings||[]).length) {
-    html += `<div class="card"><h2>Spatial findings</h2><table class="rank">` +
-      b.spatial_findings.map(s => `<tr><td>${esc(s.label)}${s.source_step ? " ("+esc(s.source_step)+")" : ""}</td><td>${
-        s.where_lonlat ? s.where_lonlat.map(x=>num(x,5)).join(", ")
-        : s.where_pixel ? "px "+s.where_pixel.map(x=>Math.round(x)).join(",") : "—"}</td></tr>`).join("") +
+  // ---- 3. REPLANS (structured, auditable) ----
+  if ((b.replans||[]).length) {
+    html += `<div class="card"><h2>Replans — the agent adapted based on observations</h2><table class="rank">` +
+      b.replans.map(r => `<tr><td><b>${esc(r.reason)}</b> <span class="empty">(from ${esc(r.triggering_step)}, ${esc(r.ts)})</span><br><span style="color:var(--muted)">${esc(r.detail)}</span></td><td>${(r.steps_skipped||[]).join(", ") || "—"}</td></tr>`).join("") +
       `</table></div>`;
   }
 
-  const v = b.verification || {};
-  html += `<div class="card"><h2>Verification</h2><div class="kv"><div>Status</div><div>${verdictBadge(v.status)}</div></div>` +
-    `<div class="hint">${esc((b.resolution||{}).note || "deterministic post-execution qualifier — NOT a confidence value")}</div></div>`;
+  // ---- 4. KEY FINDINGS ----
+  html += `<div class="card"><h2>Key findings</h2><ul class="trace">` +
+    (b.key_findings||[]).map(f => `<li>${esc(f)}</li>`).join("") + `</ul></div>`;
 
+  // ---- 5. SPATIAL FINDINGS + GeoJSON ----
+  if ((b.spatial_findings||[]).length) {
+    html += `<div class="card"><h2>Spatial findings</h2><table class="rank">` +
+      b.spatial_findings.map(s => `<tr><td>${esc(s.label)}${s.source_step ? " ("+esc(s.source_step)+")" : ""}</td><td>${
+        s.where_lonlat ? "lon/lat " + s.where_lonlat.map(x=>num(x,5)).join(", ")
+        : s.where_pixel ? "px " + s.where_pixel.map(x=>Math.round(x)).join(",") : "—"}</td></tr>`).join("") +
+      `</table>` +
+      (b.geojson ? `<div class="hint">GeoJSON: ${b.geojson.features.length} feature(s), ${esc(b.geojson.crs)} — <a href="#" style="color:var(--accent)" onclick='navigator.clipboard.writeText(${JSON.stringify(JSON.stringify(b.geojson))});this.textContent="copied";return false;'>copy FeatureCollection</a></div>` : "") +
+      `</div>`;
+  }
+
+  // ---- 6. VERIFICATION ----
+  const v = b.verification || {};
+  html += `<div class="card"><h2>Verification</h2>
+    <div class="kv"><div>Status</div><div>${verdictBadge(v.status)}</div>
+    ${b.resolution && b.resolution.qualifier ? `<div>Resolution</div><div>${esc(b.resolution.qualifier)}</div>` : ""}</div>
+    <div class="hint">${esc((b.resolution||{}).note || "deterministic post-execution qualifier — NOT a confidence value")}</div></div>`;
+
+  // ---- 7. EVIDENCE ----
   if ((b.evidence||[]).length) {
     html += `<div class="card"><h2>Evidence (${b.evidence.length})</h2>` +
       b.evidence.map(e => `<details><summary>${esc(e.evidence_type)} · ${esc(e.source_model)}</summary><div class="mono">${esc(JSON.stringify({claim:e.claim_supported, payload:e.payload}, null, 2))}</div></details>`).join("") +
       `</div>`;
   }
 
+  // ---- 8. WARNINGS / LIMITATIONS ----
   if ((b.warnings||[]).length || (b.failures||[]).length) {
     html += `<div class="card"><h2>Warnings &amp; limitations</h2>`;
     (b.warnings||[]).forEach(w => html += `<div class="warnbox">${esc(w)}</div>`);
@@ -267,10 +289,12 @@ function renderInvestigation(b) {
     html += `</div>`;
   }
 
-  html += `<div class="card"><h2>Execution trace (agent timeline)</h2><ul class="trace">` +
-    (b.execution_trace||[]).map(t => `<li>${esc(t.ts)} — ${esc(t.event)}</li>`).join("") + `</ul></div>`;
-
-  html += `<div class="card"><h2>Provenance</h2><details open><summary>audit block</summary><div class="mono">${esc(JSON.stringify(b.provenance||{}, null, 2))}</div></details></div>`;
+  // ---- 9. DETAILED TRACE (collapsible) ----
+  html += `<div class="card"><h2>Execution trace (agent timeline)</h2>
+    <details><summary>view detailed trace (${(b.execution_trace||[]).length} events)</summary>
+    <ul class="trace">${(b.execution_trace||[]).map(t => `<li>${esc(t.ts)} — ${esc(t.event)}</li>`).join("")}</ul></details>
+    <details><summary>provenance / audit block</summary><div class="mono">${esc(JSON.stringify(prov, null, 2))}</div></details>
+  </div>`;
 
   out.innerHTML = html;
 }

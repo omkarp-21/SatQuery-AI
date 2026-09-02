@@ -1,7 +1,9 @@
 # SatQuery API Contract
 
-> Status: **G14 — agentic investigator live.** `POST /investigate` (mission →
-> planner → policy → bounded agent loop → evidence-first report), `GET /` (UI with
+> Status: **G15 — agent validation + flagship mission mode.** `POST /investigate`
+> (mission → planner → policy → bounded agent loop with structured replanning +
+> explicit early termination → evidence-first report; `resolution.qualifier`,
+> `replans[]`, `early_stopped`, `geojson` on the response), `GET /` (UI with
 > an ASK / INVESTIGATE toggle), `POST /analyze/upload` (single-shot, flat
 > `NormalizedResponse`), `GET /artifact`, plus `POST /analyze`, `/change`,
 > `/scene`, `/health`. The deterministic router is the execution guard, not
@@ -10,7 +12,7 @@
 
 ---
 
-## `POST /investigate`  — agentic geospatial investigator  *(G14)*
+## `POST /investigate`  — agentic geospatial investigator  *(G14, hardened G15)*
 
 **Request** — `multipart/form-data`: `query` (the mission, str), `files` (1–4
 images), optional `context` (JSON string).
@@ -27,29 +29,44 @@ evidence-first synthesis. Planner unavailable / plan rejected → deterministic
 
 ```json
 {
-  "mission": "...", "mode": "investigate",
+  "mission": "...", "mode": "investigate", "mission_family": "multi_step",
   "plan": { "goal": "...", "steps": [ {"step_id":"s2","task":"TEMPORAL_CHANGE","tool":"run_temporal_change","depends_on":["s1"],"reason":"..."} ] },
   "plan_status": "valid", "planner_used": "rule_based", "plan_rejection_reasons": [],
   "phase": "FINALIZING", "ok": true, "tool_calls": 4, "max_steps": 8, "hit_step_cap": false,
+  "early_stopped": false, "completion_reason": null,
   "steps": [ {"step_id":"s2","task":"TEMPORAL_CHANGE","tool":"run_temporal_change","status":"completed",
               "verdict":"COHERENT","summary":"changed_fraction 0.2526, area 0.4138 ha",
-              "verification_status":"SUPPORTED","numeric":{"changed_fraction":0.2526},"runtime_s":8.1} ],
+              "findings":{"changed_fraction":0.2526,"changed_area_ha":0.4138},
+              "verification_status":"SUPPORTED","contributed":true,"runtime_s":8.1} ],
+  "replans": [ {"reason":"NEW_EVIDENCE","triggering_step":"s2","previous_phase":"REPLANNING",
+                "detail":"changed_fraction 0.003 < 0.01: no significant change — region/grounding/SAR steps unnecessary",
+                "steps_skipped":["s3","s4","s5"],"ts":"13:17:10"} ],
   "conclusion": "~25.3% of the scene changed, 6 changed region(s) isolated, 1 structure region(s) located. Verification: SUPPORTED.",
-  "key_findings": [ "Change detected: ~25.3% ...", "6 changed region(s) were isolated ...", "Cross-check: 1/1 grounded region(s) fall inside a changed region." ],
+  "key_findings": [ "Change detected: ~25.3% ...", "Cross-check: 1/1 grounded region(s) fall inside a changed region." ],
   "spatial_findings": [ {"label":"changed region","where_pixel":[50,36,94,79],"where_lonlat":[114.9488,28.9119,114.949,28.9121],"area_ha":null,"source_step":"s3"} ],
+  "geojson": { "type":"FeatureCollection", "crs":"EPSG:4326", "features":[ {"type":"Feature","properties":{"label":"changed region","source_step":"s3"},"geometry":{"type":"Polygon","coordinates":[[[...]]]}} ] },
   "evidence": [ {"evidence_type":"change-mask", ...} ],
   "verification": { "status": "SUPPORTED", "checks": [ ... ] },
   "resolution": { "qualifier": "RESULT_OK", "answer_surfaced": true, "note": "deterministic post-execution qualifier — NOT a confidence value" },
-  "provenance": { "layer": "agent", "planner_used": "rule_based", "plan_status": "valid", "plan_steps": [...], "tool_calls": 4, "mask_source": "...", "input_files": ["/artifact?req=<id>&name=t1_optical.tif"] },
-  "execution_trace": [ {"ts":"13:17:01","event":"Mission received"}, {"ts":"13:17:10","event":"run_temporal_change -> COHERENT (verification SUPPORTED)"} ],
-  "warnings": [ "planner: ..." ], "failures": [], "models_used": ["ChangeFormer","RemoteSAM","CROMA"],
-  "timings": { "total_s": 41.2 }
+  "provenance": { "layer": "agent", "planner_used": "rule_based", "plan_status": "valid", "mission_family": "multi_step",
+                  "plan_steps": [...], "tool_calls": 4, "contributing_tool_calls": 4, "unnecessary_tool_calls": 0,
+                  "replans": [...], "early_stopped": false, "mask_source": "...", "input_files": ["/artifact?req=<id>&name=t1_optical.tif"] },
+  "execution_trace": [ {"ts":"13:17:01","event":"Mission received"}, {"ts":"13:17:10","event":"REPLAN [NEW_EVIDENCE] from s2: ..."} ],
+  "warnings": [ "PLANNER FALLBACK: ...", "SAR input missing — optical+SAR analysis was not performed" ],
+  "failures": [], "models_used": ["ChangeFormer","RemoteSAM","CROMA"], "timings": { "total_s": 41.2 }
 }
 ```
 
 - **Never** runs a tool the policy layer forbids; **never** fabricates a box,
   coordinate, or a result for a failed specialist. An optical+SAR step surfaces
   "representation-level only; no textual fact inferred".
+- **Replans** are a closed enum: `NEW_EVIDENCE · TOOL_FAILURE · MISSING_INPUT ·
+  INSUFFICIENT_EVIDENCE · VERIFICATION_CONTRADICTION · TASK_COMPLETE`. Each is a
+  structured `ReplanEvent`.
+- **Deterministic fallback is visible:** planner unavailable / plan
+  policy-rejected → `mode:"ask-fallback"`, `resolution.qualifier` in
+  `{PLANNER_UNAVAILABLE, SPECIALIST_DEGRADED}`, a `AGENT FALLBACK` warning, and
+  the blocking policy-check names in `execution_trace`.
 - Errors: 0 or > 4 files → `400 bad_file_count`; bad type → `400`; > 64 MB →
   `413`; agent exception → sanitized `500 agent_error`.
 

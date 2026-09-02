@@ -40,7 +40,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[5]
 
 _KW = {
     "change": ("change", "changed", "differ", "difference", "before and after", "bitemporal",
-               "bi-temporal", "what happened", "evolv"),
+               "bi-temporal", "what happened", "evolv", "compare these two", "compare the two",
+               "compare those two", "between these dates", "between the two"),
     # "describe the change" style — a flavour of change, not an extra analysis.
     # Every phrase must reference the change explicitly so it can't match a plain
     # "characterize this scene" (that is optical+SAR / scene, not semantic-change).
@@ -61,7 +62,13 @@ _KW = {
     "investigate": ("investigate", "investigation", "full analysis", "comprehensive",
                     "step by step", "and then locate", "and locate", "and identify the",
                     "and compare", "evidence-backed", "verified summary", "affected structures",
-                    "affected buildings", "changed buildings", "changed structures"),
+                    "affected buildings", "changed buildings", "changed structures",
+                    "assess the changes", "summarize the evidence", "summarise the evidence",
+                    "remote sensing investigation", "investigate this location"),
+    # "which regions / the largest changed area" -> extract discrete regions from the mask
+    "regions": ("changed area", "changed areas", "changed region", "changed regions",
+                "which region", "which regions", "largest changed", "affected region",
+                "affected regions", "the changed"),
 }
 
 
@@ -71,7 +78,12 @@ class MissionFeatures:
         self.mission = mission
         self.image_count = image_count
         self.modalities = [m.lower() for m in modalities]
-        self.has_sar = "sar" in self.modalities or any(k in q for k in _KW["sar"])
+        # a REAL SAR raster is present iff the modality list says so, or there are
+        # >= 3 images (T1, T2, ..., SAR). A bare "SAR" keyword with only optical
+        # rasters is a mention, not an available input.
+        self.sar_modality = "sar" in self.modalities
+        self.has_sar = self.sar_modality or image_count >= 3
+        self.sar_mentioned = self.sar_modality or any(k in q for k in _KW["sar"])
         self.has_optical = ("optical" in self.modalities or "multispectral" in self.modalities
                             or not self.modalities)
         self.want_change = any(k in q for k in _KW["change"])
@@ -81,12 +93,14 @@ class MissionFeatures:
         self.want_vqa = any(k in q for k in _KW["vqa"])
         self.want_compare = any(k in q for k in _KW["compare"])
         self.want_investigate = any(k in q for k in _KW["investigate"])
+        self.want_regions = any(k in q for k in _KW["regions"])
         # a mission is "multi-step" if it asks for >= 2 DISTINCT analyses.
         # "describe the change" (semantic) is a flavour of change, not an extra ask.
         pair = image_count >= 2
         asks = sum([self.want_change or self.want_semantic,
                     self.want_ground and pair,
-                    (self.has_sar or self.want_compare) and image_count >= 3])
+                    (self.has_sar or self.want_compare) and image_count >= 3,
+                    self.want_regions and pair])
         self.multi_step = self.want_investigate or asks >= 2
 
 
@@ -132,11 +146,14 @@ class RuleBasedPlanner:
         val = last
 
         two = image_count == 2
-        # a temporal pair needs an explicit CHANGE intent (semantic is a flavour of it).
-        temporal_pair = image_count in (2, 3, 4) and (f.want_change or f.want_semantic)
+        # a temporal pair: an explicit CHANGE intent, OR an investigation of a 2+-image scene
+        # (an "investigation" of a temporal pair is intrinsically about change).
+        temporal_pair = image_count in (2, 3, 4) and (
+            f.want_change or f.want_semantic or f.want_regions or f.want_investigate)
         # optical+SAR wins for a 2-image opt+SAR mission that is NOT about change
-        opt_sar = two and f.has_sar and f.has_optical and not f.want_change and not f.want_semantic
-        temporal = two and (f.want_change or f.want_semantic) and not opt_sar
+        opt_sar = two and f.has_sar and f.has_optical and not f.want_change and not f.want_semantic \
+            and not f.want_investigate
+        temporal = two and (f.want_change or f.want_semantic or f.want_regions) and not opt_sar
         single = image_count == 1
 
         if f.multi_step and temporal_pair:
