@@ -7,7 +7,7 @@
 
 | | |
 |---|---|
-| Git commit (this manifest) | `dcf8deb` on branch `docs/lightweight-model-audit` (G17 head; G18 commit follows) |
+| Git commit (this manifest) | `d060dce` on branch `docs/lightweight-model-audit` (G18 release-candidate commit; G17 head was `dcf8deb`) |
 | Python | **3.11.0** (product venv `.venvs/satquery`) |
 | OS (dev host) | Windows 11 (`Windows-10-10.0.26200-SP0`) |
 | Hardware (dev host) | ASUS Zephyrus G14 · RTX 3050 Ti 4 GB · **CUDA UNVERIFIED** (`torch 2.13.0+cpu`, `torch.cuda.is_available() == False`) |
