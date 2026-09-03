@@ -169,6 +169,31 @@ function verdictBadge(status) {
   return `<span class="badge b-warn">${esc(s)}</span>`;
 }
 
+// G18 report export: re-render the investigation we already have as a
+// self-contained HTML report (POST the result JSON back to /investigate/report).
+let LAST_INVESTIGATION = null;
+async function viewReport() {
+  const btn = document.getElementById("viewreport");
+  if (!LAST_INVESTIGATION) return;
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "building report …";
+  try {
+    const r = await fetch("/investigate/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(LAST_INVESTIGATION),
+    });
+    if (!r.ok) { btn.textContent = "report failed (HTTP " + r.status + ")"; return; }
+    const url = URL.createObjectURL(await r.blob());
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    btn.textContent = label;
+  } catch (e) {
+    btn.textContent = "report failed";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 document.getElementById("run").onclick = async () => {
   const btn = document.getElementById("run");
   const out = document.getElementById("out");
@@ -204,6 +229,7 @@ document.getElementById("run").onclick = async () => {
 
 function renderInvestigation(b) {
   const out = document.getElementById("out");
+  LAST_INVESTIGATION = b;
   const mark = { completed: "✓", running: "→", pending: "○", failed: "!", skipped: "·" };
   const statusWord = (b.verification||{}).status === "SUPPORTED" ? "Verified"
     : (b.verification||{}).status === "CONTRADICTED" ? "Contradicted"
@@ -233,6 +259,7 @@ function renderInvestigation(b) {
       <div>Total time</div><div>${num((b.timings||{}).total_s)} s</div>
     </div>
     <div class="answer" style="margin-top:12px">${esc(b.conclusion) || '<span class="empty">no conclusion</span>'}</div>
+    <button id="viewreport" style="margin-top:12px">View full report ↗</button>
   </div>`;
 
   if ((b.plan_rejection_reasons||[]).length) {
@@ -316,6 +343,8 @@ function renderInvestigation(b) {
   </div>`;
 
   out.innerHTML = html;
+  const rb = document.getElementById("viewreport");
+  if (rb) rb.onclick = viewReport;
 }
 
 function render(b) {

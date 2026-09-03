@@ -36,3 +36,22 @@ def test_report_escapes_html_in_mission():
     html = investigation_report_html({"mission": "<script>alert(1)</script>", "planner_used": "rule_based"})
     assert "<script>alert(1)</script>" not in html
     assert "&lt;script&gt;" in html
+
+
+def test_investigate_report_endpoint_accepts_a_result_json():
+    """G19: the UI 'View full report' button POSTs the AgentInvestigationResult
+    JSON it already holds back to POST /investigate/report and opens the HTML."""
+    import json
+
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    demo = (Path(__file__).resolve().parents[3] / "docs" / "sih" / "evidence"
+            / "demos" / "final" / "flagship_caseA_change.json")
+    body = json.loads(demo.read_text(encoding="utf-8"))
+    r = TestClient(app).post("/investigate/report", json=body)
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert r.text.startswith("<!doctype html>")
+    assert "Investigation" in r.text or "Mission" in r.text

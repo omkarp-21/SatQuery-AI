@@ -8,6 +8,32 @@ Status key: **MEASURED** (integrated-system number under our eval) ·
 **REPRODUCED** (we ran the upstream code) · **IMPLEMENTED** (works, not
 benchmarked) · **NEGATIVE** (measured, did not hold).
 
+> **G19 note (2026-09-04):** this matrix is frozen for SIH. The distilled
+> judge-facing version is `docs/G19_SIH_SOURCE_OF_TRUTH.md` §1–§4. The full
+> per-claim detail below is unchanged from G18 except the header of §6 (SAR) and
+> §7 (LoRA), which carry the G18 larger-split results. Use the **allowed**
+> column verbatim on slides and in answers.
+
+---
+
+## G19 public claim sheet (one line each — the version a judge hears)
+
+| # | Claim (allowed wording) | Forbidden wording | N |
+|---|-------------------------|-------------------|---|
+| 1 | "Measured, sanity-scale VQA capability — balanced accuracy 0.87 on an RSVQA-LR sample." | "SOTA VQA", "benchmarked on RSVQA", "human-level" | 40 |
+| 2 | "Measured, sanity-scale grounding — acc@IoU0.5 0.84 on a DIOR-RSVG sample; RemoteSAM checkpoint licence NOT STATED, so it is an optional component." | "SOTA segmentation", any distribution claim omitting the licence caveat | 25 |
+| 3 | "Integrated bi-temporal change detection (ChangeFormer); reproduction IoU ~0.83 on a small demo set." | "validated change-detection accuracy" | 7 |
+| 4 | "An experimental composed baseline describes changed regions (mask + zero-shot tags) — explicitly not a learned change-captioning model." | "change captioning", "temporal VLM", "understands what changed" | demo |
+| 5 | "SatQuery computes a joint optical+SAR representation (CROMA); it never asserts a semantic conclusion from the embedding." | "SAR confirms X", "fuses optical and SAR to detect X" | — |
+| 6 | "CROMA is the selected optical+SAR representation for the multimodal path; the larger validation did **not** support the earlier SAR-benefit claim, so we withdrew it." | "SAR improves performance/accuracy", "CROMA joint outperforms optical", "SatQuery benefits from SAR" | 200 + 386 |
+| 7 | "LoRA adaptation of the frozen CROMA encoder is an optional, provenance-tracked path (`--lora-weights`); on a larger split it lifted the probe directionally (+0.09 vs optical), consistent with the first split, but was not significance-tested. Production default is the frozen encoder." | "LoRA significantly improves accuracy", "SatQuery uses an adapted CROMA" | 200 + 386 |
+| 8 | "Bounded agentic geospatial investigation — decomposes a mission into validated specialist actions and adapts execution to intermediate observations; the LLM never controls execution." | "fully autonomous", "autonomous agent", "the AI decides everything" | 100 / 8 |
+| 9 | "The production planner is deterministic; a pure local LLM planner was built and measured to be unreliable (rejected); an LLM-intent hybrid is optional." | "LLM-powered planning", "AI plans the investigation" (as the default) | 15 / 100 |
+| 10 | "An evidence-derived confidence category with an explicit 'why', computed by deterministic rules." | "confidence score", "calibrated confidence", "X % confident", any number | 30 |
+| 11 | "Preserves CRS, transform and bounds through every stage; rejects misregistered or malformed input with a typed error; never emits a fabricated coordinate." | "handles any imagery" | 15 + 22 |
+| 12 | "Runs fully on CPU on a laptop; the 4 GB-GPU fit is UNVERIFIED (no CUDA build on the dev host)." | "runs in 4 GB VRAM", "real-time", any VRAM number | — |
+| 13 | "383 fast tests pass, 0 failed, 0 regressions; slow adapter suite 9/9." | — | 383 |
+
 ---
 
 ## 1 · Remote-sensing VQA

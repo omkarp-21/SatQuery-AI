@@ -52,7 +52,7 @@ See the [`Makefile`](Makefile) for all targets.
 | 2 | **Install** | `make setup`; place checkpoints under `models/cache/` (`scripts/download_models/`, ids + hashes in [`docs/G18_RELEASE_MANIFEST.md`](docs/G18_RELEASE_MANIFEST.md)). |
 | 3 | **Launch** | `make dev-backend` → `http://127.0.0.1:8000/`. `make dev-frontend` for the React dashboard (optional). |
 | 4 | **Demo** | Secondary (~15–60 s): *"Where is the largest ship?"* on `data/demo/grounding/scene.jpg`. Flagship (INVESTIGATE tab, ~90 s cold): the 4 tiles in `data/demo/investigation/` + the mission in `QUICKSTART.md`. Headless: `python scripts/demo/run_final_demo.py`. |
-| 5 | **Test** | `make test`, or `pytest packages apps/backend/tests -q -m "not slow and not gpu and not integration"` (**382 fast tests**). |
+| 5 | **Test** | `make test`, or `pytest packages apps/backend/tests -q -m "not slow and not gpu and not integration"` (**383 fast tests**). |
 | 6 | **CPU fallback** | every specialist + the agent run CPU-only; verified on the dev host. One model resident at a time (subprocess per specialist). |
 | 7 | **GPU caveat** | **GPU FIT = UNVERIFIED** — `torch.cuda.is_available() == False` on the dev host; no numerical VRAM claim is made. |
 | 8 | **Model caveats** | frozen stack (ADR-021). Deterministic planner is the **production default**; pure local LLM planner **rejected** (G16); hybrid LLM-intent planner **optional** (`SATQUERY_PLANNER=hybrid`, G17). Semantic-change *language* is an **experimental** composed baseline. |
@@ -69,6 +69,18 @@ See the [`Makefile`](Makefile) for all targets.
 
 Release audit + gate + final decision: [`docs/G18_RELEASE_REPORT.md`](docs/G18_RELEASE_REPORT.md) ·
 [`docs/G18_RELEASE_AUDIT.md`](docs/G18_RELEASE_AUDIT.md) · claim wording: [`docs/sih/CLAIM_MATRIX.md`](docs/sih/CLAIM_MATRIX.md).
+
+### SIH package (G19 — `FINAL_TECH_FREEZE = TRUE`)
+
+The single reference for every slide, script and judge answer is
+[`docs/G19_SIH_SOURCE_OF_TRUTH.md`](docs/G19_SIH_SOURCE_OF_TRUTH.md) (what we can /
+cannot claim, exact metrics with N, exact limitation wording, frozen flagship
+facts). Presentation set under [`docs/sih/`](docs/sih/): core story · pitch +
+30-second explanation · architecture diagram · demo storyboard · 3-minute script ·
+backup demo · results-slide data · novelty argument · competitor comparison ·
+top-30 judge Q&A · negative-results defense · demo runbook · final checklist ·
+product roadmap. After G19: bug fixes, demo reliability, docs and presentation
+assets only — no new features / models / architecture.
 
 ## Run the SatQuery MVP locally  *(G13)*
 

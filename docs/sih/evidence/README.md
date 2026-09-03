@@ -8,6 +8,14 @@
 > Status vocabulary: `TRACEABLE` (source or experiment recorded) ·
 > `PARTIAL` (some support, gap noted) · `BLOCKED` (needs the remote GPU box) ·
 > `TODO` (not yet collected).
+> Date: **2026-09-04 (G19 — SIH package + demo freeze)**. G19 is presentation
+> packaging only (no new capability): `docs/G19_SIH_SOURCE_OF_TRUTH.md` +
+> `docs/sih/*` (core story, pitch, architecture diagram, demo storyboard/runbook/
+> script, backup demo, results-slide data, novelty argument, competitor
+> comparison, top-30 judge Q&A, negative-results defense, research-honesty
+> slide, use cases, roadmap, final checklist) + a distilled claim sheet in
+> `CLAIM_MATRIX.md`. One code change: a "View full report ↗" button in the
+> investigate UI. `FINAL_TECH_FREEZE = TRUE`. 383 fast tests pass.
 > Date: **2026-09-03 (G18 — release candidate)**. G18 added: the larger-split D/E
 > re-validation (§6 — the SAR benefit **did not survive**, claim withdrawn), the
 > trust-layer rule validation (30 frozen cases / 7 families), the 22-condition
