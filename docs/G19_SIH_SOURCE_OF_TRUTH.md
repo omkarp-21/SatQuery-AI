@@ -8,7 +8,7 @@
 > `docs/G18_RELEASE_MANIFEST.md`, `README.md`, `docs/API_CONTRACT.md`, and the
 > frozen demo evidence in `docs/sih/evidence/demos/final/`.
 
-Build: commit `86c5661` (G19) on `docs/lightweight-model-audit`; G18 release
+Build: commit `aa87c28` (G19) on `docs/lightweight-model-audit`; G18 release
 candidate = `d060dce`. Python 3.11, Windows dev host, **CPU-only**
 (`torch.cuda.is_available() == False`). `FINAL_TECH_FREEZE = TRUE` (Part 23).
 
