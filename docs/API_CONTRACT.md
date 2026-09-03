@@ -1,13 +1,15 @@
 # SatQuery API Contract
 
-> Status: **G15 — agent validation + flagship mission mode.** `POST /investigate`
-> (mission → planner → policy → bounded agent loop with structured replanning +
-> explicit early termination → evidence-first report; `resolution.qualifier`,
-> `replans[]`, `early_stopped`, `geojson` on the response), `GET /` (UI with
-> an ASK / INVESTIGATE toggle), `POST /analyze/upload` (single-shot, flat
-> `NormalizedResponse`), `GET /artifact`, plus `POST /analyze`, `/change`,
-> `/scene`, `/health`. The deterministic router is the execution guard, not
-> replaced. **No confidence value in any response.**
+> Status: **G18 — release candidate.** `POST /investigate` (mission → planner →
+> policy → bounded agent loop with structured replanning + explicit early
+> termination → evidence-first report; `resolution.qualifier`, `replans[]`,
+> `early_stopped`, `geojson`, `confidence` category on the response),
+> `POST /investigate/report` (the same result rendered as a self-contained HTML
+> report — G18), `GET /` (UI with an ASK / INVESTIGATE toggle),
+> `POST /analyze/upload` (single-shot, flat `NormalizedResponse`), `GET /artifact`,
+> plus `POST /analyze`, `/change`, `/scene`, `/health`. The deterministic router
+> is the execution guard, not replaced. **No confidence value in any response —
+> `confidence` is an evidence-derived category with a "why", never a number.**
 > Full request/response types: `apps/backend/app/api/`.
 
 ---
@@ -110,6 +112,28 @@ evidence-first synthesis. Planner unavailable / plan rejected → deterministic
   The policy layer guards *structural* legality; this guards *mission fit*.
 - Errors: 0 or > 4 files → `400 bad_file_count`; bad type → `400`; > 64 MB →
   `413`; agent exception → sanitized `500 agent_error`.
+
+### `POST /investigate/report`  — investigation as HTML  *(G18)*
+
+**Request** — `multipart/form-data`, identical to `POST /investigate` (`query`,
+`files`, optional `context`). Runs the same agent pipeline, then renders the
+`AgentInvestigationResult` with `app.services.report.investigation_report_html`.
+
+**Response `200`** — `text/html` (`HTMLResponse`): one self-contained document
+(inline CSS, no external assets, HTML-escaped) with the sections **Mission ·
+Understood as · Inputs · Plan & execution · Replans · Key findings · Spatial
+findings · Evidence · Verification · Confidence category + why · Models used ·
+Warnings · Execution time · raw provenance**. The confidence block prints the
+**category** and its reasons and states *"not a calibrated probability"* — no
+percentage, no score. Print-friendly for the demo / PPT.
+
+CLI equivalent (no server): `python scripts/demo/mission_report.py
+<investigation.json> [-o out.html]` → `app.services.report.report_from_file`.
+
+Errors: same as `POST /investigate` (file count / type / size), agent exception →
+sanitized `500 agent_error`.
+
+---
 
 Task ontology (closed): `VALIDATE_INPUT, SCENE_UNDERSTANDING, VQA, GROUND_OBJECT,
 TEMPORAL_CHANGE, SEMANTIC_CHANGE, OPTICAL_SAR_ANALYSIS, EXTRACT_CHANGED_REGIONS,

@@ -56,11 +56,29 @@ Primary specialist per family: `single_step` → `run_vqa` / `run_grounding` /
 
 ## Mapping (after the hard rules)
 
-| total score | category |
+**1. score → band:**
+
+| total score | band |
 |:-----------:|----------|
-| ≥ 5.0 | **HIGH** |
-| 2.0 – 4.99 | **MEDIUM** |
-| < 2.0 | **LOW** |
+| ≥ 5.0 | HIGH |
+| 2.0 – 4.99 | MEDIUM |
+| < 2.0 | LOW |
+
+**2. conservative caps** (lower the band; added G18, validated on 30 frozen cases
+in `evaluation/agent/trust_cases.json` / `test_g18_trust_cases.py`):
+
+| condition | cap |
+|-----------|-----|
+| verification ≠ `SUPPORTED` | LOW |
+| any step verdict `INCOHERENT` (claim withheld) | LOW |
+| any specialist step **failed** | MEDIUM |
+| < 2 specialists completed **and** no completed `cross_check_evidence` | MEDIUM |
+| intent `ambiguity` == `high` / `low` | LOW / MEDIUM |
+
+So **HIGH is only ever reached by a multi-specialist investigation** whose
+verification is SUPPORTED, with no failed or withheld step and an unambiguous
+mission. A single-step answer or a bare 2-image temporal result caps at **MEDIUM**
+by design — the category is deliberately conservative.
 
 ## Claim-level evidence (Part 7)
 

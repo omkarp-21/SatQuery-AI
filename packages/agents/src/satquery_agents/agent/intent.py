@@ -421,7 +421,10 @@ def intent_from_raw(raw: str, mission: str, *, gen_s: float | None = None) -> tu
 class LlmIntentExtractor:
     name = "llm_intent"
 
-    def __init__(self, *, timeout_s: float = 120.0):
+    def __init__(self, *, timeout_s: float = 90.0):
+        # 90 s: an intent classification that cannot answer in this budget is
+        # unusable interactively -> the caller falls back to the deterministic
+        # keyword extractor. Caps the hybrid path's planning-latency tail.
         self.timeout_s = timeout_s
         self.persistent = os.environ.get("SATQUERY_PLANNER_PERSISTENT", "") == "1"
         self.last_attempt: IntentAttempt | None = None

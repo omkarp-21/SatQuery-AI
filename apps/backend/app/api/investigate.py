@@ -18,10 +18,12 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 
 from satquery_agents.agent import AgentInvestigationResult
 
 from app.services.agent_runner import run_investigation
+from app.services.report import investigation_report_html
 
 router = APIRouter(tags=["investigate"])
 
@@ -97,3 +99,11 @@ async def investigate(
         result.provenance["mask_url"] = mask_url
     result.timings.setdefault("endpoint_s", round(time.time() - started, 2))
     return result
+
+
+@router.post("/investigate/report", response_class=HTMLResponse)
+async def investigate_report(result: AgentInvestigationResult) -> str:
+    """G18 Part 13 — render an executed investigation as a clean, self-contained
+    HTML report (print-friendly, no external assets). Post the JSON body returned
+    by `POST /investigate`."""
+    return investigation_report_html(json.loads(result.model_dump_json()))

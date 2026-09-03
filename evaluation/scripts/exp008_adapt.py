@@ -223,6 +223,8 @@ def main() -> int:
     ap.add_argument("--lora-alpha", type=int, default=16)
     ap.add_argument("--adopt-threshold", type=float, default=0.03)
     ap.add_argument("--save-adapter", default=None, help="path to torch.save the trained LoRA delta")
+    ap.add_argument("--tag", default="", help="output filename tag, e.g. g18_larger")
+    ap.add_argument("--split-file", default="evaluation/datasets/dfc2020_exp004_split.json")
     a = ap.parse_args()
 
     pd = Path(a.patches_dir)
@@ -285,7 +287,7 @@ def main() -> int:
         "date": time.strftime("%Y-%m-%dT%H%M%S"),
         "encoder": a.encoder,
         "dataset": "DFC2020 ROIs0000_validation (non-gated 125oii/dfc2020)",
-        "split_file": "evaluation/datasets/dfc2020_exp004_split.json",
+        "split_file": a.split_file,
         "n_train": int(ytr.size),
         "n_eval": int(yev.size),
         "task": "dominant DFC land-cover class (8 classes)",
@@ -322,8 +324,9 @@ def main() -> int:
         f"Seed {SEED}. Real integrated measurement, not a full benchmark. No confidence value.",
     }
     ts = time.strftime("%Y%m%dT%H%M%S")
-    out = REPO_ROOT / "evaluation" / "reports" / f"exp008_{ts}.json"
-    out.write_text(json.dumps(payload, indent=2))
+    stem = f"exp008_{a.tag}_{ts}" if a.tag else f"exp008_{ts}"
+    out = REPO_ROOT / "evaluation" / "reports" / f"{stem}.json"
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     _md(payload, out.with_suffix(".md"))
     print(json.dumps(payload["arms"], indent=2))
     print(json.dumps(payload["decision"], indent=2))
@@ -368,7 +371,7 @@ def _md(p: dict, path: Path) -> None:
         "",
         f"> {p['note']}",
     ]
-    path.write_text("\n".join(lines))
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 if __name__ == "__main__":

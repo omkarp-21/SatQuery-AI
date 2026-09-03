@@ -1,0 +1,67 @@
+{
+ "flagship": [
+  {
+   "case": "caseA_change",
+   "status": "OK",
+   "planner_used": "rule_based",
+   "plan_tasks": [
+    "VALIDATE_INPUT",
+    "TEMPORAL_CHANGE",
+    "EXTRACT_CHANGED_REGIONS",
+    "GROUND_OBJECT",
+    "OPTICAL_SAR_ANALYSIS",
+    "CROSS_CHECK_EVIDENCE",
+    "VERIFY",
+    "SUMMARIZE",
+    "FINALIZE"
+   ],
+   "phase": "FINALIZING",
+   "early_stopped": false,
+   "tool_calls": 4,
+   "replans": [],
+   "verification": "SUPPORTED",
+   "confidence": "HIGH",
+   "wall_s": 93.0
+  },
+  {
+   "case": "caseB_nochange",
+   "status": "OK",
+   "planner_used": "rule_based",
+   "plan_tasks": [
+    "VALIDATE_INPUT",
+    "TEMPORAL_CHANGE",
+    "EXTRACT_CHANGED_REGIONS",
+    "GROUND_OBJECT",
+    "OPTICAL_SAR_ANALYSIS",
+    "CROSS_CHECK_EVIDENCE",
+    "VERIFY",
+    "SUMMARIZE",
+    "FINALIZE"
+   ],
+   "phase": "FINALIZING",
+   "early_stopped": true,
+   "tool_calls": 2,
+   "replans": [
+    "NEW_EVIDENCE",
+    "TOOL_FAILURE"
+   ],
+   "verification": "SUPPORTED",
+   "confidence": "MEDIUM",
+   "wall_s": 16.8
+  }
+ ],
+ "secondary": {
+  "status": "OK",
+  "task": "SINGLE_IMAGE_GROUNDING",
+  "model": "RemoteSAM",
+  "boxes": [
+   [
+    211.0,
+    427.0,
+    634.0,
+    512.0
+   ]
+  ],
+  "wall_s": 65.3
+ }
+}

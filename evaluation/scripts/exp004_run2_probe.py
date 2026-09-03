@@ -99,6 +99,9 @@ def main() -> int:
     ap.add_argument("--dofa-eval", required=True)
     ap.add_argument("--meta-json", nargs="*", default=[], help="feature .meta.json files for runtime/memory")
     ap.add_argument("--n-boot", type=int, default=2000)
+    ap.add_argument("--tag", default="", help="output filename tag, e.g. g18_larger (keeps G12 files untouched)")
+    ap.add_argument("--split-file", default="evaluation/datasets/dfc2020_exp004_split.json")
+    ap.add_argument("--note", default="")
     a = ap.parse_args()
 
     ct, ce = np.load(a.croma_train), np.load(a.croma_eval)
@@ -158,7 +161,7 @@ def main() -> int:
         "experiment": "EXP-004 Run 2 — DFC2020 optical vs optical+SAR downstream probe",
         "date": time.strftime("%Y-%m-%dT%H%M%S"),
         "dataset": "DFC2020 ROIs0000_validation (non-gated mirror 125oii/dfc2020)",
-        "split_file": "evaluation/datasets/dfc2020_exp004_split.json",
+        "split_file": a.split_file,
         "n_train": int(ytr.size),
         "n_eval": int(yev.size),
         "task": "single-label patch classification: dominant DFC land-cover class",
@@ -193,14 +196,14 @@ def main() -> int:
             "practically_tied": bool(tie),
             "winner": winner,
         },
-        "note": "sanity-scale (600/986 validation patches). Real integrated measurement "
-        "(frozen encoder -> probe -> metric), NOT a full DFC2020 benchmark. Seed "
-        f"{SEED}. CPU. No confidence value produced.",
+        "note": a.note or ("Real integrated measurement (frozen encoder -> probe -> metric), "
+                           f"NOT a full DFC2020 benchmark. Seed {SEED}. CPU. No confidence value produced."),
     }
 
     ts = time.strftime("%Y%m%dT%H%M%S")
-    out = REPO_ROOT / "evaluation" / "reports" / f"exp004_run2_{ts}.json"
-    out.write_text(json.dumps(payload, indent=2))
+    stem = f"exp004_run2_{a.tag}_{ts}" if a.tag else f"exp004_run2_{ts}"
+    out = REPO_ROOT / "evaluation" / "reports" / f"{stem}.json"
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     _write_md(payload, out.with_suffix(".md"))
     print(json.dumps(payload["arms"], indent=2))
     print("\nSAR improves task:", json.dumps(payload["sar_improves_task"], indent=2))
@@ -259,7 +262,7 @@ def _write_md(p: dict, path: Path) -> None:
         "",
         f"> {p['note']}",
     ]
-    path.write_text("\n".join(lines))
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 if __name__ == "__main__":

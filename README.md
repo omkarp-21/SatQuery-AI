@@ -30,15 +30,45 @@ and an execution trace.
 
 ## Quickstart
 
+**Shortest path: [`QUICKSTART.md`](QUICKSTART.md) — clone → install → launch → demo in ~5 min.**
+
 ```bash
 cp .env.example .env          # fill in secrets
 make setup                    # install packages + backend + frontend deps
 make clone-research           # clone reference repos into external/research/ (read-only)
-make download-models          # pull model checkpoints (later)
-make dev                      # run API + frontend + supporting services
+make download-models          # pull model checkpoints
+make dev-backend              # uvicorn -> http://127.0.0.1:8000/  (self-contained UI, no build)
 ```
 
 See the [`Makefile`](Makefile) for all targets.
+
+---
+
+## Release candidate (G18) — the 10-point run experience
+
+| # | | |
+|--:|---|---|
+| 1 | **Prerequisites** | Python **3.11+**, `git`, ~12 GB disk, 8 GB+ RAM. No internet at run time. CPU-only is fully supported. |
+| 2 | **Install** | `make setup`; place checkpoints under `models/cache/` (`scripts/download_models/`, ids + hashes in [`docs/G18_RELEASE_MANIFEST.md`](docs/G18_RELEASE_MANIFEST.md)). |
+| 3 | **Launch** | `make dev-backend` → `http://127.0.0.1:8000/`. `make dev-frontend` for the React dashboard (optional). |
+| 4 | **Demo** | Secondary (~15–60 s): *"Where is the largest ship?"* on `data/demo/grounding/scene.jpg`. Flagship (INVESTIGATE tab, ~90 s cold): the 4 tiles in `data/demo/investigation/` + the mission in `QUICKSTART.md`. Headless: `python scripts/demo/run_final_demo.py`. |
+| 5 | **Test** | `make test`, or `pytest packages apps/backend/tests -q -m "not slow and not gpu and not integration"` (**382 fast tests**). |
+| 6 | **CPU fallback** | every specialist + the agent run CPU-only; verified on the dev host. One model resident at a time (subprocess per specialist). |
+| 7 | **GPU caveat** | **GPU FIT = UNVERIFIED** — `torch.cuda.is_available() == False` on the dev host; no numerical VRAM claim is made. |
+| 8 | **Model caveats** | frozen stack (ADR-021). Deterministic planner is the **production default**; pure local LLM planner **rejected** (G16); hybrid LLM-intent planner **optional** (`SATQUERY_PLANNER=hybrid`, G17). Semantic-change *language* is an **experimental** composed baseline. |
+| 9 | **Licence caveat** | **RemoteSAM checkpoint licence NOT STATED** (upstream repo, HF card and paper are silent) → RemoteSAM is packaged as an **optional** component; the rest of the product works without it. |
+| 10 | **Known limitations** | see the box below and [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). |
+
+### Known limitations (nothing hidden)
+
+- Evaluation is **sanity-scale** (n = tens–hundreds), not a full benchmark; every number carries its N and a significance caveat.
+- **DFC2020: adding SAR did not improve the downstream task** — the G12 +0.067 delta was within noise and **reversed** on the larger independent split (G18 Part 2). No statistical significance was established for any comparison.
+- **4 GB GPU fit UNVERIFIED**; **RemoteSAM licence NOT STATED**.
+- Confidence is an **evidence-derived category** (`HIGH/MEDIUM/LOW/INSUFFICIENT_EVIDENCE`), **never a probability or a number**.
+- The pure local LLM planner is **rejected for production**; the hybrid intent planner is **optional** and does not beat the deterministic planner on this hardware.
+
+Release audit + gate + final decision: [`docs/G18_RELEASE_REPORT.md`](docs/G18_RELEASE_REPORT.md) ·
+[`docs/G18_RELEASE_AUDIT.md`](docs/G18_RELEASE_AUDIT.md) · claim wording: [`docs/sih/CLAIM_MATRIX.md`](docs/sih/CLAIM_MATRIX.md).
 
 ## Run the SatQuery MVP locally  *(G13)*
 

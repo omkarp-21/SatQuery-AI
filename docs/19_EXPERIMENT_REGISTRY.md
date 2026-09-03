@@ -161,6 +161,18 @@ what we measured, what we decided.
   challenger/fallback. **H3 = INVESTIGATE → lean KEEP** — SAR helps CROMA
   (+0.067) but not significantly at n=200; a larger eval split is the honest next
   step before a strong claim.
+- **G18 ADDENDUM (2026-09-03) — the larger split was run; the SAR benefit did NOT
+  survive.** Full DFC2020 `ROIs0000_validation` (986 patches), independent
+  600/386 split `evaluation/datasets/dfc2020_g17_larger_split.json` (**G12 400/200
+  split untouched**), same frozen-encoder + probe method + bootstrap + McNemar.
+  **CROMA optical-only macro-F1 0.8505 vs joint 0.8247 (Δ −0.0258; 95% CI
+  [−0.0796, +0.0267]; McNemar p = 1.0).** DOFA fused 0.8177 vs optical 0.8374.
+  The point estimate **flipped sign** and was never significant. **H3 verdict →
+  the "SAR improves the downstream task" claim is WITHDRAWN**
+  (`docs/sih/CLAIM_MATRIX.md` §6, `docs/G18_RELEASE_REPORT.md` Part 2). CROMA
+  still ≥ DOFA on the primary metric on both splits → **CROMA stays D primary**;
+  the joint *representation* remains integrated (no textual claim derived from
+  it). Reports: `evaluation/reports/exp004_run2_g18_larger_*` (gitignored).
 
 ## EXP-008 — RS adaptation probe on DFC2020 (requirement E)
 
@@ -181,6 +193,24 @@ what we measured, what we decided.
   deployment blocker). Production default stays the **frozen** encoder until a
   larger-split, bootstrapped re-run confirms the gain. Additive opt-in load path,
   not an architecture change.
+- **G18 ADDENDUM (2026-09-03) — larger-split re-run + adapter persisted + plumbing
+  verified.** Same 986-patch independent 600/386 split, 3 CPU epochs (vs G12's 8,
+  for time budget). **LoRA-adapted joint macro-F1 0.6686 vs frozen fused 0.5422
+  (+0.1264) vs optical-only frozen 0.5772 (+0.0914); frozen fused − optical
+  −0.0350.** 811 k params / 3.24 MB delta / 42 layers / CPU RSS 1.73 GB. The LoRA
+  lift over frozen **replicates G12's direction and is larger here**, BUT: no
+  bootstrap CI / no paired test in this run, and the frozen arms are 3-epoch
+  AdamW linear heads (under-trained — the fully-converged Part-2 probe scored
+  ~0.85 on the same frozen features), so Part-2 and Part-3 absolute numbers are
+  **not comparable**; only the within-Part-3 arm deltas are. Adapter persisted
+  `models/checkpoints/exp008_croma_lora.pt`; `--lora-weights` verified end-to-end
+  through the real `CromaAdapter` (`test_croma_lora_adapter_loads_and_changes_representation`
+  — 42/42 wrapped Linears matched, joint embedding measurably shifted, provenance
+  `encoder_mode` + adapter sha256 recorded). **Decision unchanged: production
+  default stays FROZEN CROMA** (a directional 3-epoch CPU run with no significance
+  test is not grounds to flip a production default; the G18 D finding removes the
+  task-benefit objective anyway). LoRA stays opt-in. Reports:
+  `evaluation/reports/exp008_g18_larger_*` (gitignored).
 
 ## EXP-005 — Structural verifier detection
 
@@ -262,11 +292,11 @@ what we measured, what we decided.
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
 | EXP-002 | single-image VLM A/B gate — VQA + grounding | selection | **DONE (G11)** — TinyRS-2B VQA bal-acc 0.87 (PRIMARY) / Qwen2-VL-2B 0.70 (fallback); RemoteSAM grounding acc@IoU0.5 0.84; RSCoVLM-3B does not exist. ADR-020 | KEEP TinyRS-2B + RemoteSAM |
 | EXP-003 | temporal-language — composed baseline vs remote VLMs (a); crop strategy (b) | selection (→H2) | **EXP-003b RUN** (crop strategy: agreement 4/6, `expanded` provisional); EXP-003a BLOCKED (remote) | `EXP-003.md` |
-| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **DONE (G12)** — Run 2 real DFC2020 probe: CROMA joint 0.793 vs optical 0.726 macro-F1 (+0.067, n.s. at n=200); DOFA fusion no gain | **KEEP CROMA** (D primary); H3 lean-KEEP |
+| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **DONE (G12 + G18)** — G12 n=200: CROMA joint 0.793 vs optical 0.726 (+0.067, n.s.). **G18 n=386 larger split: joint 0.8247 vs optical 0.8505 (Δ −0.026, n.s.) — SAR benefit did NOT survive** | **KEEP CROMA** (D primary; CROMA ≥ DOFA both splits); **H3 → "SAR improves the task" claim WITHDRAWN** |
 | EXP-005 | verifier detection — structural (a) + model-independent semantic (b) | H4 | **RUN** — 005a structural P/R/F1 = 1.00 (n=24); 005b semantic P/R/F1 = 1.00 (n=34), INTEGRATED; label-correctness gap remains | `EXP-005.md` |
 | EXP-006 | agentic planner + policy guard vs single-shot routing | H2 | **DONE (G14)** — plan validity 0.967, tool-selection 1.00, task-order 1.00 (30 frozen missions); agent runs multiple required specialists on multi-step missions where the baseline routes to one | **KEEP** — the differentiating feature |
 | EXP-007 | geospatial safeguard stress test | H5 | **RUN — 15/15 pass** (`EXP-007.md`) | KEEP the gate |
-| EXP-008 | RS adaptation probe (req. E) | n/a | **DONE (G12)** — LoRA on CROMA: macro-F1 0.643 (frozen) → 0.704 (adapted), +0.061; 811 k trainable params | **ADOPT LoRA** as the E method; prod default frozen pending larger split |
+| EXP-008 | RS adaptation probe (req. E) | n/a | **DONE (G12 + G18)** — G12 8ep: 0.643→0.704 (+0.061). G18 larger split, 3 CPU ep: LoRA 0.6686 vs frozen fused 0.5422 (+0.126) vs optical 0.5772 (+0.091); direction replicates, no significance test | **LoRA is the E method**; prod default stays **frozen CROMA**; `--lora-weights` opt-in, adapter persisted + verified through `CromaAdapter` |
 
 Hypothesis coverage: H1→EXP-001, H2→EXP-006 (informed by EXP-003), H3→EXP-004,
 H4→EXP-005, H5→EXP-007. Mandatory-capability coverage without a hypothesis:

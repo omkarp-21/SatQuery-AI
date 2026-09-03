@@ -67,10 +67,29 @@ def main() -> int:
                                 modality="both", image_resolution=R).eval()
         encoder_mode = "frozen"
         if a.lora_weights:
-            # EXP-008 LoRA delta: {name: (A, B, scaling)} applied to matching
-            # Linear weights. Applied as a merged weight delta so inference code
-            # is unchanged. If nothing matches, fail loudly (never silently frozen).
-            delta = torch.load(a.lora_weights, map_location="cpu")
+            # EXP-008 LoRA delta applied as a merged weight delta so inference
+            # code is unchanged. If nothing matches, fail loudly (never silently
+            # frozen). Two accepted on-disk shapes:
+            #   (a) exp008_adapt.py: {"lora_r","lora_alpha","targets",
+            #       "state_dict": {f"{mod}.a": A(r,in), f"{mod}.b": B(out,r)}}
+            #   (b) legacy: {mod_name: (A, B, scaling)}
+            blob = torch.load(a.lora_weights, map_location="cpu")
+            if isinstance(blob, dict) and "state_dict" in blob:
+                lsd = blob["state_dict"]
+                lscaling = float(blob["lora_alpha"]) / float(blob["lora_r"])
+                grouped: dict[str, dict] = {}
+                for k, v in lsd.items():
+                    if k.endswith(".a"):
+                        grouped.setdefault(k[:-2], {})["a"] = v
+                    elif k.endswith(".b"):
+                        grouped.setdefault(k[:-2], {})["b"] = v
+                delta = {
+                    m: (g["a"], g["b"], lscaling)
+                    for m, g in grouped.items()
+                    if "a" in g and "b" in g
+                }
+            else:
+                delta = blob
             applied = 0
             sd = model.state_dict()
             for name, mod in model.named_modules():

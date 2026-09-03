@@ -90,13 +90,17 @@ def assess_confidence(res, mem, plan, *, intent=None) -> ConfidenceAssessment:
 
     # ---------- HARD rules ----------
     primary = _PRIMARY_TOOL.get(family, set())
-    primary_failed = any(o.tool in primary for o in failed) and not any(o.tool in primary for o in completed)
+    primary_done = any(o.tool in primary for o in completed)
+    primary_attempted_but_not_done = any(
+        o.tool in primary and o.status in ("failed", "skipped") for o in steps)
+    primary_missing = primary_attempted_but_not_done and not primary_done
     if vstatus == "CONTRADICTED":
         a.hard_rule = "verification CONTRADICTED"
-    elif primary_failed:
-        a.hard_rule = f"the primary specialist for a {family} mission failed"
-    elif evidence_n == 0 and specialist_steps:
-        a.hard_rule = "no evidence was produced"
+    elif primary_missing:
+        a.hard_rule = f"the primary specialist for a {family} mission did not complete"
+    elif evidence_n == 0:
+        a.hard_rule = ("no evidence was produced" if specialist_steps
+                       else "no specialist ran and no evidence was produced")
     if a.hard_rule:
         a.category = "INSUFFICIENT_EVIDENCE"
         a.score = 0.0
@@ -192,15 +196,49 @@ def assess_confidence(res, mem, plan, *, intent=None) -> ConfidenceAssessment:
     score -= lim
     sig["known_limitation_penalty"] = lim
 
-    # ---------- map to category ----------
+    # ---------- map score -> band, then apply conservative CAPS ----------
     if score >= _HIGH_MIN:
-        a.category = "HIGH"
+        band = "HIGH"
     elif score >= _MEDIUM_MIN:
-        a.category = "MEDIUM"
+        band = "MEDIUM"
     else:
-        a.category = "LOW"
+        band = "LOW"
+
+    _ORDER = {"LOW": 0, "MEDIUM": 1, "HIGH": 2}
+    _NAME = {0: "LOW", 1: "MEDIUM", 2: "HIGH"}
+
+    def _cap(cur: str, ceiling: str, why: str) -> str:
+        if _ORDER[cur] > _ORDER[ceiling]:
+            reasons.append(why)
+            return ceiling
+        return cur
+
+    cat = band
+    # a result that did not verify is never more than LOW
+    if vstatus != "SUPPORTED":
+        cat = _cap(cat, "LOW", "Capped at LOW: verification did not reach SUPPORTED.")
+    # a withheld (INCOHERENT) step means the answer is partial
+    if incoherent:
+        cat = _cap(cat, "LOW", "Capped at LOW: a step result was withheld as INCOHERENT.")
+    # any specialist failure -> not HIGH
+    if failed:
+        cat = _cap(cat, "MEDIUM", "Capped at MEDIUM: a specialist step failed.")
+    # HIGH needs corroboration: >= 2 specialists OR a completed cross-check
+    cc_done = any(o.tool == "cross_check_evidence" and o.status == "completed" for o in steps)
+    if len(completed) < 2 and not cc_done:
+        cat = _cap(cat, "MEDIUM", "Capped at MEDIUM: only one specialist ran, no cross-check.")
+    # ambiguity caps
+    if amb == "high":
+        cat = _cap(cat, "LOW", "Capped at LOW: the mission wording was highly ambiguous.")
+    elif amb == "low":
+        cat = _cap(cat, "MEDIUM", "Capped at MEDIUM: the mission wording was somewhat ambiguous.")
+
+    if cat == "LOW" and band != "LOW":
+        pass  # a cap reason already explains it
+    elif cat == "LOW":
         reasons.append("Overall evidence support is thin (LOW).")
 
+    a.category = cat
     a.score = score
     a.reasons = reasons
     a.signals = sig
