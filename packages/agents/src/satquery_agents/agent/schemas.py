@@ -168,7 +168,7 @@ class AgentPlan(BaseModel):
 
 AgentPhase = Literal[
     "INITIAL", "PLANNING", "PLAN_VALIDATION", "EXECUTING", "OBSERVING",
-    "VERIFYING", "REPLANNING", "FINALIZING", "FAILED",
+    "VERIFYING", "REPLANNING", "FINALIZING", "FAILED", "BLOCKED",
 ]
 
 StepStatus = Literal["pending", "running", "completed", "skipped", "failed"]
@@ -246,6 +246,15 @@ class AgentInvestigationResult(BaseModel):
     # --- execution ---
     phase: AgentPhase = "INITIAL"
     ok: bool = False
+    # G20.1: top-level investigation outcome — DISTINCT from `verification` (which
+    # judges only the evidence that was produced) and from `confidence`.
+    #   SUCCESS  every planned specialist completed, or a legitimate early stop
+    #   PARTIAL  some specialists completed, some failed / were pruned by a failure
+    #   BLOCKED  a pre-condition (co-registration, CRS, unreadable input, missing
+    #            required modality) stopped the analysis before any conclusion
+    #   FAILED   the agent itself could not run (no plan, contradiction, 0 calls)
+    investigation_status: Literal["SUCCESS", "PARTIAL", "BLOCKED", "FAILED"] | None = None
+    investigation_status_reason: str | None = None  # one human-readable sentence
     mission_family: str = "unknown"  # single_step | temporal | optical_sar | multi_step | unsupported
     steps: list[StepObservation] = Field(default_factory=list)
     replans: list[ReplanEvent] = Field(default_factory=list)

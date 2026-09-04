@@ -163,6 +163,8 @@
  "intent": null,
  "phase": "FINALIZING",
  "ok": true,
+ "investigation_status": "SUCCESS",
+ "investigation_status_reason": "no significant temporal change detected",
  "mission_family": "multi_step",
  "steps": [
   {
@@ -180,9 +182,9 @@
    "numeric": {},
    "failure": null,
    "contributed": true,
-   "started_at": "21:01:56",
-   "finished_at": "21:01:56",
-   "runtime_s": 0.02,
+   "started_at": "13:04:14",
+   "finished_at": "13:04:14",
+   "runtime_s": 0.01,
    "replan_note": null
   },
   {
@@ -205,9 +207,9 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:01:56",
-   "finished_at": "21:02:13",
-   "runtime_s": 16.71,
+   "started_at": "13:04:14",
+   "finished_at": "13:04:24",
+   "runtime_s": 10.59,
    "replan_note": null
   },
   {
@@ -229,8 +231,8 @@
    },
    "failure": null,
    "contributed": false,
-   "started_at": "21:02:13",
-   "finished_at": "21:02:13",
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
    "runtime_s": 0.01,
    "replan_note": null
   },
@@ -249,7 +251,7 @@
    "numeric": {},
    "failure": null,
    "contributed": false,
-   "started_at": "21:02:13",
+   "started_at": "13:04:24",
    "finished_at": null,
    "runtime_s": null,
    "replan_note": "an upstream step was skipped"
@@ -269,7 +271,7 @@
    "numeric": {},
    "failure": null,
    "contributed": false,
-   "started_at": "21:02:13",
+   "started_at": "13:04:24",
    "finished_at": null,
    "runtime_s": null,
    "replan_note": "an upstream step was skipped"
@@ -289,7 +291,7 @@
    "numeric": {},
    "failure": null,
    "contributed": false,
-   "started_at": "21:02:13",
+   "started_at": "13:04:24",
    "finished_at": null,
    "runtime_s": null,
    "replan_note": "an upstream step was skipped"
@@ -311,8 +313,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:02:13",
-   "finished_at": "21:02:13",
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
    "runtime_s": 0.0,
    "replan_note": null
   },
@@ -333,8 +335,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:02:13",
-   "finished_at": "21:02:13",
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
    "runtime_s": 0.0,
    "replan_note": null
   },
@@ -355,8 +357,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:02:13",
-   "finished_at": "21:02:13",
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
    "runtime_s": 0.0,
    "replan_note": null
   }
@@ -372,7 +374,7 @@
     "s4",
     "s5"
    ],
-   "ts": "21:02:13"
+   "ts": "13:04:24"
   },
   {
    "reason": "TOOL_FAILURE",
@@ -380,7 +382,7 @@
    "previous_phase": "REPLANNING",
    "detail": "extract_changed_regions failed; downstream steps that required it are skipped, no result is fabricated",
    "steps_skipped": [],
-   "ts": "21:02:13"
+   "ts": "13:04:24"
   }
  ],
  "tool_calls": 2,
@@ -388,7 +390,7 @@
  "hit_step_cap": false,
  "early_stopped": true,
  "completion_reason": "no significant temporal change detected",
- "conclusion": "1 step(s) failed. Verification: SUPPORTED.",
+ "conclusion": "No significant change was detected between the two observations, so the localisation and optical+SAR steps were not needed.",
  "key_findings": [
   "No significant change: changed fraction ~0.00% (below the 1% threshold).",
   "Grounding: no matching region could be localised (returned explicitly, not fabricated).",
@@ -398,11 +400,11 @@
  "geojson": null,
  "evidence": [
   {
-   "evidence_id": "ev-change_069e1cca3552",
+   "evidence_id": "ev-change_c227eedcb297",
    "source_model": "changeformer",
    "task": "change-detection",
    "modality": "optical-bitemporal",
-   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_frxkobo5\\changeformer_mask_1788449533069.png",
+   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_1emuiw2x\\changeformer_mask_1788507264817.png",
    "spatial_region": null,
    "temporal_context": {
     "t1": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\investigation\\t1_optical.tif",
@@ -412,7 +414,7 @@
    "claim_supported": "~0.0% of pixels changed between T1 and T2",
    "evidence_type": "change-mask",
    "payload": {
-    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_frxkobo5\\changeformer_mask_1788449533069.png",
+    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_1emuiw2x\\changeformer_mask_1788507264817.png",
     "changed_fraction": 0.0,
     "changed_area_ha": 0.0
    },
@@ -428,15 +430,15 @@
     "modalities": [
      "optical-bitemporal"
     ],
-    "runtime_s": 4.276,
-    "timestamp": "2026-09-03T15:32:13Z",
+    "runtime_s": 3.023,
+    "timestamp": "2026-09-04T07:34:24Z",
     "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
     "input_digest": "e7801ae4f9bcf045:562eaa2d1b77037c",
     "device": "cpu",
     "bridge": "scripts/research/changeformer_infer.py",
     "score_meaning": "fraction of pixels flagged changed - NOT a confidence"
    },
-   "timestamp": "2026-09-03T15:32:13Z",
+   "timestamp": "2026-09-04T07:34:24Z",
    "status": "ok"
   }
  ],
@@ -446,7 +448,7 @@
    {
     "name": "aggregate",
     "passed": true,
-    "detail": "step statuses: ['SUPPORTED', 'SUPPORTED', 'INSUFFICIENT_EVIDENCE']"
+    "detail": "step statuses: ['SUPPORTED', 'INSUFFICIENT_EVIDENCE']"
    }
   ]
  },
@@ -481,7 +483,7 @@
  },
  "provenance": {
   "layer": "agent",
-  "mask_source": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_frxkobo5\\changeformer_mask_1788449533069.png",
+  "mask_source": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_1emuiw2x\\changeformer_mask_1788507264817.png",
   "planner_used": "rule_based",
   "plan_status": "valid",
   "mission_family": "multi_step",
@@ -572,7 +574,7 @@
      "s4",
      "s5"
     ],
-    "ts": "21:02:13"
+    "ts": "13:04:24"
    },
    {
     "reason": "TOOL_FAILURE",
@@ -580,7 +582,7 @@
     "previous_phase": "REPLANNING",
     "detail": "extract_changed_regions failed; downstream steps that required it are skipped, no result is fabricated",
     "steps_skipped": [],
-    "ts": "21:02:13"
+    "ts": "13:04:24"
    }
   ],
   "early_stopped": true,
@@ -590,52 +592,52 @@
  },
  "execution_trace": [
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "Mission received"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "Plan generated (rule_based, 9 steps)"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "Plan validated"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "validate_geospatial_input -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:02:13",
+   "ts": "13:04:24",
    "event": "run_temporal_change -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:02:13",
+   "ts": "13:04:24",
    "event": "REPLAN [NEW_EVIDENCE] from s2: changed_fraction 0.0000 < 0.01: no significant change \u2014 region extraction / grounding / SAR steps are unnecessary"
   },
   {
-   "ts": "21:02:13",
+   "ts": "13:04:24",
    "event": "extract_changed_regions -> INSUFFICIENT (specialist returned ok=false)"
   },
   {
-   "ts": "21:02:13",
+   "ts": "13:04:24",
    "event": "REPLAN [TOOL_FAILURE] from s3: extract_changed_regions failed; downstream steps that required it are skipped, no result is fabricated"
   },
   {
-   "ts": "21:02:13",
+   "ts": "13:04:24",
    "event": "verify_result -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:02:13",
+   "ts": "13:04:24",
    "event": "inspect_evidence -> NOT_APPLICABLE (verification not applicable)"
   },
   {
-   "ts": "21:02:13",
+   "ts": "13:04:24",
    "event": "finalize_answer -> NOT_APPLICABLE (verification not applicable)"
   },
   {
-   "ts": "21:02:13",
-   "event": "Final report generated"
+   "ts": "13:04:24",
+   "event": "Investigation status: SUCCESS \u2014 no significant temporal change detected"
   }
  ],
  "warnings": [
@@ -650,15 +652,15 @@
   "ChangeFormer"
  ],
  "timings": {
-  "total_s": 16.83,
-  "s1_validate_geospatial_input": 0.02,
-  "s2_run_temporal_change": 16.71,
+  "total_s": 10.67,
+  "s1_validate_geospatial_input": 0.01,
+  "s2_run_temporal_change": 10.59,
   "s3_extract_changed_regions": 0.01
  },
  "_capture": {
   "script": "scripts/demo/run_final_demo.py",
   "case": "caseB_nochange",
-  "wall_s": 16.8,
+  "wall_s": 10.7,
   "architecture": "PRODUCTION: RuleBasedPlanner -> 12-check policy -> bounded adaptive executor -> evidence -> verification -> trust category",
   "input_metadata": [
    {

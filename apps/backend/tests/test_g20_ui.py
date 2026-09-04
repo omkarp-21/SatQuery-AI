@@ -104,12 +104,37 @@ def test_demo_mode_prefills_official_mission_but_still_calls_real_backend(served
 
 @pytest.mark.parametrize("fn", [
     "renderInvestigation", "renderAsk", "missionPanel", "planPanel", "adaptivePanel",
-    "viewerPanel", "mountViewer", "renderGeoSVG", "findingsPanel", "trustPanel",
-    "verificationPanel", "evidencePanel", "warningsPanel", "errState", "viewReport",
-    "checkHealth", "route",
+    "completionPanel", "viewerPanel", "mountViewer", "renderGeoSVG", "findingsPanel",
+    "trustPanel", "verificationLine", "evidencePanel", "warningsPanel", "errState",
+    "viewReport", "checkHealth", "route",
 ])
 def test_render_function_present(served, fn):
     assert re.search(r"\bfunction\s+" + fn + r"\b", served) or re.search(fn + r"\s*=", served)
+
+
+# ---------------------------------------------------------------- G20.1 status hierarchy
+
+def test_ui_has_the_four_investigation_statuses(served):
+    for s in ("SUCCESS", "PARTIAL", "BLOCKED", "FAILED"):
+        assert s in served, f"status {s} not referenced in the UI"
+    assert "STATUS_META" in served and "status-banner" in served
+
+
+def test_ui_separates_investigation_status_from_verification(served):
+    # verification is explicitly labelled as being about the evidence, not the outcome
+    assert "of the evidence, not the outcome" in served
+    # a blocked run shows "Spatial comparison unavailable", never the input image
+    assert "Spatial comparison unavailable" in served
+    # verification can read NOT APPLICABLE
+    assert "NOT APPLICABLE" in served
+    # enum reason names are mapped to plain language for the primary view
+    assert "_REASON_PLAIN" in served
+    assert "TOOL_FAILURE" in served  # only inside the mapping / details, not as a headline
+
+
+def test_ui_uses_investigation_status_field_from_the_backend(served):
+    assert "investigation_status" in served
+    assert "investigation_status_reason" in served
 
 
 def test_report_button_uses_the_existing_endpoint(served):
@@ -122,8 +147,9 @@ def test_report_button_uses_the_existing_endpoint(served):
 
 def test_required_terminology_present(served):
     for term in ("Mission", "Plan", "Adaptive execution", "Findings", "Confidence",
-                 "Verification", "Evidence", "Warnings", "Trace", "Observation", "Decision"):
+                 "Verification", "Evidence", "Warnings", "Observation", "Decision"):
         assert term in served, f"missing UI term: {term}"
+    assert "trace" in served.lower()
 
 
 # ---------------------------------------------------------------- claim hygiene

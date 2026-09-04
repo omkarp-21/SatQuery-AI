@@ -8,6 +8,15 @@
 > Status vocabulary: `TRACEABLE` (source or experiment recorded) ·
 > `PARTIAL` (some support, gap noted) · `BLOCKED` (needs the remote GPU box) ·
 > `TODO` (not yet collected).
+> Date: **2026-09-04 (G20.1 — error-handling semantics)**. G20.1 fixes a
+> mislabelled failure (a not-co-registered temporal pair rendering as "Verification:
+> SUPPORTED"): a new derived `investigation_status` (SUCCESS / PARTIAL / BLOCKED /
+> FAILED) distinct from verification/confidence, plus the UI status banner + "Spatial
+> comparison unavailable" + "What happened / How to fix this". Screenshots
+> `docs/sih/evidence/ui/g20_1_{success,partial,blocked,failed}.png`. The
+> geospatial-safety refusal of misregistered pairs is unchanged (no silent
+> resample). 434 fast tests pass. `docs/G20_1_{ERROR_AUDIT,UI_RELEASE_REPORT,VISUAL_QA}.md`.
+>
 > Date: **2026-09-04 (G20 — competition-grade UI/UX)**. G20 is UI/UX only — the
 > local UI (`apps/backend/app/static/index.html`, still one file) rebuilt into a
 > geospatial-intelligence workstation; PPT-ready screenshots in

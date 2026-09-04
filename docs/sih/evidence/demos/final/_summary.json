@@ -21,7 +21,7 @@
    "replans": [],
    "verification": "SUPPORTED",
    "confidence": "HIGH",
-   "wall_s": 93.0
+   "wall_s": 298.2
   },
   {
    "case": "caseB_nochange",
@@ -47,7 +47,7 @@
    ],
    "verification": "SUPPORTED",
    "confidence": "MEDIUM",
-   "wall_s": 16.8
+   "wall_s": 10.7
   }
  ],
  "secondary": {
@@ -62,6 +62,6 @@
     512.0
    ]
   ],
-  "wall_s": 65.3
+  "wall_s": 196.0
  }
 }

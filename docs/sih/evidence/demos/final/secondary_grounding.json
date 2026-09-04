@@ -8,7 +8,7 @@
  "ok": true,
  "answer": "1 region grounded for the referring phrase.",
  "model_used": "RemoteSAM",
- "latency_s": 65.33,
+ "latency_s": 196.03,
  "yesno": null,
  "labels": [],
  "boxes": [
@@ -25,7 +25,7 @@
   }
  ],
  "regions": [],
- "mask_url": "/artifact?name=tmpxu2fb4rl.png",
+ "mask_url": "/artifact?name=tmpzd3msrea.png",
  "image_dimensions": [
   800,
   800
@@ -41,11 +41,11 @@
  "geospatial_note": "geospatial coordinates unavailable because CRS/transform is missing",
  "evidence": [
   {
-   "evidence_id": "ev-ground_4a249f7141ed",
+   "evidence_id": "ev-ground_c7743b76b4c4",
    "source_model": "remotesam",
    "task": "grounding",
    "modality": "optical-single",
-   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpxu2fb4rl.png",
+   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpzd3msrea.png",
    "spatial_region": {
     "bbox_pixel": [
      427,
@@ -74,7 +74,7 @@
      800,
      800
     ],
-    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpxu2fb4rl.png",
+    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpzd3msrea.png",
     "mask_fg_fraction": 0.006321875,
     "score": 0.9988861680030823,
     "score_meaning": "foreground softmax probability - not a calibrated confidence"
@@ -92,8 +92,8 @@
     "modalities": [
      "optical-single"
     ],
-    "runtime_s": 14.51,
-    "timestamp": "2026-09-03T15:33:18Z",
+    "runtime_s": 8.28,
+    "timestamp": "2026-09-04T07:37:40Z",
     "checkpoint_sha256": "0c8e1085208737d481e3e8f1064f5b428995916f668f0ff7ac6a21bb1ee3ee4f",
     "input_digest": "86feb8ab012ceca7",
     "device": "cpu",
@@ -108,7 +108,7 @@
     "note": "license NOT STATED upstream; score is a raw model probability",
     "score_meaning": "RemoteSAM foreground softmax probability - a raw model score, NOT a calibrated confidence"
    },
-   "timestamp": "2026-09-03T15:33:18Z",
+   "timestamp": "2026-09-04T07:37:40Z",
    "status": "ok"
   }
  ],
@@ -126,14 +126,14 @@
     "detail": "requested 'optical-single' vs model ['optical-single']"
    },
    {
-    "name": "grounding_box_valid[ev-ground_4a249f7141ed]",
+    "name": "grounding_box_valid[ev-ground_c7743b76b4c4]",
     "passed": true,
     "detail": "box=[211.0, 427.0, 634.0, 512.0] image_dims=[800, 800]"
    },
    {
-    "name": "grounding_mask_artifact[ev-ground_4a249f7141ed]",
+    "name": "grounding_mask_artifact[ev-ground_c7743b76b4c4]",
     "passed": true,
-    "detail": "mask_path=C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpxu2fb4rl.png"
+    "detail": "mask_path=C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpzd3msrea.png"
    }
   ],
   "notes": "structural / deterministic checks only - NOT a semantic correctness judgement"
@@ -207,8 +207,8 @@
     "modalities": [
      "optical-single"
     ],
-    "runtime_s": 14.51,
-    "timestamp": "2026-09-03T15:33:18Z",
+    "runtime_s": 8.28,
+    "timestamp": "2026-09-04T07:37:40Z",
     "checkpoint_sha256": "0c8e1085208737d481e3e8f1064f5b428995916f668f0ff7ac6a21bb1ee3ee4f",
     "input_digest": "86feb8ab012ceca7",
     "device": "cpu",
@@ -239,14 +239,14 @@
     ],
     "environment": null,
     "device": "cpu",
-    "execution_time_s": 14.51,
-    "timestamp": "2026-09-03T15:33:18Z",
+    "execution_time_s": 8.28,
+    "timestamp": "2026-09-04T07:37:40Z",
     "status": "ok"
    },
-   "orchestration_runtime_s": 65.281,
+   "orchestration_runtime_s": 195.997,
    "note": "RemoteSAM: text -> box + mask. Score is a raw model probability, NOT a confidence. Upstream licence NOT STATED. Reproduced, not measured on a benchmark."
   },
-  "orchestration_runtime_s": 65.324,
+  "orchestration_runtime_s": 196.03,
   "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced; `resolution` is a deterministic failure-aware qualifier, not a confidence"
  },
  "execution_trace": {
@@ -270,7 +270,7 @@
   "script": "scripts/demo/run_final_demo.py",
   "query": "Where is the largest ship?",
   "image": "scene.jpg",
-  "wall_s": 65.3,
+  "wall_s": 196.0,
   "purpose": "fast judge attention-grabber (~15-30 s): query -> grounding -> box/mask -> geospatial position -> verification"
  }
 }

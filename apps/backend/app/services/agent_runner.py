@@ -13,6 +13,7 @@ slice that already emits evidence + verification + provenance.
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -327,7 +328,13 @@ def _tool_verify(step, mem: AgentMemory, ctx: dict) -> dict:
     statuses = [s for s in mem.verification_statuses if s]
     contradicted = "CONTRADICTED" in statuses
     supported = statuses.count("SUPPORTED")
-    overall = "CONTRADICTED" if contradicted else ("SUPPORTED" if supported else "INSUFFICIENT_EVIDENCE")
+    # G20.1: a specialist that failed (or a downstream step pruned by that failure)
+    # must not leave the aggregate at SUPPORTED just because some other check passed.
+    specialist_failed = any(("run_" in f or "extract_changed_regions" in f) for f in mem.failures)
+    overall = ("CONTRADICTED" if contradicted
+               else "INSUFFICIENT_EVIDENCE" if (specialist_failed and not supported)
+               else "SUPPORTED" if supported
+               else "INSUFFICIENT_EVIDENCE")
     res = derive_resolution(sub_ok=not contradicted and not mem.failures,
                             verification=None, semantic_verification=None,
                             fallback_used=("image-difference fallback" if "image-difference fallback"
@@ -591,8 +598,12 @@ def run_investigation(
         v = out.get("verification")
         r = out.get("resolution")
         if v and v.get("status"):
-            mem.verification_statuses.append(v["status"])
             obs.verification_status = v["status"]
+            # G20.1: input validation is a pre-condition, not evidence for the
+            # requested conclusion — only a real specialist result (or an outright
+            # contradiction) counts toward the verification aggregate.
+            if is_specialist or v["status"] == "CONTRADICTED":
+                mem.verification_statuses.append(v["status"])
         if r:
             obs.resolution_qualifier = r.get("qualifier")
         mem.note_model(out.get("model"))
@@ -688,10 +699,13 @@ def run_investigation(
     _synthesize(res, mem, plan)
     res.timings = {"total_s": round(time.time() - started, 2),
                    **{f"{o.step_id}_{o.tool}": o.runtime_s for o in res.steps if o.runtime_s}}
-    res.ok = res.verification is not None and res.verification.get("status") != "CONTRADICTED" and not (
-        res.tool_calls == 0 and res.plan_status not in ("valid", "fallback"))
-    tl.append(TimelineEntry(ts=_now(), event="Final report generated"))
-    res.phase = "FINALIZING" if res.ok else "FAILED"
+    # G20.1: `ok` follows the top-level investigation status — a BLOCKED / FAILED
+    # investigation is not "ok" even if some structural check passed.
+    res.ok = res.investigation_status in ("SUCCESS", "PARTIAL")
+    tl.append(TimelineEntry(
+        ts=_now(),
+        event=f"Investigation status: {res.investigation_status} — {res.investigation_status_reason}"))
+    res.phase = "FINALIZING" if res.ok else "BLOCKED" if res.investigation_status == "BLOCKED" else "FAILED"
     return res
 
 
@@ -732,8 +746,19 @@ def _step_findings(task: TaskType, payload: dict) -> dict:
     """A compact structured observation — never raw model output / arrays."""
     if task == TaskType.TEMPORAL_CHANGE:
         st = payload.get("stats") or {}
-        return {"changed_fraction": st.get("changed_fraction"),
-                "changed_area_ha": st.get("changed_area_ha")}
+        out = {"changed_fraction": st.get("changed_fraction"),
+               "changed_area_ha": st.get("changed_area_ha")}
+        # G20.1: on a co-registration / pre-condition failure, keep the two grids
+        # so the UI can explain *why* without fabricating anything.
+        if not payload.get("ok", True):
+            m1, m2 = payload.get("t1_meta") or {}, payload.get("t2_meta") or {}
+            if m1.get("width") and m2.get("width"):
+                out["t1_shape"] = f'{m1.get("width")}x{m1.get("height")}'
+                out["t2_shape"] = f'{m2.get("width")}x{m2.get("height")}'
+            pair = payload.get("pair") or {}
+            if pair.get("mismatches"):
+                out["pair_mismatches"] = list(pair["mismatches"])
+        return out
     if task == TaskType.SEMANTIC_CHANGE:
         return {"changed_fraction": payload.get("changed_fraction"),
                 "n_regions": len(payload.get("regions", []) or [])}
@@ -831,6 +856,92 @@ class _IntentStub:
         self.ambiguity = d.get("ambiguity", "none")
 
 
+_PRECOND_KEYS = (
+    "co-regist", "not co-registered", "coregist", "misregist", "co_registered",
+    "crs", "transform", "unreadable", "compatib", "raster grids differ",
+    "grid", "shape", "band count", "nodata", "decode", "decompress", "not aligned",
+)
+_ANCHOR_TOOLS = ("run_temporal_change", "run_semantic_temporal_baseline", "run_optical_sar")
+
+
+def derive_investigation_status(res: "AgentInvestigationResult", mem: "AgentMemory", plan) -> tuple[str, str]:
+    """G20.1 — the top-level outcome of the investigation, DISTINCT from
+    `verification` (which judges only the evidence that WAS produced) and from
+    `confidence`. Pure function of the observed steps / replans / failures.
+
+    Returns (status, one human-readable sentence):
+      SUCCESS  every planned specialist completed, or a legitimate early stop
+      PARTIAL  some specialists completed, some failed / were pruned by a failure
+      BLOCKED  a pre-condition stopped the analysis before any conclusion
+      FAILED   the agent itself could not run
+    """
+    steps = res.steps
+    spec = [o for o in steps if o.tool.startswith("run_") or o.tool == "extract_changed_regions"]
+    completed = [o for o in spec if o.status == "completed" and o.verdict != "INCOHERENT"]
+    failed = [o for o in spec if o.status == "failed"]
+    incoherent = [o for o in spec if o.verdict == "INCOHERENT"]
+
+    planned_spec = [s for s in plan.steps
+                    if s.tool.startswith("run_") or s.tool == "extract_changed_regions"]
+    planned_tasks = {s.task for s in planned_spec}
+    completed_tasks = {o.task for o in completed}
+
+    replan_reasons = {rp.reason for rp in res.replans}
+    legit_early_stop = res.early_stopped and bool(replan_reasons & {"NEW_EVIDENCE", "TASK_COMPLETE"})
+    legit_skipped: set = set()
+    for rp in res.replans:
+        if rp.reason in ("NEW_EVIDENCE", "TASK_COMPLETE"):
+            for sid in rp.steps_skipped:
+                st = next((s for s in plan.steps if s.step_id == sid), None)
+                if st is not None:
+                    legit_skipped.add(st.task)
+
+    def _txt(o) -> str:
+        p = mem.results.get(o.step_id, {})
+        return " ".join(str(x) for x in [o.failure, o.summary, o.replan_note, p.get("errors")]).lower()
+
+    all_fail_text = " ".join([*(_txt(o) for o in failed),
+                              *(f.lower() for f in list(mem.failures) + list(res.failures))])
+    coreg = any(k in all_fail_text for k in ("co-regist", "not co-registered", "coregist", "misregist"))
+    precond_hit = any(k in all_fail_text for k in _PRECOND_KEYS)
+
+    # ---- FAILED: the agent itself could not run ----
+    if res.plan_status not in ("valid", "fallback") and not completed:
+        return "FAILED", "The mission could not be turned into a runnable investigation."
+    if (res.verification or {}).get("status") == "CONTRADICTED":
+        return "FAILED", "The evidence contradicted the requested conclusion."
+    if not spec and planned_spec:
+        return "FAILED", "No specialist analysis could run."
+
+    # ---- BLOCKED: a pre-condition stopped the analysis before any conclusion ----
+    if not completed and (failed or incoherent):
+        if coreg:
+            return "BLOCKED", "The two observations are not spatially co-registered."
+        if precond_hit:
+            return "BLOCKED", "A required input pre-condition was not met, so the analysis could not run."
+        if not legit_early_stop:
+            return "BLOCKED", "The requested analysis could not be completed on the supplied inputs."
+
+    # ---- SUCCESS: legitimate early stop, or all planned specialists done ----
+    if legit_early_stop:
+        return "SUCCESS", (res.completion_reason
+                           or "The agent reached a sufficient result and stopped early.")
+    real_failures = [o for o in failed if o.task not in legit_skipped]
+    if completed and not real_failures and not incoherent \
+       and planned_tasks <= (completed_tasks | legit_skipped):
+        return "SUCCESS", "Every planned analysis step completed."
+
+    # ---- PARTIAL: some worked, some didn't ----
+    if completed and (real_failures or incoherent or (planned_tasks - completed_tasks - legit_skipped)):
+        did = ", ".join(sorted({o.task.value.replace("_", " ").lower() for o in completed})) or "some steps"
+        missed = ", ".join(sorted({o.task.value.replace("_", " ").lower()
+                                   for o in (real_failures + incoherent)})) or "one or more steps"
+        return "PARTIAL", f"Completed: {did}. Could not complete: {missed}."
+    if completed:
+        return "SUCCESS", "The executed plan completed."
+    return "BLOCKED", "No specialist analysis completed."
+
+
 def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
     """Evidence-first report — built ONLY from observed facts. No LLM invention."""
     findings: list[str] = []
@@ -901,10 +1012,22 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
     else:
         res.verification = {"status": "INSUFFICIENT_EVIDENCE", "checks": []}
 
-    res.resolution = {"qualifier": ("RESULT_STRUCTURAL_FAIL" if res.verification["status"] == "CONTRADICTED"
+    # --- G20.1: top-level investigation status (DISTINCT from verification) ---
+    inv_status, inv_reason = derive_investigation_status(res, mem, plan)
+    res.investigation_status = inv_status
+    res.investigation_status_reason = inv_reason
+    if inv_status == "BLOCKED":
+        # reporting SUPPORTED for an analysis that never produced a conclusion is misleading
+        res.verification = {"status": "NOT_APPLICABLE",
+                            "checks": res.verification.get("checks", []),
+                            "note": "no analytical conclusion was produced to verify"}
+
+    res.resolution = {"qualifier": ("RESULT_STRUCTURAL_FAIL"
+                                    if inv_status == "BLOCKED" or res.verification["status"] == "CONTRADICTED"
                                     else "RESULT_OK" if res.verification["status"] == "SUPPORTED"
                                     else "RESULT_UNVERIFIED"),
-                      "answer_surfaced": res.verification["status"] != "CONTRADICTED",
+                      "answer_surfaced": inv_status in ("SUCCESS", "PARTIAL")
+                      and res.verification["status"] != "CONTRADICTED",
                       "note": "deterministic post-execution qualifier — NOT a confidence value"}
 
     res.key_findings = findings or ["The mission produced no positive findings within the executed plan."]
@@ -951,8 +1074,6 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
         parts.append(f"{grounded} structure region(s) located")
     if any(o.task == TaskType.OPTICAL_SAR_ANALYSIS and o.status == "completed" for o in res.steps):
         parts.append("optical+SAR representation computed")
-    if res.failures:
-        parts.append(f"{len(res.failures)} step(s) failed")
 
     # single-answer missions (VQA / scene): the answer IS the conclusion
     single_ans = next(
@@ -965,15 +1086,27 @@ def _synthesize(res: AgentInvestigationResult, mem: AgentMemory, plan) -> None:
          if o.task == TaskType.SCENE_UNDERSTANDING),
         None,
     )
-    if not parts and single_ans:
-        res.conclusion = f"{single_ans['answer_text']}  (Verification: {res.verification['status']}.)"
-    elif not parts and scene_ans:
-        res.conclusion = f"Scene best matches '{scene_ans}'.  (Verification: {res.verification['status']}.)"
+
+    # G20.1: the conclusion is human-readable and keyed off investigation_status —
+    # NOT "N step(s) failed. Verification: <status>."
+    if inv_status == "BLOCKED":
+        res.conclusion = f"Analysis could not be completed. {inv_reason}"
+    elif inv_status == "FAILED":
+        res.conclusion = f"The investigation could not be completed. {inv_reason}"
+    elif inv_status == "PARTIAL":
+        head = (", ".join(parts) + ". ") if parts else ""
+        res.conclusion = f"{head}Investigation partially complete — {inv_reason}"
+    elif single_ans and not parts:
+        res.conclusion = single_ans["answer_text"]
+    elif scene_ans and not parts:
+        res.conclusion = f"Scene best matches '{scene_ans}'."
+    elif res.early_stopped and (cf is not None and cf < _NEGLIGIBLE_CHANGE):
+        res.conclusion = ("No significant change was detected between the two observations, "
+                          "so the localisation and optical+SAR steps were not needed.")
+    elif parts:
+        res.conclusion = ", ".join(parts) + "."
     else:
-        res.conclusion = (
-            (", ".join(parts) + ". " if parts else "No positive findings within the executed plan. ")
-            + f"Verification: {res.verification['status']}."
-        )
+        res.conclusion = "The executed plan produced no positive findings."
 
 
 def _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir, *,
@@ -1007,12 +1140,16 @@ def _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir, *,
         res.failures = _dedup(res.failures + n.failures)
         res.models_used = [n.model_used] if n.model_used else []
         _vs = (res.verification or {}).get("status", "INSUFFICIENT_EVIDENCE")
+        _reason_plain = {
+            "PLANNER_UNAVAILABLE": "the multi-step plan could not be produced",
+            "PLAN_REJECTED": "the multi-step plan did not pass the safety policy",
+            "PLAN_INTENT_MISMATCH": "the multi-step plan did not match the mission",
+        }.get(reason, reason.lower().replace("_", " "))
         res.confidence = {
             "category": "MEDIUM" if (a.ok and _vs == "SUPPORTED") else
                         "LOW" if a.ok else "INSUFFICIENT_EVIDENCE",
             "score": None,
-            "reasons": [f"Answered via the deterministic fallback ({reason}); "
-                        f"the agent plan could not run. Verification: {_vs}."],
+            "reasons": [f"{_reason_plain}, so the single-step deterministic path was used instead."],
             "signals": {"path": "deterministic_fallback", "reason": reason},
             "hard_rule": None,
             "note": "evidence-derived category (docs/G17_TRUST_LAYER.md). NOT a calibrated probability.",
@@ -1022,9 +1159,60 @@ def _deterministic_fallback(res, mission, paths, ctx, started, artifact_dir, *,
                           "note": "the agent plan could not be produced/validated; the deterministic "
                           "router handled the mission instead."}
         res.timings = {"total_s": round(time.time() - started, 2)}
-        res.phase = "FINALIZING" if a.ok else "FAILED"
+        # G20.1: classify the fallback outcome. A pre-condition problem (e.g. a
+        # misregistered temporal pair) is BLOCKED, not a generic FAILED.
+        _pc = " ".join([*(x.lower() for x in (res.plan_rejection_reasons or [])),
+                        *(w.lower() for w in res.warnings),
+                        *(f.lower() for f in res.failures)])
+        _coreg = ("co-regist" in _pc or "not co-registered" in _pc)
+        _precond = _coreg or "geospatial validation failed" in _pc or "not aligned" in _pc
+        if a.ok:
+            res.investigation_status = "PARTIAL"
+            res.investigation_status_reason = (
+                f"The agent plan could not be produced or validated ({reason}); "
+                "the deterministic router answered the mission instead.")
+        elif _precond:
+            res.investigation_status = "BLOCKED"
+            res.investigation_status_reason = (
+                "The two observations are not spatially co-registered." if _coreg
+                else "A required input pre-condition was not met, so the analysis could not run.")
+            res.conclusion = f"Analysis could not be completed. {res.investigation_status_reason}"
+            res.key_findings = ["No validated finding is available — " + res.investigation_status_reason]
+            res.verification = {"status": "NOT_APPLICABLE", "checks": [],
+                                "note": "no analytical conclusion was produced to verify"}
+            # synthesise a minimal step view so the UI can show "what completed /
+            # what could not" — the plan was rejected before the executor ran.
+            if not res.steps and res.plan and res.plan.steps:
+                _sh = ""
+                _m = re.search(r"(\d+)x(\d+)\s*vs\s*(\d+)x(\d+)", _pc)
+                for p in res.plan.steps:
+                    is_anchor = p.tool in _ANCHOR_TOOLS
+                    st = StepObservation(
+                        step_id=p.step_id, task=p.task, tool=p.tool,
+                        status=("failed" if is_anchor else
+                                "completed" if p.tool == "validate_geospatial_input" else "skipped"),
+                        verdict="NOT_APPLICABLE",
+                        summary=("input pre-condition not met" if is_anchor else ""),
+                        failure=(res.investigation_status_reason if is_anchor else None),
+                        replan_note=(None if is_anchor else "not run — an earlier step could not complete"),
+                        findings=({"t1_shape": f"{_m.group(1)}x{_m.group(2)}",
+                                   "t2_shape": f"{_m.group(3)}x{_m.group(4)}"} if (is_anchor and _m) else {}),
+                    )
+                    res.steps.append(st)
+        else:
+            res.investigation_status = "FAILED"
+            res.investigation_status_reason = (
+                f"The agent plan could not be produced or validated ({reason}), "
+                "and the deterministic path also produced no answer.")
+        res.ok = res.investigation_status in ("SUCCESS", "PARTIAL")
+        res.phase = ("FINALIZING" if a.ok
+                     else "BLOCKED" if res.investigation_status == "BLOCKED" else "FAILED")
     except Exception as exc:  # noqa: BLE001
         res.phase = "FAILED"
+        res.ok = False
+        res.investigation_status = "FAILED"
+        res.investigation_status_reason = (
+            "Neither the agent plan nor the deterministic fallback path could complete.")
         res.failures.append(f"deterministic fallback also failed: {type(exc).__name__}")
         res.conclusion = "The mission could not be completed: neither the agent plan nor the deterministic path succeeded."
     return res

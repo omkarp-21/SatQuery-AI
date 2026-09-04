@@ -53,6 +53,12 @@ def _verif_badge(status: str | None) -> str:
     return f'<span class="badge {c}">{_esc(status or "n/a")}</span>'
 
 
+def _status_badge(status: str | None) -> str:
+    c = {"SUCCESS": "b-ok", "PARTIAL": "b-warn", "BLOCKED": "b-warn",
+         "FAILED": "b-bad"}.get(status or "", "b-mut")
+    return f'<span class="badge {c}">{_esc(status or "n/a")}</span>'
+
+
 def investigation_report_html(res: dict) -> str:
     intent = res.get("intent") or {}
     conf = res.get("confidence") or {}
@@ -118,6 +124,11 @@ confidence is an evidence-derived category, NOT a probability</p>
 
 <section><h2>Mission</h2><div>{_esc(res.get("mission"))}</div></section>
 
+<section><h2>Investigation status</h2><div class="kv">
+<div>Status</div><div>{_status_badge(res.get("investigation_status"))}</div>
+<div>What happened</div><div>{_esc(res.get("investigation_status_reason") or res.get("conclusion"))}</div>
+</div></section>
+
 <section><h2>Understood as</h2><div>{understood}</div></section>
 
 <section><h2>Inputs</h2><ul>{"".join(f"<li>{_esc(i)}</li>" for i in (res.get("inputs") or [])) or '<li class="mut">none</li>'}</ul></section>
@@ -139,6 +150,9 @@ confidence is an evidence-derived category, NOT a probability</p>
 
 <section><h2>Verification</h2><div class="kv">
 <div>Status</div><div>{_verif_badge(verif.get("status"))}</div>
+<div>Meaning</div><div>{_esc(verif.get("note")
+    or ("no analytical conclusion was produced to verify" if res.get("investigation_status") == "BLOCKED"
+        else "structural / deterministic checks on the evidence that was produced — not a success signal"))}</div>
 <div>Resolution</div><div>{_esc((res.get("resolution") or {}).get("qualifier"))}</div></div></section>
 
 <section><h2>Confidence category</h2><div class="kv">

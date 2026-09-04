@@ -81,7 +81,15 @@ def _assert_structured(res) -> None:
 
 def _assert_agent_ok(res) -> None:
     assert res.tool_calls <= res.max_steps, "executor exceeded MAX_STEPS"
-    assert res.phase in ("FINALIZING", "FAILED"), res.phase
+    # G20.1: a pre-condition failure legitimately ends the run in the BLOCKED phase
+    assert res.phase in ("FINALIZING", "FAILED", "BLOCKED"), res.phase
+    if res.investigation_status:
+        assert res.investigation_status in ("SUCCESS", "PARTIAL", "BLOCKED", "FAILED")
+        # a non-SUCCESS/PARTIAL investigation must NOT read as ok, and must NOT
+        # claim SUPPORTED verification
+        if res.investigation_status in ("BLOCKED", "FAILED"):
+            assert res.ok is False, res.investigation_status
+            assert (res.verification or {}).get("status") != "SUPPORTED", res.verification
     if res.resolution:
         assert _qual_of(res.resolution) in _KNOWN_QUALIFIERS, res.resolution
     # a fallback must be visible

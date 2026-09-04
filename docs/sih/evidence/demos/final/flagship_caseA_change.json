@@ -163,6 +163,8 @@
  "intent": null,
  "phase": "FINALIZING",
  "ok": true,
+ "investigation_status": "SUCCESS",
+ "investigation_status_reason": "Every planned analysis step completed.",
  "mission_family": "multi_step",
  "steps": [
   {
@@ -180,9 +182,9 @@
    "numeric": {},
    "failure": null,
    "contributed": true,
-   "started_at": "21:00:23",
-   "finished_at": "21:00:23",
-   "runtime_s": 0.03,
+   "started_at": "12:59:16",
+   "finished_at": "12:59:16",
+   "runtime_s": 0.02,
    "replan_note": null
   },
   {
@@ -205,9 +207,9 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:00:23",
-   "finished_at": "21:00:39",
-   "runtime_s": 16.03,
+   "started_at": "12:59:16",
+   "finished_at": "13:00:18",
+   "runtime_s": 61.91,
    "replan_note": null
   },
   {
@@ -229,8 +231,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:00:39",
-   "finished_at": "21:00:39",
+   "started_at": "13:00:18",
+   "finished_at": "13:00:18",
    "runtime_s": 0.02,
    "replan_note": null
   },
@@ -254,9 +256,9 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:00:39",
-   "finished_at": "21:01:42",
-   "runtime_s": 62.33,
+   "started_at": "13:00:18",
+   "finished_at": "13:03:59",
+   "runtime_s": 221.37,
    "replan_note": null
   },
   {
@@ -278,9 +280,9 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:01:42",
-   "finished_at": "21:01:56",
-   "runtime_s": 14.16,
+   "started_at": "13:03:59",
+   "finished_at": "13:04:14",
+   "runtime_s": 14.25,
    "replan_note": null
   },
   {
@@ -303,8 +305,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:01:56",
-   "finished_at": "21:01:56",
+   "started_at": "13:04:14",
+   "finished_at": "13:04:14",
    "runtime_s": 0.0,
    "replan_note": null
   },
@@ -325,8 +327,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:01:56",
-   "finished_at": "21:01:56",
+   "started_at": "13:04:14",
+   "finished_at": "13:04:14",
    "runtime_s": 0.0,
    "replan_note": null
   },
@@ -347,8 +349,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:01:56",
-   "finished_at": "21:01:56",
+   "started_at": "13:04:14",
+   "finished_at": "13:04:14",
    "runtime_s": 0.0,
    "replan_note": null
   },
@@ -369,8 +371,8 @@
    },
    "failure": null,
    "contributed": true,
-   "started_at": "21:01:56",
-   "finished_at": "21:01:56",
+   "started_at": "13:04:14",
+   "finished_at": "13:04:14",
    "runtime_s": 0.0,
    "replan_note": null
   }
@@ -381,7 +383,7 @@
  "hit_step_cap": false,
  "early_stopped": false,
  "completion_reason": null,
- "conclusion": "~25.3% of the scene changed, 6 changed region(s) isolated, 1 structure region(s) located, optical+SAR representation computed. Verification: SUPPORTED.",
+ "conclusion": "~25.3% of the scene changed, 6 changed region(s) isolated, 1 structure region(s) located, optical+SAR representation computed.",
  "key_findings": [
   "Change detected: ~25.3% of the scene changed (~0.4138 ha).",
   "6 changed region(s) were isolated from the change mask.",
@@ -723,11 +725,11 @@
  },
  "evidence": [
   {
-   "evidence_id": "ev-change_43ffb3e8ef3c",
+   "evidence_id": "ev-change_4fe9a5d425b2",
    "source_model": "changeformer",
    "task": "change-detection",
    "modality": "optical-bitemporal",
-   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_q7huh6al\\changeformer_mask_1788449439537.png",
+   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_n_chc3p6\\changeformer_mask_1788507018250.png",
    "spatial_region": {
     "bbox_lonlat": [
      114.948598,
@@ -744,7 +746,7 @@
    "claim_supported": "~25.3% of pixels changed between T1 and T2",
    "evidence_type": "change-mask",
    "payload": {
-    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_q7huh6al\\changeformer_mask_1788449439537.png",
+    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_n_chc3p6\\changeformer_mask_1788507018250.png",
     "changed_fraction": 0.2525634765625,
     "changed_area_ha": 0.4138
    },
@@ -760,23 +762,23 @@
     "modalities": [
      "optical-bitemporal"
     ],
-    "runtime_s": 4.791,
-    "timestamp": "2026-09-03T15:30:39Z",
+    "runtime_s": 3.415,
+    "timestamp": "2026-09-04T07:30:18Z",
     "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
     "input_digest": "e7801ae4f9bcf045:1352c66bf9b56de5",
     "device": "cpu",
     "bridge": "scripts/research/changeformer_infer.py",
     "score_meaning": "fraction of pixels flagged changed - NOT a confidence"
    },
-   "timestamp": "2026-09-03T15:30:39Z",
+   "timestamp": "2026-09-04T07:30:18Z",
    "status": "ok"
   },
   {
-   "evidence_id": "ev-ground_b3ea76e350e2",
+   "evidence_id": "ev-ground_cad660e64281",
    "source_model": "remotesam",
    "task": "grounding",
    "modality": "optical-single",
-   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpbpuvbmsy.png",
+   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmp3vsc2ftx.png",
    "spatial_region": {
     "bbox_pixel": [
      16,
@@ -805,7 +807,7 @@
      256,
      256
     ],
-    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpbpuvbmsy.png",
+    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmp3vsc2ftx.png",
     "mask_fg_fraction": 0.354034423828125,
     "score": 0.9990848302841187,
     "score_meaning": "foreground softmax probability - not a calibrated confidence"
@@ -823,8 +825,8 @@
     "modalities": [
      "optical-single"
     ],
-    "runtime_s": 15.76,
-    "timestamp": "2026-09-03T15:31:41Z",
+    "runtime_s": 12.55,
+    "timestamp": "2026-09-04T07:33:59Z",
     "checkpoint_sha256": "0c8e1085208737d481e3e8f1064f5b428995916f668f0ff7ac6a21bb1ee3ee4f",
     "input_digest": "1352c66bf9b56de5",
     "device": "cpu",
@@ -839,15 +841,15 @@
     "note": "license NOT STATED upstream; score is a raw model probability",
     "score_meaning": "RemoteSAM foreground softmax probability - a raw model score, NOT a calibrated confidence"
    },
-   "timestamp": "2026-09-03T15:31:42Z",
+   "timestamp": "2026-09-04T07:33:59Z",
    "status": "ok"
   },
   {
-   "evidence_id": "ev-mm_55bee962f475",
+   "evidence_id": "ev-mm_7f7b0d2ce179",
    "source_model": "croma",
    "task": "joint-representation",
    "modality": "optical-sar",
-   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_optsar_op59nq6g\\optical.npy + C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_optsar_op59nq6g\\sar.npy",
+   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_optsar_s1_955_c\\optical.npy + C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_optsar_s1_955_c\\sar.npy",
    "spatial_region": null,
    "temporal_context": null,
    "claim_supported": "a joint optical-SAR representation was produced for downstream probing",
@@ -869,8 +871,8 @@
     "modalities": [
      "optical-sar"
     ],
-    "runtime_s": 6.943,
-    "timestamp": "2026-09-03T15:31:56Z",
+    "runtime_s": 9.624,
+    "timestamp": "2026-09-04T07:34:14Z",
     "checkpoint_sha256": "46f8fbae66c929289dcd0affd5849840d8b853dc5b9eac99b07ee0899dff1a1e",
     "device": "cpu",
     "size": "base",
@@ -881,7 +883,7 @@
     "encoder_mode": "frozen",
     "score_meaning": "n/a - CROMA returns representations, not scores"
    },
-   "timestamp": "2026-09-03T15:31:56Z",
+   "timestamp": "2026-09-04T07:34:14Z",
    "status": "ok"
   }
  ],
@@ -891,7 +893,7 @@
    {
     "name": "aggregate",
     "passed": true,
-    "detail": "step statuses: ['SUPPORTED', 'SUPPORTED', 'SUPPORTED', 'SUPPORTED', 'SUPPORTED', 'SUPPORTED']"
+    "detail": "step statuses: ['SUPPORTED', 'SUPPORTED', 'SUPPORTED', 'SUPPORTED']"
    }
   ]
  },
@@ -928,7 +930,7 @@
  },
  "provenance": {
   "layer": "agent",
-  "mask_source": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_q7huh6al\\changeformer_mask_1788449439537.png",
+  "mask_source": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_n_chc3p6\\changeformer_mask_1788507018250.png",
   "planner_used": "rule_based",
   "plan_status": "valid",
   "mission_family": "multi_step",
@@ -1016,56 +1018,56 @@
  },
  "execution_trace": [
   {
-   "ts": "21:00:23",
+   "ts": "12:59:16",
    "event": "Mission received"
   },
   {
-   "ts": "21:00:23",
+   "ts": "12:59:16",
    "event": "Plan generated (rule_based, 9 steps)"
   },
   {
-   "ts": "21:00:23",
+   "ts": "12:59:16",
    "event": "Plan validated"
   },
   {
-   "ts": "21:00:23",
+   "ts": "12:59:16",
    "event": "validate_geospatial_input -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:00:39",
+   "ts": "13:00:18",
    "event": "run_temporal_change -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:00:39",
+   "ts": "13:00:18",
    "event": "extract_changed_regions -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:01:42",
+   "ts": "13:03:59",
    "event": "run_grounding -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "run_optical_sar -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "cross_check_evidence -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "verify_result -> COHERENT (verification SUPPORTED)"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "inspect_evidence -> NOT_APPLICABLE (verification not applicable)"
   },
   {
-   "ts": "21:01:56",
+   "ts": "13:04:14",
    "event": "finalize_answer -> NOT_APPLICABLE (verification not applicable)"
   },
   {
-   "ts": "21:01:56",
-   "event": "Final report generated"
+   "ts": "13:04:14",
+   "event": "Investigation status: SUCCESS \u2014 Every planned analysis step completed."
   }
  ],
  "warnings": [
@@ -1079,17 +1081,17 @@
   "CROMA"
  ],
  "timings": {
-  "total_s": 92.99,
-  "s1_validate_geospatial_input": 0.03,
-  "s2_run_temporal_change": 16.03,
+  "total_s": 298.23,
+  "s1_validate_geospatial_input": 0.02,
+  "s2_run_temporal_change": 61.91,
   "s3_extract_changed_regions": 0.02,
-  "s4_run_grounding": 62.33,
-  "s5_run_optical_sar": 14.16
+  "s4_run_grounding": 221.37,
+  "s5_run_optical_sar": 14.25
  },
  "_capture": {
   "script": "scripts/demo/run_final_demo.py",
   "case": "caseA_change",
-  "wall_s": 93.0,
+  "wall_s": 298.2,
   "architecture": "PRODUCTION: RuleBasedPlanner -> 12-check policy -> bounded adaptive executor -> evidence -> verification -> trust category",
   "input_metadata": [
    {

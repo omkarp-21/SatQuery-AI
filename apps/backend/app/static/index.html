@@ -192,8 +192,34 @@
   .vstage svg { display: block; width: 100%; height: auto; max-height: 560px; }
   .vcaption { padding: 8px 11px; font-size: 11px; color: var(--faint); border-top: 1px solid var(--line); background: var(--panel); }
 
+  /* G20.1 status banner — the primary element of an investigation result */
+  .status-banner {
+    display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 6px 14px;
+    padding: 14px 18px; margin-bottom: 14px; border-radius: var(--r-lg);
+    border: 1px solid var(--line2); background: var(--panel);
+  }
+  .status-banner .sb-label { font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--faint); }
+  .status-banner .sb-status { font-size: 20px; font-weight: 750; letter-spacing: .5px; }
+  .status-banner .sb-reason { font-size: 13px; color: var(--fg-dim); grid-column: 1 / -1; }
+  .status-banner.st-success { border-left: 4px solid var(--ok); }
+  .status-banner.st-success .sb-status { color: var(--ok); }
+  .status-banner.st-partial { border-left: 4px solid var(--warn); }
+  .status-banner.st-partial .sb-status { color: var(--warn); }
+  .status-banner.st-blocked { border-left: 4px solid var(--warn); }
+  .status-banner.st-blocked .sb-status { color: var(--warn); }
+  .status-banner.st-failed  { border-left: 4px solid var(--bad); }
+  .status-banner.st-failed .sb-status { color: var(--bad); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .two-col { grid-template-columns: 1fr; } }
+  .ct-h { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); margin-bottom: 3px; }
+  .why-btn { background: none; border: 0; color: var(--warn); font: inherit; font-size: 11.5px; cursor: pointer; padding: 1px 4px; margin-left: 6px; }
+  .why-box { margin-top: 4px; font-size: 12px; color: var(--fg-dim); background: var(--panel2); border-left: 2px solid var(--bad); padding: 6px 9px; border-radius: 4px; }
+
   /* plan */
   ol.plan { margin: 0; padding: 0; list-style: none; }
+  ol.plan.compact li { padding: 5px 6px; }
+  ol.plan.compact li .note { color: var(--muted); display: block; margin-top: 2px; }
   ol.plan li {
     display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start;
     padding: 7px 8px; margin: 3px 0; border-left: 2px solid var(--line2); border-radius: 0 5px 5px 0;
@@ -219,11 +245,12 @@
   .adapt .ev { position: relative; margin-bottom: 12px; }
   .adapt .ev::before { content: ""; position: absolute; left: -14px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
   .adapt .ev.stop::before { background: var(--warn); }
-  .adapt .ev .k { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); }
-  .adapt .ev .obs { color: var(--fg-dim); font-size: 12.5px; }
-  .adapt .ev .dec { color: var(--fg); font-size: 12.5px; }
-  .adapt .ev .out { color: var(--muted); font-size: 11.5px; }
-  .adapt .ev.stop .dec { color: var(--warn); font-weight: 650; }
+  .adapt .ev { font-size: 12.5px; color: var(--fg-dim); }
+  .adapt .ev > div { padding: 1px 0; }
+  .adapt .ev .k { display: inline-block; min-width: 84px; font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--faint); }
+  .adapt .ev.stop { color: var(--warn); }
+  .adapt .ev.stop::before { background: var(--warn); }
 
   /* trust */
   .trust-cat { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
@@ -658,140 +685,184 @@ $("#run-investigate").onclick = async () => {
   } finally { btn.disabled = false; }
 };
 
+/* G20.1: top-level investigation status — DISTINCT from verification/confidence */
+const STATUS_META = {
+  SUCCESS:  { cls: "st-success", word: "Investigation complete" },
+  PARTIAL:  { cls: "st-partial", word: "Investigation partially complete" },
+  BLOCKED:  { cls: "st-blocked", word: "Investigation blocked" },
+  FAILED:   { cls: "st-failed",  word: "Investigation could not run" },
+};
+const TASK_LABEL = {
+  VALIDATE_INPUT: "Validate imagery", TEMPORAL_CHANGE: "Compare temporal imagery",
+  SEMANTIC_CHANGE: "Describe the change", EXTRACT_CHANGED_REGIONS: "Extract changed regions",
+  GROUND_OBJECT: "Locate affected structures", OPTICAL_SAR_ANALYSIS: "Analyze optical + SAR",
+  CROSS_CHECK_EVIDENCE: "Cross-check evidence", VERIFY: "Verify findings",
+  SUMMARIZE: "Summarize", FINALIZE: "Finalize", VQA: "Answer the question",
+  SCENE_UNDERSTANDING: "Read the scene",
+};
+const taskLabel = t => TASK_LABEL[t] || String(t || "").replace(/_/g, " ").toLowerCase();
+
 function renderInvestigation(b) {
   LAST_INVESTIGATION = b;
   const out = $("#inv-out");
   const stById = {}; (b.steps || []).forEach(s => stById[s.step_id] = s);
   const conf = b.confidence || {};
-  const partial = b.ok === false;
-
-  let bottomNote = "";
-  if (partial) {
-    const done = (b.steps || []).filter(s => s.status === "completed");
-    const notDone = (b.steps || []).filter(s => s.status === "failed" || s.status === "skipped");
-    bottomNote = `<div class="state err" style="margin:0 0 14px;max-width:none;text-align:left">
-      <h2>Partial investigation</h2>
-      <p>Completed: ${done.length ? done.map(s => esc(s.task)).join(", ") : "—"}</p>
-      <p>Could not complete: ${notDone.length ? notDone.map(s => esc(s.task) + (s.status === "skipped" ? " (skipped)" : " (failed)")).join(", ") : "—"}</p>
-    </div>`;
-  }
+  const status = b.investigation_status || (b.ok ? "SUCCESS" : "FAILED");
+  const meta = STATUS_META[status] || STATUS_META.FAILED;
+  const reason = b.investigation_status_reason || b.conclusion || "";
+  const blocked = status === "BLOCKED" || status === "FAILED";
 
   const html = `
-  ${bottomNote}
+  <div class="status-banner ${meta.cls} fade-in">
+    <div class="sb-label">Investigation</div>
+    <div class="sb-status">${esc(status)}</div>
+    <div class="sb-reason">${esc(reason)}</div>
+  </div>
   <div class="ws fade-in">
     <div class="col-left">
-      ${missionPanel(b, conf)}
+      ${missionPanel(b)}
       ${planPanel(b, stById)}
-      ${adaptivePanel(b, stById)}
     </div>
     <div class="col-center">
-      ${viewerPanel(b)}
-      ${centerSpatialPanel(b)}
+      ${viewerPanel(b, status)}
+      ${!blocked ? centerSpatialPanel(b) : ""}
     </div>
     <div class="col-right">
-      ${findingsPanel(b)}
+      ${findingsPanel(b, status)}
       ${trustPanel(conf)}
-      ${verificationPanel(b.verification, b.resolution)}
-      ${evidencePanel(b.evidence)}
-      ${warningsPanel(b.warnings, b.failures)}
+      ${verificationLine(b)}
     </div>
     <div class="row-bottom">
+      ${completionPanel(b)}
+      ${adaptivePanel(b, stById)}
+      ${evidencePanel(b.evidence)}
+      ${warningsPanel(b.warnings, b.failures)}
       <div class="panel">
-        <h2>Trace &amp; report</h2>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <h2>Report &amp; details</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
           <button class="btn sm" id="viewreport">Export investigation report ↗</button>
-          <button class="btn sm ghost" data-nav="#/investigate" id="inv-again">New investigation</button>
+          <button class="btn sm ghost" id="inv-again">New investigation</button>
         </div>
         <details><summary>Execution trace — ${(b.execution_trace || []).length} events</summary>
           <table class="trace">${(b.execution_trace || []).map(t => `<tr><td class="ts">${esc(t.ts)}</td><td>${esc(t.event)}</td></tr>`).join("") || '<tr><td class="hint">no trace events</td></tr>'}</table>
         </details>
-        <details><summary>Provenance / audit block</summary><pre class="raw">${esc(JSON.stringify(b.provenance || {}, null, 2))}</pre></details>
+        <details><summary>Technical validation &amp; provenance</summary><pre class="raw">${esc(JSON.stringify({ resolution: b.resolution, verification: b.verification, provenance: b.provenance }, null, 2))}</pre></details>
       </div>
     </div>
   </div>`;
   out.innerHTML = html;
 
   const rb = $("#viewreport"); if (rb) rb.onclick = viewReport;
-  const again = $("#inv-again"); if (again) again.onclick = () => { out.innerHTML = ""; $("#inv-input").classList.remove("is-hidden"); window.scrollTo(0,0); };
-  mountViewer(b);
+  const again = $("#inv-again"); if (again) again.onclick = () => { out.innerHTML = ""; $("#inv-input").classList.remove("is-hidden"); window.scrollTo(0, 0); };
+  if (!blocked) mountViewer(b);
+  $$('[data-step-why]').forEach(el => el.onclick = () => {
+    const box = el.nextElementSibling;
+    if (box) box.hidden = !box.hidden;
+  });
 }
 
-function missionPanel(b, conf) {
+function missionPanel(b) {
   const it = b.intent || null;
   let understood;
-  if (it) {
-    const caps = (it.required_capabilities || []).join(", ");
-    understood = esc(it.task_family) + (caps ? " · " + esc(caps) : "") +
-      (it.source && it.source !== "rule_based" ? ` <span class="hint">(intent via ${esc(it.source)})</span>` : "");
+  if (it && (it.required_capabilities || []).length) {
+    understood = esc(it.required_capabilities.map(taskLabel).join(", "));
   } else {
-    understood = `<span class="hint">deterministic plan (${esc(b.planner_used || "rule_based")})</span>`;
+    const specTasks = ((b.plan && b.plan.steps) || [])
+      .filter(p => p.tool && (p.tool.startsWith("run_") || p.tool === "extract_changed_regions"))
+      .map(p => taskLabel(p.task));
+    understood = specTasks.length
+      ? esc([...new Set(specTasks)].join(", "))
+      : `<span class="hint">${esc((b.mission_family && b.mission_family !== "unknown") ? b.mission_family : "geospatial investigation")}</span>`;
   }
   return `<div class="panel">
     <h2>Mission</h2>
     <div class="conclusion" style="font-size:13px">${esc(b.mission)}</div>
     <dl class="kv" style="margin-top:11px">
       <dt>Understood as</dt><dd>${understood}</dd>
-      <dt>Planner</dt><dd>${esc(b.planner_used || "—")}</dd>
-      <dt>Models used</dt><dd>${(b.models_used || []).map(esc).join(", ") || "—"}</dd>
-      <dt>Tool calls</dt><dd>${b.tool_calls ?? "—"} / ${b.max_steps ?? "—"}${b.early_stopped ? " · stopped early" : ""}</dd>
-      <dt>Total time</dt><dd>${num((b.timings || {}).total_s)} s</dd>
+      <dt>Time</dt><dd>${num((b.timings || {}).total_s)} s${b.early_stopped ? " · stopped early" : ""}</dd>
     </dl>
-    ${b.conclusion ? `<div class="conclusion" style="margin-top:11px">${esc(b.conclusion)}</div>` : ""}
-    ${(b.plan_rejection_reasons || []).length ? `<div class="warn-note fail" style="margin-top:10px"><span class="g glyph">⚠</span><span>Plan rejected by the policy layer: ${b.plan_rejection_reasons.map(esc).join("; ")}. Fell back to the deterministic path.</span></div>` : ""}
+    ${(b.plan_rejection_reasons || []).length ? `<div class="warn-note fail" style="margin-top:10px"><span class="g glyph">⚠</span><span>The plan did not pass the safety policy; the deterministic path was used instead.</span></div>` : ""}
   </div>`;
 }
 
 const STATE_GLYPH = { completed: "✓", running: "▸", pending: "○", failed: "✕", skipped: "–" };
+const STATE_WORD  = { completed: "done", running: "running", pending: "waiting", failed: "could not run", skipped: "skipped" };
 function planPanel(b, stById) {
   const steps = (b.plan && b.plan.steps) || [];
   if (!steps.length) return "";
-  return `<div class="panel"><h2>Plan <span class="count">${steps.length} steps</span></h2>
-    <ol class="plan">${steps.map((p, i) => {
+  return `<div class="panel"><h2>Plan</h2>
+    <ol class="plan compact">${steps.map(p => {
       const s = stById[p.step_id] || { status: "pending" };
-      const n = String(i + 1).padStart(2, "0");
+      const why = s.status === "failed"
+        ? (s.failure || (s.findings && s.findings.pair_mismatches ? "differences: " + s.findings.pair_mismatches.join(", ") : "") || s.summary || "this step could not run")
+        : "";
       return `<li class="s-${s.status}">
         <span class="st" aria-hidden="true">${STATE_GLYPH[s.status] || "○"}</span>
-        <span class="lbl"><b>${n} ${esc(p.task)}</b> <span class="tool">${esc(p.tool)}</span>
-          <span class="hint" style="display:none">${esc(s.status)}</span>
-          ${s.summary ? `<span class="note">${esc(s.summary)}</span>` : ""}
-          ${s.replan_note ? `<span class="note"><span class="badge b-warn">deviated</span> ${esc(s.replan_note)}</span>` : ""}
+        <span class="lbl">
+          <b>${esc(taskLabel(p.task))}</b>
+          ${s.status === "failed" ? `<button class="why-btn" data-step-why aria-label="why did this step fail">why ▾</button><div class="why-box" hidden>${esc(why)}</div>` : ""}
+          ${s.status === "skipped" ? `<span class="note">not needed — an earlier step did not run</span>` : ""}
         </span></li>`;
     }).join("")}</ol>
-    <div class="hint">${(b.replans || []).length ? (b.replans.length + " replan(s)") : "no replans"}${b.early_stopped ? " · early stop: " + esc(b.completion_reason || "evidence sufficient") : ""}</div>
   </div>`;
 }
 
-/* OBSERVATION → DECISION → OUTCOME, built only from real steps + replans */
+/* Observation → Decision → Outcome — plain language, enum names live in "details" only */
+const _REASON_PLAIN = {
+  NEW_EVIDENCE: "No significant change was found, so the localisation steps were not needed.",
+  TOOL_FAILURE: "A step could not run, so the steps that depended on it were skipped (nothing was fabricated).",
+  MISSING_INPUT: "A required input was not supplied, so that step was skipped.",
+  INSUFFICIENT_EVIDENCE: "A step produced nothing usable, so no result was asserted from it.",
+  VERIFICATION_CONTRADICTION: "A step's result did not hold up to checking, so its claim was withheld.",
+  TASK_COMPLETE: "The required evidence was already gathered, so the remaining steps were skipped.",
+};
 function adaptivePanel(b, stById) {
-  const obs = (b.steps || []).filter(s => s.status === "completed" && s.summary);
   const replans = b.replans || [];
-  if (!obs.length && !replans.length && !b.early_stopped) return "";
+  const obs = (b.steps || []).filter(s => s.status === "completed" && s.summary);
+  if (!replans.length && !b.early_stopped && !obs.length) return "";
 
-  const obsRows = obs.map(s =>
-    `<div class="ev"><div class="obs"><b>${esc(s.step_id)}</b> ${esc(s.task)} → ${esc(s.summary)}</div></div>`).join("");
-
-  let decisions = "";
+  let rows = "";
   replans.forEach(r => {
-    decisions += `<div class="ev"><div class="k">Observation</div>
-      <div class="obs">${esc((stById[r.triggering_step] || {}).summary || r.triggering_step)}</div>
-      <div class="k" style="margin-top:5px">Decision</div>
-      <div class="dec">${esc(r.reason)} <span class="hint">(from ${esc(r.triggering_step)})</span></div>
-      <div class="out">${esc(r.detail)}</div>
-      <div class="out">Outcome: ${(r.steps_skipped || []).length ? "skipped " + r.steps_skipped.map(esc).join(", ") : "continued"}</div></div>`;
+    const trig = stById[r.triggering_step] || {};
+    rows += `<div class="ev">
+      <div><span class="k">Observation</span> ${esc(trig.summary || taskLabel(trig.task) || "a step result")}</div>
+      <div><span class="k">Decision</span> ${esc(_REASON_PLAIN[r.reason] || r.detail)}</div>
+      ${(r.steps_skipped || []).length ? `<div><span class="k">Outcome</span> ${esc(r.steps_skipped.length)} downstream step(s) skipped</div>` : ""}
+    </div>`;
   });
   if (b.early_stopped) {
-    decisions += `<div class="ev stop"><div class="k">Terminated</div>
-      <div class="dec">Investigation stopped early</div>
-      <div class="out">${esc(b.completion_reason || "the agent judged the evidence sufficient")}</div></div>`;
+    rows += `<div class="ev stop"><div><span class="k">Outcome</span> Investigation stopped early — ${esc(b.completion_reason || "a sufficient result was reached")}.</div></div>`;
   }
+  if (!rows) return "";
+  return `<div class="panel"><h2>Adaptive execution</h2>
+    <div class="hint" style="margin-top:-4px;margin-bottom:8px">The agent observed each result and chose the next action.</div>
+    <div class="adapt">${rows}</div>
+    <details style="margin-top:8px"><summary>Step-by-step observations &amp; internal codes</summary>
+      <table class="trace">${(b.steps || []).map(s => `<tr><td>${esc(taskLabel(s.task))}</td><td class="ts">${esc(STATE_WORD[s.status] || s.status)}${s.summary ? " · " + esc(s.summary) : ""}</td></tr>`).join("")}
+      ${replans.map(r => `<tr><td class="ts">replan</td><td class="ts">${esc(r.reason)} — ${esc(r.detail)}</td></tr>`).join("")}</table>
+    </details>
+  </div>`;
+}
 
-  const body = decisions
-    ? `<div class="adapt">${decisions}</div>
-       <details style="margin-top:8px"><summary>${obs.length} step observation(s)</summary><div class="adapt" style="margin-top:8px">${obsRows}</div></details>`
-    : `<div class="hint" style="margin-top:-4px;margin-bottom:8px">No replans — every planned step ran. The agent observed each result before continuing.</div>
-       <div class="adapt">${obsRows}</div>`;
-
-  return `<div class="panel"><h2>Adaptive execution</h2>${body}</div>`;
+/* "What we completed" / "What we could not complete" — the human summary (Part 5) */
+function completionPanel(b) {
+  const steps = (b.steps || []).filter(s => s.tool && (s.tool.startsWith("run_") || s.tool === "validate_geospatial_input" || s.tool === "extract_changed_regions"));
+  const done = steps.filter(s => s.status === "completed").map(s => taskLabel(s.task));
+  const notDone = steps.filter(s => s.status === "failed" || s.status === "skipped")
+    .map(s => taskLabel(s.task) + (s.status === "skipped" ? " (skipped)" : ""));
+  if (!done.length && !notDone.length) return "";
+  const fix = b.investigation_status === "BLOCKED"
+    ? "Provide two observations aligned to the same CRS, transform, and raster grid."
+    : b.investigation_status === "FAILED"
+      ? "Retry with different inputs, or check that the backend services are available."
+      : "";
+  return `<div class="panel"><h2>What happened</h2>
+    <div class="two-col">
+      <div><div class="ct-h">Completed</div><ul class="findlist">${done.map(d => `<li><span class="g glyph" style="color:var(--ok)">✓</span> ${esc(d)}</li>`).join("") || '<li class="hint">—</li>'}</ul></div>
+      <div><div class="ct-h">Could not complete</div><ul class="findlist">${notDone.map(d => `<li><span class="g glyph" style="color:var(--bad)">✕</span> ${esc(d)}</li>`).join("") || '<li class="hint">—</li>'}</ul></div>
+    </div>
+    ${fix ? `<div class="ct-h" style="margin-top:10px">How to fix this</div><div class="hint" style="font-size:12.5px">${esc(fix)}</div>` : ""}
+  </div>`;
 }
 
 /* spatial-findings coordinate table + GeoJSON — lives under the viewer (centre column) */
@@ -809,7 +880,7 @@ function centerSpatialPanel(b) {
 
 /* ---- spatial viewer ---- */
 let VIEWER_STATE = null;
-function viewerPanel(b) {
+function viewerPanel(b, status) {
   const inputUrls = (b.provenance && b.provenance.input_files) || [];
   const raster = inputUrls.find(isRasterName);
   const geo = b.geojson && (b.geojson.features || []).length ? b.geojson : null;
@@ -817,9 +888,19 @@ function viewerPanel(b) {
   const hasLonLat = geo || sf.some(s => Array.isArray(s.where_lonlat) && s.where_lonlat.length === 4);
   const hasPixel = sf.some(s => Array.isArray(s.where_pixel) && s.where_pixel.length === 4);
 
+  // G20.1: on a blocked/failed run the input image is NOT a result — do not show it.
+  if (status === "BLOCKED" || status === "FAILED") {
+    return `<div class="viewer"><div class="vhead"><span class="vtitle">Spatial view</span></div>
+      <div class="vstage empty"><div style="padding:34px 40px;max-width:460px;text-align:center;line-height:1.7">
+        <div class="glyph" style="font-size:22px;color:var(--faint)">⊘</div>
+        <div style="font-weight:650;margin:6px 0 4px">Spatial comparison unavailable</div>
+        <div class="hint">${esc(b.investigation_status_reason || "The analysis did not produce a spatial result.")}</div>
+      </div></div></div>`;
+  }
+
   if (!raster && !hasLonLat && !hasPixel) {
     const why = b.early_stopped
-      ? `The agent stopped early — ${esc(b.completion_reason || "the evidence was judged sufficient")} — before the localisation and optical+SAR steps. See <b>Adaptive execution</b>.`
+      ? `No spatial output — the agent stopped early because ${esc((b.completion_reason || "the result was already sufficient")).toLowerCase()}. See <b>Adaptive execution</b>.`
       : "No spatial geometry was produced for this mission.";
     return `<div class="viewer"><div class="vhead"><span class="vtitle">Spatial view</span></div>
       <div class="vstage empty"><div class="hint" style="padding:26px 34px;max-width:520px;text-align:center;line-height:1.7">${why}</div></div></div>`;
@@ -959,14 +1040,31 @@ function renderGeoSVG(state) {
 }
 
 /* ---- right column panels ---- */
-function findingsPanel(b) {
-  const sf = b.spatial_findings || [];
-  const s2 = (b.steps || []).find(s => s.task === "TEMPORAL_CHANGE") || {};
+function findingsPanel(b, status) {
+  const steps = b.steps || [];
+  const s2 = steps.find(s => s.task === "TEMPORAL_CHANGE") || {};
   const f2 = s2.findings || {};
-  const nRegions = ((b.steps || []).find(s => s.task === "EXTRACT_CHANGED_REGIONS") || {}).findings?.n_regions
+
+  if (status === "BLOCKED" || status === "FAILED") {
+    let t1 = f2.t1_shape, t2 = f2.t2_shape;
+    if (!t1 || !t2) {
+      const m = (b.warnings || []).map(w => String(w).match(/(\d+)x(\d+)\s*vs\s*(\d+)x(\d+)/)).find(Boolean);
+      if (m) { t1 = m[1] + "×" + m[2]; t2 = m[3] + "×" + m[4]; }
+    }
+    return `<div class="panel"><h2>Findings</h2>
+      <p style="font-size:13px;color:var(--fg-dim)">No validated finding is available.</p>
+      <div class="ct-h" style="margin-top:8px">Why</div>
+      <div class="hint" style="font-size:12.5px">${esc(b.investigation_status_reason || "The requested analysis did not complete.")}</div>
+      ${t1 && t2 ? `<div class="ct-h" style="margin-top:8px">Technical detail</div>
+        <table class="trace"><tr><td>T1 grid</td><td class="ts">${esc(t1)}</td></tr><tr><td>T2 grid</td><td class="ts">${esc(t2)}</td></tr></table>` : ""}
+    </div>`;
+  }
+
+  const sf = b.spatial_findings || [];
+  const nRegions = (steps.find(s => s.task === "EXTRACT_CHANGED_REGIONS") || {}).findings?.n_regions
     ?? sf.filter(x => /region/i.test(x.label || "") && !/ground/i.test(x.label || "")).length;
   const nGround = sf.filter(x => /ground/i.test(x.label || "")).length
-    || (((b.steps || []).find(s => s.task === "GROUND_OBJECT") || {}).findings?.grounded ? 1 : 0);
+    || ((steps.find(s => s.task === "GROUND_OBJECT") || {}).findings?.grounded ? 1 : 0);
   const metrics = [];
   if (f2.changed_fraction != null) metrics.push([`${(f2.changed_fraction * 100).toFixed(1)}%`, "Scene changed"]);
   if (f2.changed_area_ha != null) metrics.push([`${num(f2.changed_area_ha)} ha`, "Changed area"]);
@@ -1000,34 +1098,22 @@ function trustPanel(conf) {
   </div>`;
 }
 
-function verificationPanel(v, resolution) {
-  v = v || {};
+/* Verification is a SEPARATE, secondary concept — a compact line, not a big card.
+   It judges only the evidence that was produced, never "did the investigation succeed". */
+function verificationLine(b) {
+  const v = b.verification || {};
+  const st = v.status || "—";
+  const na = st === "NOT_APPLICABLE" || b.investigation_status === "BLOCKED";
   const checks = v.checks || [];
-  const vnotes = Array.isArray(v.notes) ? v.notes : (v.notes ? [v.notes] : []);
-  const groups = { Structural: [], Geospatial: [], Evidence: [], Other: [] };
-  checks.forEach(c => {
-    const n = String(c.name || "").toLowerCase();
-    if (/geo|crs|transform|coreg|co-reg|bounds|spatial|raster|modality/.test(n)) groups.Geospatial.push(c);
-    else if (/evidence|claim|cross|artifact|mask/.test(n)) groups.Evidence.push(c);
-    else if (/aggregate|step statuses/.test(n)) groups.Other.push(c);
-    else groups.Structural.push(c);
-  });
-  const chk = c => {
-    const st = c.passed === true ? "ok" : c.passed === false ? "bad" : "na";
-    const gl = st === "ok" ? "✓" : st === "bad" ? "✕" : "–";
-    return `<div class="vcheck"><span class="g ${st}">${gl}</span><span>${esc(c.name)}</span><span class="d" title="${esc(c.detail || "")}">${esc(c.detail || "")}</span></div>`;
-  };
-  let body = "";
-  ["Structural", "Geospatial", "Evidence", "Other"].forEach(k => {
-    if (!groups[k].length) return;
-    body += `<div class="vgroup"><div class="gt">${k === "Other" ? "Aggregate" : k} check</div>${groups[k].map(chk).join("")}</div>`;
-  });
-  if (!checks.length) body = `<div class="hint">no structural checks were applicable</div>`;
-  return `<div class="panel"><h2>Verification</h2>
-    <div style="margin-bottom:9px">Overall: ${verdictBadge(v.status)}</div>
-    ${body}
-    ${resolution && resolution.qualifier ? `<div class="hint">Resolution: ${esc(resolution.qualifier)} — ${esc(resolution.note || "deterministic post-execution qualifier, not a confidence value")}</div>` : ""}
-    ${vnotes.length ? `<div class="hint">${vnotes.map(esc).join(" · ")}</div>` : ""}
+  const meaning = na
+    ? "No analytical conclusion was produced, so there is nothing to verify."
+    : (v.note || "Structural / deterministic checks on the evidence that was produced — not a success signal.");
+  return `<div class="panel"><h2>Verification <span class="hint" style="text-transform:none;letter-spacing:0">(of the evidence, not the outcome)</span></h2>
+    <div style="margin-bottom:6px">${na ? '<span class="badge b-mut">NOT APPLICABLE</span>' : verdictBadge(st)}</div>
+    <div class="hint" style="font-size:12px">${esc(meaning)}</div>
+    ${checks.length ? `<details style="margin-top:6px"><summary>${checks.length} check(s)</summary>
+      <table class="trace">${checks.map(c => `<tr><td><span class="g glyph" style="color:var(${c.passed === true ? "--ok" : c.passed === false ? "--bad" : "--faint"})">${c.passed === true ? "✓" : c.passed === false ? "✕" : "–"}</span> ${esc(c.name)}</td><td class="ts">${esc(c.detail || "")}</td></tr>`).join("")}</table>
+    </details>` : ""}
   </div>`;
 }
 
