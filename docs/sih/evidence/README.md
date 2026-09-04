@@ -8,6 +8,13 @@
 > Status vocabulary: `TRACEABLE` (source or experiment recorded) ·
 > `PARTIAL` (some support, gap noted) · `BLOCKED` (needs the remote GPU box) ·
 > `TODO` (not yet collected).
+> Date: **2026-09-04 (G20 — competition-grade UI/UX)**. G20 is UI/UX only — the
+> local UI (`apps/backend/app/static/index.html`, still one file) rebuilt into a
+> geospatial-intelligence workstation; PPT-ready screenshots in
+> `docs/sih/evidence/ui/` (result screens rendered from the frozen `demos/final`
+> captures through the shipped code — real data). No backend/model/API change.
+> 419 fast tests pass. `docs/G20_UI_{AUDIT,QA,RELEASE_REPORT}.md`.
+>
 > Date: **2026-09-04 (G19 — SIH package + demo freeze)**. G19 is presentation
 > packaging only (no new capability): `docs/G19_SIH_SOURCE_OF_TRUTH.md` +
 > `docs/sih/*` (core story, pitch, architecture diagram, demo storyboard/runbook/

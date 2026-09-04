@@ -52,7 +52,7 @@ See the [`Makefile`](Makefile) for all targets.
 | 2 | **Install** | `make setup`; place checkpoints under `models/cache/` (`scripts/download_models/`, ids + hashes in [`docs/G18_RELEASE_MANIFEST.md`](docs/G18_RELEASE_MANIFEST.md)). |
 | 3 | **Launch** | `make dev-backend` → `http://127.0.0.1:8000/`. `make dev-frontend` for the React dashboard (optional). |
 | 4 | **Demo** | Secondary (~15–60 s): *"Where is the largest ship?"* on `data/demo/grounding/scene.jpg`. Flagship (INVESTIGATE tab, ~90 s cold): the 4 tiles in `data/demo/investigation/` + the mission in `QUICKSTART.md`. Headless: `python scripts/demo/run_final_demo.py`. |
-| 5 | **Test** | `make test`, or `pytest packages apps/backend/tests -q -m "not slow and not gpu and not integration"` (**383 fast tests**). |
+| 5 | **Test** | `make test`, or `pytest packages apps/backend/tests -q -m "not slow and not gpu and not integration"` (**419 fast tests**). |
 | 6 | **CPU fallback** | every specialist + the agent run CPU-only; verified on the dev host. One model resident at a time (subprocess per specialist). |
 | 7 | **GPU caveat** | **GPU FIT = UNVERIFIED** — `torch.cuda.is_available() == False` on the dev host; no numerical VRAM claim is made. |
 | 8 | **Model caveats** | frozen stack (ADR-021). Deterministic planner is the **production default**; pure local LLM planner **rejected** (G16); hybrid LLM-intent planner **optional** (`SATQUERY_PLANNER=hybrid`, G17). Semantic-change *language* is an **experimental** composed baseline. |
@@ -81,6 +81,20 @@ backup demo · results-slide data · novelty argument · competitor comparison �
 top-30 judge Q&A · negative-results defense · demo runbook · final checklist ·
 product roadmap. After G19: bug fixes, demo reliability, docs and presentation
 assets only — no new features / models / architecture.
+
+**G20 — competition-grade UI (UI/UX only).** The local UI at
+`http://127.0.0.1:8000/` was rebuilt into a geospatial-intelligence workstation:
+top nav (ASK / INVESTIGATE / ABOUT / system status), a hero landing, and for
+INVESTIGATE a 3-column workspace — MISSION + PLAN + ADAPTIVE EXECUTION on the
+left, a spatial map/geometry viewer in the centre, FINDINGS + CONFIDENCE +
+VERIFICATION + EVIDENCE + WARNINGS on the right, report export at the bottom.
+Every value still comes straight from the backend response; no fabricated data,
+progress, reasoning, or confidence. Same single file
+(`apps/backend/app/static/index.html`), no build step, no CDN. See
+[`docs/G20_UI_RELEASE_REPORT.md`](docs/G20_UI_RELEASE_REPORT.md),
+[`docs/G20_UI_AUDIT.md`](docs/G20_UI_AUDIT.md),
+[`docs/G20_UI_QA.md`](docs/G20_UI_QA.md); screenshots in
+[`docs/sih/evidence/ui/`](docs/sih/evidence/ui/).
 
 ## Run the SatQuery MVP locally  *(G13)*
 

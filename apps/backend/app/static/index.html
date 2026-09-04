@@ -3,483 +3,1113 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SatQuery AI</title>
+<title>SatQuery AI — Geospatial Intelligence</title>
 <style>
   :root {
-    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2b303b;
-    --fg: #e6e9ef; --muted: #9aa4b2; --accent: #5aa9e6;
-    --ok: #46b17b; --warn: #d9a441; --bad: #e0655f;
+    --bg: #0c0e12; --bg2: #0f1218; --panel: #151922; --panel2: #1b202b; --panel3: #212734;
+    --line: #2a313f; --line2: #363f50;
+    --fg: #e7ebf2; --fg-dim: #b9c1cf; --muted: #8b95a6; --faint: #667085;
+    --accent: #4f9dff; --accent-ink: #041020;
+    --ok: #43b581; --warn: #d9a441; --bad: #e0655f; --info: #6ea8fe;
+    --focus: #7cc0ff;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    --sans: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --r: 8px; --r-lg: 12px;
+    --t: 140ms ease;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
-  header { padding: 18px 24px; border-bottom: 1px solid var(--line); }
-  header h1 { margin: 0; font-size: 18px; letter-spacing: .3px; }
-  header p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 24px 60px; display: grid; grid-template-columns: 380px 1fr; gap: 22px; }
-  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .card h2 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); font-weight: 600; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
-  input[type=text], textarea, select {
-    width: 100%; background: var(--panel2); border: 1px solid var(--line); color: var(--fg);
-    border-radius: 7px; padding: 9px 10px; font-family: var(--sans); font-size: 13.5px; resize: vertical;
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--sans); font-size: 14px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
-  input[type=file] { width: 100%; font-size: 12.5px; color: var(--muted); }
-  button {
-    background: var(--accent); color: #05121d; border: 0; border-radius: 7px; padding: 10px 16px;
-    font-weight: 700; font-size: 13.5px; cursor: pointer; margin-top: 14px; width: 100%;
+  a { color: var(--accent); }
+  h1, h2, h3 { font-weight: 650; }
+  .mono { font-family: var(--mono); }
+  .is-hidden { display: none !important; }
+
+  /* focus visibility */
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---------- top nav ---------- */
+  #nav {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 18px; height: 52px;
+    background: linear-gradient(180deg, #12161e, #0f1218);
+    border-bottom: 1px solid var(--line);
   }
-  button:disabled { opacity: .5; cursor: default; }
-  .hint { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
-  .examples button { width: auto; margin: 4px 4px 0 0; padding: 5px 9px; font-size: 11.5px; font-weight: 500; background: var(--panel2); color: var(--fg); border: 1px solid var(--line); }
-  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 10px; font-size: 13px; }
-  .kv div:nth-child(odd) { color: var(--muted); }
-  .mono { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; word-break: break-word; }
-  .answer { font-size: 15px; background: var(--panel2); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 4px; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
-  .b-ok { background: rgba(70,177,123,.16); color: var(--ok); }
-  .b-warn { background: rgba(217,164,65,.16); color: var(--warn); }
-  .b-bad { background: rgba(224,101,95,.16); color: var(--bad); }
-  .b-mut { background: var(--panel2); color: var(--muted); }
-  ul.trace { list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 12px; }
-  ul.trace li { padding: 3px 0; color: var(--muted); }
-  ul.trace li::before { content: "→ "; color: var(--accent); }
-  .warnbox { background: rgba(217,164,65,.08); border: 1px solid rgba(217,164,65,.3); border-radius: 7px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 8px; }
-  .badbox { background: rgba(224,101,95,.08); border: 1px solid rgba(224,101,95,.3); border-radius: 7px; padding: 10px 12px; font-size: 12.5px; }
-  .viz { position: relative; display: inline-block; max-width: 100%; }
-  .viz img { display: block; max-width: 100%; border-radius: 8px; border: 1px solid var(--line); }
-  .viz canvas { position: absolute; inset: 0; pointer-events: none; }
+  #nav .brand {
+    display: flex; align-items: baseline; gap: 9px; margin-right: 14px;
+    font-weight: 750; letter-spacing: .4px; font-size: 15px; cursor: pointer;
+    background: none; border: 0; color: var(--fg); padding: 6px 4px;
+  }
+  #nav .brand .tag { font-size: 10.5px; font-weight: 600; color: var(--faint); letter-spacing: 1.4px; text-transform: uppercase; }
+  #nav .navlink {
+    background: none; border: 0; color: var(--muted); font: inherit; font-size: 12.5px;
+    letter-spacing: .6px; text-transform: uppercase; padding: 8px 12px; cursor: pointer;
+    border-radius: 6px; transition: color var(--t), background var(--t);
+  }
+  #nav .navlink:hover { color: var(--fg-dim); background: var(--panel2); }
+  #nav .navlink[aria-current="page"] { color: var(--fg); background: var(--panel3); }
+  #nav .spacer { flex: 1; }
+  #sysbtn {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--fg-dim);
+    font: inherit; font-size: 11.5px; letter-spacing: .5px; text-transform: uppercase;
+    padding: 6px 11px; border-radius: 20px; cursor: pointer;
+  }
+  #sysbtn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  #sysbtn .dot.ready { background: var(--ok); box-shadow: 0 0 0 3px rgba(67,181,129,.16); }
+  #sysbtn .dot.offline { background: var(--bad); }
+  #syspop {
+    position: absolute; right: 14px; top: 52px; width: 260px;
+    background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r);
+    padding: 12px 14px; box-shadow: 0 18px 40px rgba(0,0,0,.5); z-index: 30;
+  }
+  #syspop h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+  #syspop .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12.5px; border-top: 1px solid var(--line); }
+  #syspop .row:first-of-type { border-top: 0; }
+  #syspop .v { color: var(--fg-dim); }
+  #syspop .v.warn { color: var(--warn); }
+
+  main { min-height: calc(100% - 52px - 34px); }
+
+  /* ---------- hero / landing ---------- */
+  .hero { max-width: 900px; margin: 0 auto; padding: 72px 24px 40px; text-align: center; }
+  .hero h1 { font-size: 34px; line-height: 1.2; margin: 0 0 14px; letter-spacing: -.2px; }
+  .hero p.sub { font-size: 15.5px; color: var(--fg-dim); margin: 0 auto 30px; max-width: 620px; }
+  .hero .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--r);
+    font: inherit; font-weight: 700; font-size: 13.5px; letter-spacing: .3px;
+    padding: 12px 22px; cursor: pointer; transition: filter var(--t), transform var(--t);
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: var(--panel2); color: var(--fg); border: 1px solid var(--line2); }
+  .btn.sm { padding: 8px 14px; font-size: 12.5px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .pipeline {
+    margin: 46px auto 0; max-width: 780px; display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 6px 4px; color: var(--faint); font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase;
+  }
+  .pipeline b { color: var(--fg-dim); font-weight: 600; }
+  .pipeline .arw { color: var(--accent); }
+
+  /* ---------- generic panels ---------- */
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 15px 16px; margin-bottom: 14px;
+  }
+  .panel > h2, .phead {
+    margin: 0 0 11px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.1px;
+    color: var(--muted); font-weight: 650; display: flex; align-items: center; gap: 8px;
+  }
+  .panel > h2 .count { color: var(--faint); font-weight: 600; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; }
+  input[type=text], textarea {
+    width: 100%; background: var(--panel2); border: 1px solid var(--line2); color: var(--fg);
+    border-radius: 7px; padding: 10px 11px; font-family: var(--sans); font-size: 13.5px; resize: vertical;
+  }
+  input[type=file] { width: 100%; font-size: 12.5px; color: var(--muted); padding: 8px 0; }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    background: var(--panel2); color: var(--fg-dim); border: 1px solid var(--line);
+    border-radius: 16px; padding: 5px 11px; font-size: 11.5px; cursor: pointer; transition: border-color var(--t), color var(--t);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--fg); }
+  .hint { font-size: 11.5px; color: var(--faint); margin-top: 9px; }
+  .kv { display: grid; grid-template-columns: 128px 1fr; gap: 6px 12px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; color: var(--fg-dim); }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 16px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+  .b-ok   { background: rgba(67,181,129,.15); color: var(--ok); }
+  .b-warn { background: rgba(217,164,65,.15); color: var(--warn); }
+  .b-bad  { background: rgba(224,101,95,.15); color: var(--bad); }
+  .b-mut  { background: var(--panel2); color: var(--muted); }
+  .glyph { font-family: var(--mono); font-weight: 700; }
+
+  /* answer / conclusion */
+  .conclusion { font-size: 14.5px; background: var(--panel2); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 4px; color: var(--fg); }
+
+  .warn-note { display: flex; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; margin-bottom: 7px; background: rgba(217,164,65,.08); border: 1px solid rgba(217,164,65,.28); color: var(--fg-dim); }
+  .warn-note.fail { background: rgba(224,101,95,.08); border-color: rgba(224,101,95,.32); }
+  .warn-note .g { color: var(--warn); }
+  .warn-note.fail .g { color: var(--bad); }
+
   details { margin-top: 8px; }
-  summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-  table.rank { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  table.rank td { padding: 3px 6px; border-bottom: 1px solid var(--line); }
-  table.rank td:last-child { text-align: right; color: var(--muted); font-family: var(--mono); }
-  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; }
-  @keyframes s { to { transform: rotate(360deg); } }
-  .empty { color: var(--muted); font-size: 13px; }
-  .modewrap { display: flex; gap: 6px; margin-bottom: 8px; }
-  .modebtn { flex: 1; width: auto; margin: 0; padding: 8px 0; font-size: 12px; letter-spacing: .5px;
-    background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
-  .modebtn.active { background: var(--accent); color: #05121d; border-color: var(--accent); }
-  ol.plan { margin: 4px 0 0; padding-left: 0; list-style: none; font-size: 12.5px; }
-  ol.plan li { padding: 5px 8px; border-left: 2px solid var(--line); margin: 3px 0; font-family: var(--mono); font-size: 11.5px; }
-  ol.plan li.st-completed { border-left-color: var(--ok); }
-  ol.plan li.st-running { border-left-color: var(--accent); }
-  ol.plan li.st-failed { border-left-color: var(--bad); }
-  ol.plan li.st-skipped { border-left-color: var(--warn); opacity: .6; }
-  .stmark { display: inline-block; width: 14px; }
+  details > summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; padding: 4px 0; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "▸ "; color: var(--accent); }
+  details[open] > summary::before { content: "▾ "; }
+  pre.raw { font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; padding: 10px; max-height: 320px; overflow: auto; color: var(--fg-dim); }
+
+  /* ---------- ASK view ---------- */
+  #view-ask { max-width: 720px; margin: 0 auto; padding: 30px 22px 60px; }
+  .view-head { margin: 4px 0 18px; }
+  .view-head h1 { font-size: 20px; margin: 0 0 4px; }
+  .view-head p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  /* ---------- INVESTIGATE workspace ---------- */
+  #view-investigate { padding: 20px; }
+  #inv-input { max-width: 760px; margin: 12px auto 0; }
+  .ws {
+    display: grid; gap: 14px;
+    grid-template-columns: minmax(290px, 350px) minmax(420px, 1fr) minmax(300px, 380px);
+    grid-template-areas: "left center right" "bottom bottom bottom";
+    align-items: start;
+  }
+  .ws .col-left   { grid-area: left; }
+  .ws .col-center { grid-area: center; }
+  .ws .col-right  { grid-area: right; }
+  .ws .row-bottom { grid-area: bottom; }
+  @media (max-width: 1240px) {
+    .ws { grid-template-columns: 1fr; grid-template-areas: "center" "left" "right" "bottom"; }
+  }
+
+  /* spatial viewer */
+  .viewer {
+    background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r-lg);
+    overflow: hidden; position: relative;
+  }
+  .viewer .vhead { display: flex; align-items: center; gap: 6px; padding: 9px 11px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .viewer .vhead .vtitle { font-size: 11px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--muted); margin-right: auto; }
+  .layerbtn, .zoombtn {
+    background: var(--panel2); color: var(--muted); border: 1px solid var(--line); font: inherit;
+    font-size: 11px; letter-spacing: .4px; padding: 4px 9px; border-radius: 5px; cursor: pointer; transition: color var(--t), border-color var(--t);
+  }
+  .layerbtn[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); background: var(--panel3); }
+  .layerbtn:hover, .zoombtn:hover { color: var(--fg-dim); }
+  .vstage { position: relative; width: 100%; min-height: 300px; display: flex; align-items: center; justify-content: center; background:
+      repeating-linear-gradient(0deg, transparent 0 23px, rgba(255,255,255,.02) 23px 24px),
+      repeating-linear-gradient(90deg, transparent 0 23px, rgba(255,255,255,.02) 23px 24px), var(--bg2); }
+  .vstage.empty { min-height: 130px; background: var(--bg2); }
+  .vstage img { display: block; max-width: 100%; max-height: 560px; }
+  .vstage canvas.ovl { position: absolute; inset: 0; pointer-events: none; }
+  .vstage svg { display: block; width: 100%; height: auto; max-height: 560px; }
+  .vcaption { padding: 8px 11px; font-size: 11px; color: var(--faint); border-top: 1px solid var(--line); background: var(--panel); }
+
+  /* plan */
+  ol.plan { margin: 0; padding: 0; list-style: none; }
+  ol.plan li {
+    display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start;
+    padding: 7px 8px; margin: 3px 0; border-left: 2px solid var(--line2); border-radius: 0 5px 5px 0;
+    font-size: 12.5px; transition: background var(--t), border-color var(--t);
+  }
+  ol.plan li .st { font-family: var(--mono); font-weight: 700; text-align: center; }
+  ol.plan li .lbl b { font-weight: 650; color: var(--fg); }
+  ol.plan li .lbl .tool { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+  ol.plan li .lbl .note { color: var(--muted); display: block; margin-top: 2px; }
+  ol.plan li.s-completed { border-left-color: var(--ok); }
+  ol.plan li.s-completed .st { color: var(--ok); }
+  ol.plan li.s-running   { border-left-color: var(--accent); background: rgba(79,157,255,.06); }
+  ol.plan li.s-running .st { color: var(--accent); }
+  ol.plan li.s-failed    { border-left-color: var(--bad); }
+  ol.plan li.s-failed .st { color: var(--bad); }
+  ol.plan li.s-skipped   { border-left-color: var(--warn); opacity: .62; }
+  ol.plan li.s-skipped .st { color: var(--warn); }
+  ol.plan li.s-pending .st { color: var(--faint); }
+
+  /* adaptive execution timeline */
+  .adapt { position: relative; padding-left: 16px; }
+  .adapt::before { content: ""; position: absolute; left: 4px; top: 4px; bottom: 4px; width: 2px; background: var(--line2); }
+  .adapt .ev { position: relative; margin-bottom: 12px; }
+  .adapt .ev::before { content: ""; position: absolute; left: -14px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .adapt .ev.stop::before { background: var(--warn); }
+  .adapt .ev .k { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); }
+  .adapt .ev .obs { color: var(--fg-dim); font-size: 12.5px; }
+  .adapt .ev .dec { color: var(--fg); font-size: 12.5px; }
+  .adapt .ev .out { color: var(--muted); font-size: 11.5px; }
+  .adapt .ev.stop .dec { color: var(--warn); font-weight: 650; }
+
+  /* trust */
+  .trust-cat { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .trust-cat .big { font-size: 22px; font-weight: 750; letter-spacing: .5px; }
+  .trust-cat .big.HIGH { color: var(--ok); }
+  .trust-cat .big.MEDIUM { color: var(--warn); }
+  .trust-cat .big.LOW { color: var(--warn); }
+  .trust-cat .big.INSUFFICIENT_EVIDENCE { color: var(--bad); font-size: 15px; }
+  .why { list-style: none; margin: 6px 0 0; padding: 0; }
+  .why li { display: grid; grid-template-columns: 16px 1fr; gap: 7px; font-size: 12.5px; color: var(--fg-dim); padding: 3px 0; }
+  .why li .g { color: var(--ok); font-family: var(--mono); }
+  .why li.q .g { color: var(--warn); }
+
+  /* verification groups */
+  .vgroup { margin-bottom: 8px; }
+  .vgroup .gt { font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--faint); margin-bottom: 3px; }
+  .vcheck { display: grid; grid-template-columns: 16px 1fr auto; gap: 7px; font-size: 12px; padding: 2px 0; color: var(--fg-dim); }
+  .vcheck .g.ok { color: var(--ok); } .vcheck .g.bad { color: var(--bad); } .vcheck .g.na { color: var(--faint); }
+  .vcheck .d { color: var(--faint); font-size: 11px; font-family: var(--mono); text-align: right; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* findings */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+  .metric { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; }
+  .metric .m-v { font-size: 16px; font-weight: 700; color: var(--fg); }
+  .metric .m-k { font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase; color: var(--faint); margin-top: 1px; }
+  ul.findlist { list-style: none; margin: 0; padding: 0; }
+  ul.findlist li { padding: 5px 0; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--fg-dim); }
+  ul.findlist li:first-child { border-top: 0; }
+
+  /* evidence */
+  .evi { border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; margin-bottom: 7px; background: var(--panel2); }
+  .evi .et { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .evi .et .src { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+  .evi .claim { font-size: 12.5px; color: var(--fg-dim); margin-top: 3px; }
+
+  table.trace { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.trace td { padding: 3px 8px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--fg-dim); }
+  table.trace td.ts { color: var(--faint); font-family: var(--mono); white-space: nowrap; }
+
+  /* loading / states */
+  .state {
+    background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r-lg);
+    padding: 22px; text-align: center; max-width: 560px; margin: 20px auto;
+  }
+  .state h2 { margin: 0 0 6px; font-size: 15px; letter-spacing: .5px; }
+  .state p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+  .state.err { border-color: rgba(224,101,95,.4); }
+  .state.err h2 { color: var(--bad); }
+  .state .k { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); margin-top: 12px; }
+  .spin {
+    display: inline-block; width: 15px; height: 15px; border: 2px solid var(--line2);
+    border-top-color: var(--accent); border-radius: 50%; animation: sp .8s linear infinite; vertical-align: -3px; margin-right: 7px;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .elapsed { font-family: var(--mono); color: var(--fg-dim); }
+
+  /* footer status strip */
+  #status {
+    height: 34px; display: flex; align-items: center; gap: 16px;
+    padding: 0 18px; border-top: 1px solid var(--line);
+    background: var(--bg2); color: var(--faint); font-size: 11px; letter-spacing: .4px;
+  }
+  #status .s { display: flex; align-items: center; gap: 6px; }
+  #status .s .g { color: var(--ok); }
+  #status .s.warn .g { color: var(--warn); }
+
+  .fade-in { animation: fi var(--t); }
+  @keyframes fi { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+    .spin { border-top-color: var(--accent); }
+  }
+  @media (max-width: 720px) {
+    .hero h1 { font-size: 25px; }
+    .metrics { grid-template-columns: 1fr; }
+    #nav .navlink { padding: 8px 8px; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>SatQuery AI</h1>
-  <p>Natural-language remote-sensing assistant · deterministic routing · verifiable evidence · no confidence scores by design</p>
+
+<header id="nav">
+  <button class="brand" data-nav="#/" aria-label="SatQuery AI — home">
+    SATQUERY&nbsp;AI <span class="tag">Geospatial Intelligence</span>
+  </button>
+  <button class="navlink" data-nav="#/ask">Ask</button>
+  <button class="navlink" data-nav="#/investigate">Investigate</button>
+  <button class="navlink" data-nav="#/about">About</button>
+  <span class="spacer"></span>
+  <button id="sysbtn" aria-haspopup="true" aria-expanded="false">
+    <span class="dot" id="sysdot"></span><span id="sysword">System</span>
+  </button>
 </header>
-
-<div class="wrap">
-  <!-- ---------------- left: query console ---------------- -->
-  <div>
-    <div class="card">
-      <h2>Query</h2>
-      <div class="modewrap">
-        <button class="modebtn active" id="mode-ask" data-mode="ask">ASK</button>
-        <button class="modebtn" id="mode-investigate" data-mode="investigate">INVESTIGATE</button>
-      </div>
-      <label id="fileslabel">Image / GeoTIFF (1 for VQA·grounding·scene, 2 for change·optical+SAR)</label>
-      <input type="file" id="files" multiple accept=".tif,.tiff,.png,.jpg,.jpeg,.npy" />
-      <label>Natural-language <span id="qword">query</span></label>
-      <textarea id="query" rows="3" placeholder="e.g. Where is the largest building?"></textarea>
-      <div class="examples" id="examples"></div>
-      <button id="run">Analyze</button>
-      <div class="hint" id="hint">ASK infers one task, routes to one frozen-stack specialist, verifies, returns evidence. INVESTIGATE plans a multi-step mission (LLM/rule planner → policy check → bounded agent loop that observes each result and decides the next action).</div>
-    </div>
-    <div class="card">
-      <h2>Frozen model stack (G12)</h2>
-      <div class="kv">
-        <div>VQA</div><div>TinyRS-2B · fallback Qwen2-VL-2B</div>
-        <div>Grounding</div><div>RemoteSAM <span class="badge b-warn">licence NOT STATED</span></div>
-        <div>Change</div><div>ChangeFormer (+ image-diff fallback)</div>
-        <div>Semantic change</div><div>ChangeFormer + RemoteCLIP <span class="badge b-mut">experimental</span></div>
-        <div>Optical + SAR</div><div>CROMA · fallback DOFA <span class="badge b-mut">representation-level</span></div>
-        <div>Scene / retrieval</div><div>RemoteCLIP</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ---------------- right: result ---------------- -->
-  <div id="out">
-    <div class="card"><div class="empty">Run a query to see the answer, visual output, evidence, verification and execution trace.</div></div>
-  </div>
+<div id="syspop" class="is-hidden" role="dialog" aria-label="System status">
+  <h3>System</h3>
+  <div class="row"><span>Status</span><span class="v" id="pop-status">checking…</span></div>
+  <div class="row"><span>Planner</span><span class="v">Deterministic (default)</span></div>
+  <div class="row"><span>Models</span><span class="v">Local · one resident at a time</span></div>
+  <div class="row"><span>Geo validation</span><span class="v">✓ enforced</span></div>
+  <div class="row"><span>Evidence</span><span class="v">✓ typed + provenance</span></div>
+  <div class="row"><span>Agent</span><span class="v">✓ bounded (≤ 8 steps)</span></div>
+  <div class="row"><span>GPU</span><span class="v warn">UNVERIFIED</span></div>
 </div>
 
+<main>
+  <!-- ================= LANDING ================= -->
+  <section id="view-landing">
+    <div class="hero">
+      <h1>Investigate satellite imagery with natural language.</h1>
+      <p class="sub">Plan, analyze, verify, and map geospatial findings using specialized
+        remote-sensing intelligence. Runs locally on CPU — no cloud, no confidence guesswork.</p>
+      <div class="cta">
+        <button class="btn" data-nav="#/investigate">Investigate an area</button>
+        <button class="btn ghost" data-nav="#/ask">Ask a question</button>
+      </div>
+      <div class="pipeline" aria-hidden="true">
+        <b>Mission</b><span class="arw">→</span><b>Plan</b><span class="arw">→</span>
+        <b>Specialist analysis</b><span class="arw">→</span><b>Observation</b><span class="arw">→</span>
+        <b>Adaptive action</b><span class="arw">→</span><b>Evidence</b><span class="arw">→</span>
+        <b>Verification</b><span class="arw">→</span><b>Verified map &amp; report</b>
+      </div>
+      <div class="chips" style="justify-content:center;margin-top:26px">
+        <span class="chip" style="cursor:default">Bi-temporal change detection</span>
+        <span class="chip" style="cursor:default">Optical + SAR representation</span>
+        <span class="chip" style="cursor:default">Text-guided object grounding</span>
+        <span class="chip" style="cursor:default">Scene understanding &amp; VQA</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ASK ================= -->
+  <section id="view-ask" class="is-hidden">
+    <div class="view-head">
+      <h1>Ask</h1>
+      <p>One image, one question. Routed to a single frozen-stack specialist, verified, returned with its evidence.</p>
+    </div>
+    <div class="panel">
+      <h2>Query</h2>
+      <label for="ask-files">Image (PNG / JPEG / GeoTIFF)</label>
+      <input type="file" id="ask-files" accept=".tif,.tiff,.png,.jpg,.jpeg,.npy" />
+      <label for="ask-q">Question</label>
+      <textarea id="ask-q" rows="2" placeholder="e.g. Where is the largest ship?"></textarea>
+      <div class="chips" id="ask-chips"></div>
+      <button class="btn" id="run-ask" style="margin-top:14px; width:100%">Run</button>
+    </div>
+    <div id="ask-out"></div>
+  </section>
+
+  <!-- ================= INVESTIGATE ================= -->
+  <section id="view-investigate" class="is-hidden">
+    <div id="inv-input">
+      <div class="view-head">
+        <h1>Investigate</h1>
+        <p>A natural-language mission is planned, policy-checked, and run by a bounded agent that
+          observes each specialist result and adapts. The map and evidence are the output.</p>
+      </div>
+      <div class="panel">
+        <h2>Mission</h2>
+        <textarea id="mission" rows="3" placeholder="e.g. Investigate this area. Identify significant changes between the two observations, locate the affected structures, compare optical and SAR evidence, and provide a verified summary."></textarea>
+        <label for="inv-files">Inputs — 1 to 4 images (e.g. T1 &amp; T2 optical, Sentinel-2, Sentinel-1 SAR)</label>
+        <input type="file" id="inv-files" multiple accept=".tif,.tiff,.png,.jpg,.jpeg,.npy" />
+        <div class="chips" id="inv-chips"></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer">
+          <input type="checkbox" id="demo-toggle" style="width:auto" />
+          <span>Demo mode — prefill the official flagship mission (still runs the real backend)</span>
+        </label>
+        <div class="hint is-hidden" id="demo-hint"></div>
+        <button class="btn" id="run-investigate" style="margin-top:14px; width:100%">Run investigation</button>
+      </div>
+    </div>
+    <div id="inv-out"></div>
+  </section>
+
+  <!-- ================= ABOUT ================= -->
+  <section id="view-about" class="is-hidden">
+    <div class="view-head" style="max-width:820px;margin:24px auto 0;padding:0 22px">
+      <h1>About SatQuery</h1>
+      <p>A natural-language geospatial investigation system. Not one large vision-language model —
+        a deterministic planner, a policy layer, and a bounded agent orchestrating specialist
+        remote-sensing models, with geospatial validation, evidence and verification.</p>
+    </div>
+    <div style="max-width:820px;margin:16px auto 60px;padding:0 22px">
+      <div class="panel">
+        <h2>Frozen specialist stack</h2>
+        <dl class="kv">
+          <dt>VQA</dt><dd>TinyRS-2B · fallback Qwen2-VL-2B</dd>
+          <dt>Grounding</dt><dd>RemoteSAM <span class="badge b-warn">licence NOT STATED — optional component</span></dd>
+          <dt>Temporal change</dt><dd>ChangeFormer</dd>
+          <dt>Semantic change</dt><dd>ChangeFormer + RemoteCLIP <span class="badge b-mut">experimental composed baseline</span></dd>
+          <dt>Optical + SAR</dt><dd>CROMA · fallback DOFA <span class="badge b-mut">representation-level only</span></dd>
+          <dt>Scene / retrieval</dt><dd>RemoteCLIP</dd>
+        </dl>
+      </div>
+      <div class="panel">
+        <h2>How a mission runs</h2>
+        <div class="pipeline" style="justify-content:flex-start;margin:0">
+          <b>Mission</b><span class="arw">→</span><b>Plan</b><span class="arw">→</span><b>Policy</b><span class="arw">→</span>
+          <b>Specialists</b><span class="arw">→</span><b>Observe</b><span class="arw">→</span><b>Adapt</b><span class="arw">→</span>
+          <b>Evidence</b><span class="arw">→</span><b>Verify</b><span class="arw">→</span><b>Map &amp; report</b>
+        </div>
+        <p class="hint">Confidence is an evidence-derived <b>category</b> (HIGH / MEDIUM / LOW /
+          INSUFFICIENT_EVIDENCE) with an explicit "why" — never a probability or a number.
+          Evaluation is sanity-scale. GPU / 4&nbsp;GB fit is unverified. The larger validation did
+          not support an earlier SAR-benefit claim, which was withdrawn.</p>
+      </div>
+      <div class="panel">
+        <h2>Endpoints</h2>
+        <pre class="raw">POST /analyze/upload      single-step question
+POST /investigate         agentic multi-step mission
+POST /investigate/report  the same result as a standalone HTML report
+GET  /artifact            per-request input / mask artifacts
+GET  /health              readiness</pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="status">
+  <span class="s"><span class="g glyph">●</span> Local inference</span>
+  <span class="s"><span class="g glyph">✓</span> Deterministic planner</span>
+  <span class="s"><span class="g glyph">✓</span> Geospatial validation</span>
+  <span class="s warn"><span class="g glyph">⚠</span> GPU: UNVERIFIED (CPU-only)</span>
+</footer>
+
 <script>
-const EXAMPLES = [
-  ["What objects are visible in this image?", "VQA"],
-  ["Is there a runway?", "VQA"],
-  ["Where is the largest building?", "Grounding"],
-  ["Locate the ship.", "Grounding"],
-  ["What type of scene is this?", "Scene"],
-  ["What changed between these two images?", "Change"],
-  ["Describe what changed and where.", "Semantic change"],
-  ["Compare the optical and SAR imagery.", "Optical+SAR"],
-];
-const MISSIONS = [
-  ["Investigate this area between the two dates: identify significant changes, locate the affected structures, and give an evidence-backed summary.", "Multi-step"],
-  ["Compare these two images, identify the major changes, and locate the changed buildings.", "Change + ground"],
-  ["Investigate the change and describe what changed and where.", "Change + regions"],
-  ["Full analysis: detect changes, extract the changed regions, locate structures, verify the evidence.", "Multi-step"],
-];
-let MODE = "ask";
-const exWrap = document.getElementById("examples");
-function renderExamples() {
-  exWrap.innerHTML = "";
-  (MODE === "ask" ? EXAMPLES : MISSIONS).forEach(([q]) => {
-    const b = document.createElement("button");
-    b.textContent = q.length > 70 ? q.slice(0, 70) + "…" : q;
-    b.title = q;
-    b.onclick = () => { document.getElementById("query").value = q; };
-    exWrap.appendChild(b);
-  });
+"use strict";
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const num = (x, d=3) => (x === null || x === undefined || Number.isNaN(x)) ? "—" : (typeof x === "number" ? (Math.abs(x) >= 100 && d <= 3 ? x.toFixed(1) : x.toFixed(d)) : String(x));
+const coord = x => (typeof x === "number" ? x.toFixed(5) : "—");
+const isRasterName = n => /\.(png|jpe?g)$/i.test(String(n || ""));
+
+function catClass(c) {
+  return c === "HIGH" ? "b-ok" : (c === "MEDIUM" || c === "LOW") ? "b-warn" : "b-bad";
 }
-renderExamples();
-document.querySelectorAll(".modebtn").forEach(b => b.onclick = () => {
-  MODE = b.dataset.mode;
-  document.querySelectorAll(".modebtn").forEach(x => x.classList.toggle("active", x === b));
-  document.getElementById("run").textContent = MODE === "ask" ? "Analyze" : "Investigate";
-  document.getElementById("qword").textContent = MODE === "ask" ? "query" : "mission";
-  document.getElementById("query").placeholder = MODE === "ask"
-    ? "e.g. Where is the largest building?"
-    : "e.g. Investigate what changed, locate the affected structures, and give a verified summary.";
-  document.getElementById("fileslabel").textContent = MODE === "ask"
-    ? "Image / GeoTIFF (1 for VQA·grounding·scene, 2 for change·optical+SAR)"
-    : "Images / GeoTIFFs (up to 4 — e.g. T1, T2 optical + Sentinel-2 + Sentinel-1)";
-  renderExamples();
-});
-
-const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const num = (x, d=3) => (x === null || x === undefined) ? "—" : (typeof x === "number" ? x.toFixed(d) : x);
-
 function verdictBadge(status) {
   if (!status) return '<span class="badge b-mut">n/a</span>';
   const s = String(status).toUpperCase();
-  if (s.includes("SUPPORTED") || s.includes("COHERENT") || s === "RESULT_OK") return `<span class="badge b-ok">${esc(s)}</span>`;
-  if (s.includes("CONTRADICT") || s.includes("INCOHERENT") || s.includes("FAIL")) return `<span class="badge b-bad">${esc(s)}</span>`;
-  return `<span class="badge b-warn">${esc(s)}</span>`;
+  if (s.includes("SUPPORTED") || s.includes("COHERENT") || s === "RESULT_OK" || s === "PASS")
+    return `<span class="badge b-ok"><span class="glyph">✓</span>${esc(s)}</span>`;
+  if (s.includes("CONTRADICT") || s.includes("INCOHERENT") || s.includes("FAIL"))
+    return `<span class="badge b-bad"><span class="glyph">✕</span>${esc(s)}</span>`;
+  return `<span class="badge b-warn"><span class="glyph">•</span>${esc(s)}</span>`;
 }
 
-// G18 report export: re-render the investigation we already have as a
-// self-contained HTML report (POST the result JSON back to /investigate/report).
-let LAST_INVESTIGATION = null;
-async function viewReport() {
-  const btn = document.getElementById("viewreport");
-  if (!LAST_INVESTIGATION) return;
-  btn.disabled = true; const label = btn.textContent; btn.textContent = "building report …";
+/* ---------------- routing ---------------- */
+const VIEWS = { "#/": "view-landing", "#/ask": "view-ask", "#/investigate": "view-investigate", "#/about": "view-about" };
+function route() {
+  const h = VIEWS[location.hash] ? location.hash : "#/";
+  Object.values(VIEWS).forEach(id => $("#" + id).classList.add("is-hidden"));
+  $("#" + VIEWS[h]).classList.remove("is-hidden");
+  $$("#nav .navlink").forEach(b => b.setAttribute("aria-current", b.dataset.nav === h ? "page" : "false"));
+  $("#syspop").classList.add("is-hidden"); $("#sysbtn").setAttribute("aria-expanded", "false");
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+$$("[data-nav]").forEach(b => b.onclick = () => { location.hash = b.dataset.nav; });
+
+/* ---------------- system status ---------------- */
+async function checkHealth() {
+  const dot = $("#sysdot"), word = $("#sysword"), pop = $("#pop-status");
   try {
-    const r = await fetch("/investigate/report", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(LAST_INVESTIGATION),
-    });
-    if (!r.ok) { btn.textContent = "report failed (HTTP " + r.status + ")"; return; }
-    const url = URL.createObjectURL(await r.blob());
-    window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-    btn.textContent = label;
-  } catch (e) {
-    btn.textContent = "report failed";
-  } finally {
-    btn.disabled = false;
+    const r = await fetch("/health", { cache: "no-store" });
+    const ok = r.ok && (await r.json()).status === "ok";
+    dot.className = "dot " + (ok ? "ready" : "offline");
+    word.textContent = ok ? "Ready" : "Offline";
+    pop.textContent = ok ? "Ready · local" : "Backend not reachable";
+    pop.className = "v" + (ok ? "" : " warn");
+  } catch {
+    dot.className = "dot offline"; word.textContent = "Offline";
+    pop.textContent = "Backend not reachable"; pop.className = "v warn";
   }
 }
+$("#sysbtn").onclick = () => {
+  const p = $("#syspop"), open = p.classList.contains("is-hidden");
+  p.classList.toggle("is-hidden", !open); $("#sysbtn").setAttribute("aria-expanded", String(open));
+};
+document.addEventListener("click", e => {
+  if (!$("#syspop").classList.contains("is-hidden") && !e.target.closest("#syspop") && !e.target.closest("#sysbtn"))
+    { $("#syspop").classList.add("is-hidden"); $("#sysbtn").setAttribute("aria-expanded", "false"); }
+});
 
-document.getElementById("run").onclick = async () => {
-  const btn = document.getElementById("run");
-  const out = document.getElementById("out");
-  const files = document.getElementById("files").files;
-  const query = document.getElementById("query").value.trim();
-  if (!files.length) { out.innerHTML = `<div class="card"><div class="badbox">Select 1–2 image files.</div></div>`; return; }
-  if (!query) { out.innerHTML = `<div class="card"><div class="badbox">Enter a query.</div></div>`; return; }
+/* ---------------- examples / demo ---------------- */
+const ASK_EXAMPLES = [
+  "What is visible in this image?",
+  "Where is the largest ship?",
+  "Is there a runway in this scene?",
+  "What type of scene is this?",
+];
+const MISSION_EXAMPLES = [
+  "Compare these two images, identify the major changes, and locate the changed buildings.",
+  "Investigate the change between the two dates and describe what changed and where.",
+  "Detect changes, extract the changed regions, locate the affected structures, and verify the evidence.",
+];
+const OFFICIAL_MISSION =
+  "Investigate this area. Identify significant changes between the two observations, locate the " +
+  "affected structures, compare optical and SAR evidence, and provide a verified summary.";
+const DEMO_TILES = "data/demo/investigation/t1_optical.tif, t2_optical.tif, s2_dfc_optical.tif, s1_dfc_sar.tif " +
+  "(CASE A · real change) — swap t2_optical.tif → t2_nochange.tif for CASE B";
 
-  btn.disabled = true;
-  const endpoint = MODE === "ask" ? "/analyze/upload" : "/investigate";
-  out.innerHTML = `<div class="card"><span class="spin"></span> ${MODE === "ask"
-    ? "Running: validate → interpret → route → specialist → verify …"
-    : "Agent: planning → policy check → executing specialists → observe → verify …"}</div>`;
+function chips(host, arr, target) {
+  host.innerHTML = "";
+  arr.forEach(q => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.type = "button";
+    b.textContent = q.length > 62 ? q.slice(0, 62) + "…" : q; b.title = q;
+    b.onclick = () => { target.value = q; target.focus(); };
+    host.appendChild(b);
+  });
+}
+chips($("#ask-chips"), ASK_EXAMPLES, $("#ask-q"));
+chips($("#inv-chips"), MISSION_EXAMPLES, $("#mission"));
 
-  const fd = new FormData();
-  fd.append("query", query);
-  for (const f of files) fd.append("files", f);
-
-  try {
-    const r = await fetch(endpoint, { method: "POST", body: fd });
-    const body = await r.json();
-    if (!r.ok) {
-      out.innerHTML = `<div class="card"><div class="badbox">HTTP ${r.status} · ${esc(body?.detail?.error?.code || "error")}: ${esc(body?.detail?.error?.message || JSON.stringify(body))}</div></div>`;
-      return;
-    }
-    MODE === "ask" ? render(body) : renderInvestigation(body);
-  } catch (e) {
-    out.innerHTML = `<div class="card"><div class="badbox">Request failed: ${esc(e.message)}</div></div>`;
-  } finally {
-    btn.disabled = false;
-  }
+$("#demo-toggle").onchange = e => {
+  const on = e.target.checked, hint = $("#demo-hint");
+  if (on) { $("#mission").value = OFFICIAL_MISSION; hint.textContent = "Select these tiles: " + DEMO_TILES; hint.classList.remove("is-hidden"); }
+  else { hint.classList.add("is-hidden"); }
 };
 
-function renderInvestigation(b) {
-  const out = document.getElementById("out");
-  LAST_INVESTIGATION = b;
-  const mark = { completed: "✓", running: "→", pending: "○", failed: "!", skipped: "·" };
-  const statusWord = (b.verification||{}).status === "SUPPORTED" ? "Verified"
-    : (b.verification||{}).status === "CONTRADICTED" ? "Contradicted"
-    : "Partially verified / insufficient evidence";
-  const prov = b.provenance || {};
-  let html = "";
+/* ---------------- ASK ---------------- */
+$("#run-ask").onclick = async () => {
+  const btn = $("#run-ask"), out = $("#ask-out");
+  const files = $("#ask-files").files, q = $("#ask-q").value.trim();
+  if (!files.length) return errState(out, "Attach an image", "No file selected.", "Choose one PNG, JPEG or GeoTIFF image.");
+  if (!q) return errState(out, "Enter a question", "The question is empty.", "Type what you want to know about the image.");
+  btn.disabled = true;
+  out.innerHTML = `<div class="state" role="status"><h2><span class="spin"></span>Analyzing</h2>
+    <p>validate → interpret → route → specialist → verify</p>
+    <p class="k">Elapsed <span class="elapsed" id="ask-el">0s</span></p></div>`;
+  const t0 = Date.now(); const tick = setInterval(() => { const el = $("#ask-el"); if (el) el.textContent = Math.round((Date.now()-t0)/1000)+"s"; }, 1000);
+  const fd = new FormData(); fd.append("query", q); for (const f of files) fd.append("files", f);
+  try {
+    const r = await fetch("/analyze/upload", { method: "POST", body: fd });
+    const b = await r.json();
+    clearInterval(tick);
+    if (!r.ok) return errState(out, "Analysis could not be completed", errMsg(b), errHint(b));
+    renderAsk(b);
+  } catch (e) { clearInterval(tick); errState(out, "Request failed", esc(e.message), "Check that the backend is running."); }
+  finally { btn.disabled = false; }
+};
 
-  // ---- 1. INVESTIGATION RESULT (judge-facing) ----
-  const it = b.intent || null;
-  const understood = it
-    ? esc(it.task_family) + " · " + ((it.required_capabilities||[]).join(", ") || "no extra capabilities")
-      + (it.source && it.source !== "rule_based" ? ` <span class="empty">(intent via ${esc(it.source)})</span>` : "")
-    : `<span class="empty">${esc(b.planner_used || "—")}</span>`;
-  const conf = b.confidence || {};
-  const confClass = conf.category === "HIGH" ? "b-ok" : conf.category === "MEDIUM" ? "b-warn"
-    : conf.category === "LOW" ? "b-warn" : "b-bad";
-  html += `<div class="card">
-    <h2>Investigation result ${b.ok ? '<span class="badge b-ok">ok</span>' : '<span class="badge b-warn">partial</span>'}</h2>
-    <div class="kv">
-      <div>Mission</div><div>${esc(b.mission)}</div>
-      <div>Understood as</div><div>${understood}</div>
-      <div>Status</div><div>${verdictBadge((b.verification||{}).status)} <span class="empty">${esc(statusWord)}</span></div>
-      ${conf.category ? `<div>Confidence</div><div><span class="badge ${confClass}">${esc(conf.category)}</span> <span class="empty">evidence-derived category — NOT a probability</span></div>` : ""}
-      <div>Models used</div><div>${(b.models_used||[]).map(esc).join(", ") || "—"}</div>
-      <div>Tool calls</div><div>${b.tool_calls} / ${b.max_steps}${b.hit_step_cap ? " · CAP HIT" : ""}${b.early_stopped ? " · stopped early ("+esc(b.completion_reason||"evidence sufficient")+")" : ""}</div>
-      <div>Replans</div><div>${(b.replans||[]).length ? b.replans.map(r=>esc(r.reason)).join(", ") : "none"}</div>
-      <div>Total time</div><div>${num((b.timings||{}).total_s)} s</div>
-    </div>
-    <div class="answer" style="margin-top:12px">${esc(b.conclusion) || '<span class="empty">no conclusion</span>'}</div>
-    <button id="viewreport" style="margin-top:12px">View full report ↗</button>
-  </div>`;
-
-  if ((b.plan_rejection_reasons||[]).length) {
-    html += `<div class="card"><h2>Plan rejected by the policy layer</h2>` +
-      b.plan_rejection_reasons.map(r => `<div class="warnbox">${esc(r)}</div>`).join("") +
-      `<div class="hint">The agent fell back to the deterministic /analyze path (resolution: ${esc((b.resolution||{}).qualifier || "—")}).</div></div>`;
-  }
-
-  // ---- 2. AGENT PLAN + LIVE EXECUTION — the agent DECIDED what to do ----
-  if (b.plan && b.plan.steps) {
-    const stById = {}; (b.steps||[]).forEach(s => stById[s.step_id] = s);
-    html += `<div class="card"><h2>Agent plan &amp; execution — <span class="empty">the agent generated this plan (planner: ${esc(b.planner_used)})</span></h2><ol class="plan">` +
-      b.plan.steps.map(p => {
-        const s = stById[p.step_id] || { status: "pending", verdict: "", summary: "" };
-        return `<li class="st-${s.status}"><span class="stmark">${mark[s.status] || "○"}</span> ${esc(p.step_id)} · <b>${esc(p.task)}</b> → ${esc(p.tool)}` +
-          (s.summary ? `<br><span style="color:var(--muted)">${esc(s.summary)}</span>` : "") +
-          (s.verdict && s.verdict !== "NOT_APPLICABLE" ? ` <span class="badge ${s.verdict==='COHERENT'?'b-ok':s.verdict==='INCOHERENT'?'b-bad':'b-warn'}">${esc(s.verdict)}</span>` : "") +
-          (s.replan_note ? `<br><span class="badge b-warn">deviated</span> <span style="color:var(--muted)">${esc(s.replan_note)}</span>` : "") +
-          `</li>`;
-      }).join("") + `</ol></div>`;
-  }
-
-  // ---- 3. REPLANS (structured, auditable) ----
-  if ((b.replans||[]).length) {
-    html += `<div class="card"><h2>Replans — the agent adapted based on observations</h2><table class="rank">` +
-      b.replans.map(r => `<tr><td><b>${esc(r.reason)}</b> <span class="empty">(from ${esc(r.triggering_step)}, ${esc(r.ts)})</span><br><span style="color:var(--muted)">${esc(r.detail)}</span></td><td>${(r.steps_skipped||[]).join(", ") || "—"}</td></tr>`).join("") +
-      `</table></div>`;
-  }
-
-  // ---- 4. KEY FINDINGS ----
-  html += `<div class="card"><h2>Key findings</h2><ul class="trace">` +
-    (b.key_findings||[]).map(f => `<li>${esc(f)}</li>`).join("") + `</ul></div>`;
-
-  // ---- 5. SPATIAL FINDINGS + GeoJSON ----
-  if ((b.spatial_findings||[]).length) {
-    html += `<div class="card"><h2>Spatial findings</h2><table class="rank">` +
-      b.spatial_findings.map(s => `<tr><td>${esc(s.label)}${s.source_step ? " ("+esc(s.source_step)+")" : ""}</td><td>${
-        s.where_lonlat ? "lon/lat " + s.where_lonlat.map(x=>num(x,5)).join(", ")
-        : s.where_pixel ? "px " + s.where_pixel.map(x=>Math.round(x)).join(",") : "—"}</td></tr>`).join("") +
-      `</table>` +
-      (b.geojson ? `<div class="hint">GeoJSON: ${b.geojson.features.length} feature(s), ${esc(b.geojson.crs)} — <a href="#" style="color:var(--accent)" onclick='navigator.clipboard.writeText(${JSON.stringify(JSON.stringify(b.geojson))});this.textContent="copied";return false;'>copy FeatureCollection</a></div>` : "") +
-      `</div>`;
-  }
-
-  // ---- 6. VERIFICATION ----
-  const v = b.verification || {};
-  html += `<div class="card"><h2>Verification</h2>
-    <div class="kv"><div>Status</div><div>${verdictBadge(v.status)}</div>
-    ${b.resolution && b.resolution.qualifier ? `<div>Resolution</div><div>${esc(b.resolution.qualifier)}</div>` : ""}</div>
-    <div class="hint">${esc((b.resolution||{}).note || "deterministic post-execution qualifier — NOT a confidence value")}</div></div>`;
-
-  // ---- 6b. CONFIDENCE + WHY (G17 trust layer) ----
-  if (conf.category) {
-    html += `<div class="card"><h2>Confidence — <span class="empty">evidence-derived category, NOT a calibrated probability</span></h2>
-      <div class="kv"><div>Category</div><div><span class="badge ${confClass}">${esc(conf.category)}</span>${conf.hard_rule ? ` <span class="empty">(forced: ${esc(conf.hard_rule)})</span>` : ""}</div></div>
-      <h3 style="margin:10px 0 4px;font-size:13px">Why</h3>
-      <ul class="trace">${(conf.reasons||[]).map(r => `<li>${esc(r)}</li>`).join("") || '<li class="empty">no reasons recorded</li>'}</ul>
-      <div class="hint">${esc(conf.note || "docs/G17_TRUST_LAYER.md")}</div></div>`;
-  }
-
-  // ---- 7. EVIDENCE ----
-  if ((b.evidence||[]).length) {
-    html += `<div class="card"><h2>Evidence (${b.evidence.length})</h2>` +
-      b.evidence.map(e => `<details><summary>${esc(e.evidence_type)} · ${esc(e.source_model)}</summary><div class="mono">${esc(JSON.stringify({claim:e.claim_supported, payload:e.payload}, null, 2))}</div></details>`).join("") +
-      `</div>`;
-  }
-
-  // ---- 8. WARNINGS / LIMITATIONS ----
-  if ((b.warnings||[]).length || (b.failures||[]).length) {
-    html += `<div class="card"><h2>Warnings &amp; limitations</h2>`;
-    (b.warnings||[]).forEach(w => html += `<div class="warnbox">${esc(w)}</div>`);
-    (b.failures||[]).forEach(f => html += `<div class="badbox">${esc(f)}</div>`);
-    html += `</div>`;
-  }
-
-  // ---- 9. DETAILED TRACE (collapsible) ----
-  html += `<div class="card"><h2>Execution trace (agent timeline)</h2>
-    <details><summary>view detailed trace (${(b.execution_trace||[]).length} events)</summary>
-    <ul class="trace">${(b.execution_trace||[]).map(t => `<li>${esc(t.ts)} — ${esc(t.event)}</li>`).join("")}</ul></details>
-    <details><summary>provenance / audit block</summary><div class="mono">${esc(JSON.stringify(prov, null, 2))}</div></details>
-  </div>`;
-
-  out.innerHTML = html;
-  const rb = document.getElementById("viewreport");
-  if (rb) rb.onclick = viewReport;
-}
-
-function render(b) {
-  const out = document.getElementById("out");
-  const okBadge = b.ok ? '<span class="badge b-ok">ok</span>' : '<span class="badge b-bad">not ok</span>';
-  const res = b.resolution || {};
+function renderAsk(b) {
+  const out = $("#ask-out");
   const inputUrls = (b.provenance && b.provenance.input_files) || [];
+  let h = `<div class="panel fade-in"><h2>Result ${b.ok ? verdictBadge("PASS") : '<span class="badge b-bad">not ok</span>'}</h2>
+    <div class="conclusion">${esc(b.answer) || '<span class="hint">no answer produced</span>'}</div>
+    <dl class="kv" style="margin-top:12px">
+      <dt>Task</dt><dd class="mono">${esc(b.interpreted_task)} · ${esc(b.task_code)}</dd>
+      <dt>Model</dt><dd>${esc(b.model_used) || "—"}</dd>
+      <dt>Latency</dt><dd>${num(b.latency_s)} s</dd>
+      ${b.yesno !== null && b.yesno !== undefined ? `<dt>Yes / No</dt><dd>${b.yesno ? "yes" : "no"}</dd>` : ""}
+      ${b.changed_fraction != null ? `<dt>Changed fraction</dt><dd>${num(b.changed_fraction)}</dd>` : ""}
+      ${b.area_ha != null ? `<dt>Changed area</dt><dd>${num(b.area_ha)} ha</dd>` : ""}
+      ${b.score != null ? `<dt>Model score</dt><dd>${num(b.score)} <span class="hint">${esc(b.score_meaning || "raw model score — not a calibrated confidence")}</span></dd>` : ""}
+    </dl></div>`;
 
-  let html = "";
-
-  // headline
-  html += `<div class="card">
-    <h2>Result ${okBadge}</h2>
-    <div class="answer">${esc(b.answer) || '<span class="empty">no answer produced</span>'}</div>
-    <div class="kv" style="margin-top:12px">
-      <div>Interpreted task</div><div class="mono">${esc(b.interpreted_task)} · ${esc(b.task_code)}</div>
-      <div>Model</div><div>${esc(b.model_used) || "—"}</div>
-      <div>Latency</div><div>${num(b.latency_s)} s</div>
-      ${b.yesno !== null && b.yesno !== undefined ? `<div>Yes / No parse</div><div>${b.yesno ? "yes (1)" : "no (0)"}</div>` : ""}
-      ${b.changed_fraction != null ? `<div>Changed fraction</div><div>${num(b.changed_fraction)}</div>` : ""}
-      ${b.area_ha != null ? `<div>Changed area</div><div>${num(b.area_ha)} ha</div>` : ""}
-      ${b.centroid_lonlat ? `<div>Centroid (lon,lat)</div><div class="mono">${b.centroid_lonlat.map(x=>num(x,5)).join(", ")}</div>` : ""}
-      ${b.representation_dim != null ? `<div>Representation dim</div><div>${b.representation_dim}</div>` : ""}
-      ${b.score != null ? `<div>Score</div><div>${num(b.score)} <span class="empty">(${esc(b.score_meaning)})</span></div>` : ""}
-    </div>
-  </div>`;
-
-  // resolution
-  html += `<div class="card"><h2>Failure-aware resolution</h2>
-    <div class="kv">
-      <div>Qualifier</div><div>${verdictBadge(res.qualifier)}</div>
-      <div>Answer surfaced</div><div>${res.answer_surfaced === false ? '<span class="badge b-bad">withheld</span>' : "yes"}</div>
-      ${res.disputed ? `<div>Disputed</div><div><span class="badge b-warn">yes</span></div>` : ""}
-      ${res.fallback_used ? `<div>Fallback</div><div>${esc(res.fallback_used)}</div>` : ""}
-      ${(res.reasons||[]).length ? `<div>Reasons</div><div class="mono">${res.reasons.map(esc).join("\\n")}</div>` : ""}
-      ${(res.advisories||[]).length ? `<div>Advisories</div><div class="mono">${res.advisories.map(esc).join("\\n")}</div>` : ""}
-    </div>
-    <div class="hint">${esc(res.note || "deterministic post-execution qualifier — NOT a confidence value")}</div>
-  </div>`;
-
-  // warnings / failures
-  if ((b.warnings||[]).length || (b.failures||[]).length) {
-    html += `<div class="card"><h2>Warnings &amp; caveats</h2>`;
-    (b.warnings||[]).forEach(w => html += `<div class="warnbox">${esc(w)}</div>`);
-    (b.failures||[]).forEach(f => html += `<div class="badbox">${esc(f)}</div>`);
-    html += `</div>`;
-  }
-
-  // visual
   const previewUrl = inputUrls[0];
-  if (previewUrl && (b.boxes?.length || b.regions?.length || b.mask_url || b.task_code.startsWith("SINGLE_IMAGE") || b.task_code === "TEMPORAL")) {
-    html += `<div class="card"><h2>Map / image</h2>
-      <div class="viz" id="viz">
-        <img id="vizimg" src="${esc(previewUrl)}" alt="input" />
-        <canvas id="vizcanvas"></canvas>
-      </div>
-      ${b.mask_url ? `<div class="hint">Mask overlay: <a href="${esc(b.mask_url)}" target="_blank" style="color:var(--accent)">open PNG</a></div>` : ""}
-      ${b.image_dimensions ? `<div class="hint">Image space: ${b.image_dimensions[0]}×${b.image_dimensions[1]} px${b.geospatial_available ? " · CRS "+esc(b.crs) : " · "+esc(b.geospatial_note || "no CRS")}</div>` : ""}
-    </div>`;
+  const showViz = previewUrl && isRasterName(previewUrl) && (b.boxes?.length || b.regions?.length || b.mask_url || String(b.task_code||"").startsWith("SINGLE_IMAGE"));
+  if (showViz) {
+    h += `<div class="viewer fade-in" style="margin-bottom:14px">
+      <div class="vhead"><span class="vtitle">Spatial output</span></div>
+      <div class="vstage"><img id="ask-img" alt="analysed scene with model output overlaid" src="${esc(previewUrl)}" />
+        <canvas class="ovl" id="ask-ovl"></canvas></div>
+      <div class="vcaption">${b.image_dimensions ? b.image_dimensions[0]+"×"+b.image_dimensions[1]+" px" : ""}
+        ${b.geospatial_available ? " · CRS "+esc(b.crs) : " · "+esc(b.geospatial_note || "no CRS/transform")}
+        ${b.mask_url ? ` · <a href="${esc(b.mask_url)}" target="_blank" rel="noopener">mask PNG ↗</a>` : ""}</div></div>`;
   }
-
-  // scene ranking
-  if ((b.labels||[]).length) {
-    html += `<div class="card"><h2>Zero-shot ranking</h2><table class="rank">` +
-      b.labels.map(([lab, sc]) => `<tr><td>${esc(lab)}</td><td>${num(sc)}</td></tr>`).join("") +
-      `</table></div>`;
+  if ((b.labels || []).length) {
+    h += `<div class="panel fade-in"><h2>Zero-shot ranking</h2><table class="trace">` +
+      b.labels.map(([l, s]) => `<tr><td>${esc(l)}</td><td class="ts">${num(s)}</td></tr>`).join("") + `</table></div>`;
   }
+  h += verificationPanel(b.verification);
+  h += evidencePanel(b.evidence);
+  h += warningsPanel(b.warnings, b.failures);
+  out.innerHTML = h;
 
-  // regions
-  if ((b.regions||[]).length) {
-    html += `<div class="card"><h2>Changed regions (${b.regions.length})</h2><table class="rank">` +
-      b.regions.map(rg => `<tr><td>#${rg.region_id} · ${esc(rg.label||"?")}${rg.low_margin?' <span class="badge b-warn">low margin</span>':""}</td><td>${num(rg.area_ha,3)} ha</td></tr>`).join("") +
-      `</table></div>`;
-  }
-
-  // evidence
-  html += `<div class="card"><h2>Evidence (${(b.evidence||[]).length})</h2>`;
-  if (!(b.evidence||[]).length) html += `<div class="empty">no evidence items</div>`;
-  (b.evidence||[]).forEach(ev => {
-    html += `<details><summary>${esc(ev.evidence_type)} · ${esc(ev.source_model)} · ${esc(ev.task)}</summary>
-      <div class="mono">${esc(JSON.stringify({claim: ev.claim_supported, spatial_region: ev.spatial_region, payload: ev.payload}, null, 2))}</div></details>`;
-  });
-  html += `</div>`;
-
-  // verification
-  const v = b.verification || {};
-  html += `<div class="card"><h2>Verification</h2>
-    <div class="kv"><div>Status</div><div>${verdictBadge(v.status)}</div></div>
-    ${(v.checks||[]).length ? `<table class="rank">` + v.checks.map(c => `<tr><td>${esc(c.name)}</td><td>${c.passed ? '<span class="badge b-ok">pass</span>' : '<span class="badge b-bad">fail</span>'}</td></tr>`).join("") + `</table>` : `<div class="empty">no structural checks applicable</div>`}
-    ${(v.notes||[]).length ? `<div class="hint">${v.notes.map(esc).join(" · ")}</div>` : ""}
-  </div>`;
-
-  // execution trace
-  const t = b.execution_trace || {};
-  html += `<div class="card"><h2>Execution trace</h2>
-    <ul class="trace">${(t.steps||[]).map(s => `<li>${esc(s)}</li>`).join("")}</ul>
-    <div class="hint mono">routing_code = ${esc(t.routing_code)}\nrule = ${esc(t.routing_rule)}</div>
-  </div>`;
-
-  // provenance
-  html += `<div class="card"><h2>Provenance</h2>
-    <details open><summary>audit block</summary><div class="mono">${esc(JSON.stringify(b.provenance || {}, null, 2))}</div></details>
-  </div>`;
-
-  out.innerHTML = html;
-
-  // draw overlays after the image loads
-  const img = document.getElementById("vizimg");
+  const img = $("#ask-img");
   if (img) {
     const draw = () => {
-      const cv = document.getElementById("vizcanvas");
-      if (!cv) return;
+      const cv = $("#ask-ovl"); if (!cv) return;
       cv.width = img.clientWidth; cv.height = img.clientHeight;
       const ctx = cv.getContext("2d");
       const dims = b.image_dimensions || [img.naturalWidth, img.naturalHeight];
       const sx = img.clientWidth / dims[0], sy = img.clientHeight / dims[1];
-      ctx.lineWidth = 2; ctx.strokeStyle = "#5aa9e6"; ctx.fillStyle = "rgba(90,169,230,.12)";
+      ctx.lineWidth = 2; ctx.strokeStyle = "#4f9dff"; ctx.fillStyle = "rgba(79,157,255,.14)";
       (b.boxes || []).forEach(bx => {
-        const [x0,y0,x1,y1] = bx.xyxy_pixel || [];
-        if ([x0,y0,x1,y1].every(n => typeof n === "number")) {
-          ctx.fillRect(x0*sx, y0*sy, (x1-x0)*sx, (y1-y0)*sy);
-          ctx.strokeRect(x0*sx, y0*sy, (x1-x0)*sx, (y1-y0)*sy);
+        const p = bx.xyxy_pixel || []; if (p.length === 4 && p.every(n => typeof n === "number")) {
+          ctx.fillRect(p[0]*sx, p[1]*sy, (p[2]-p[0])*sx, (p[3]-p[1])*sy);
+          ctx.strokeRect(p[0]*sx, p[1]*sy, (p[2]-p[0])*sx, (p[3]-p[1])*sy);
         }
       });
       ctx.strokeStyle = "#d9a441";
       (b.regions || []).forEach(rg => {
-        const [rmin,cmin,rmax,cmax] = rg.bbox_pixel || [];
-        if ([rmin,cmin,rmax,cmax].every(n => typeof n === "number"))
-          ctx.strokeRect(cmin*sx, rmin*sy, (cmax-cmin)*sx, (rmax-rmin)*sy);
+        const p = rg.bbox_pixel || []; if (p.length === 4 && p.every(n => typeof n === "number"))
+          ctx.strokeRect(p[1]*sx, p[0]*sy, (p[3]-p[1])*sx, (p[2]-p[0])*sy);
       });
     };
-    if (img.complete) draw(); else img.onload = draw;
+    img.complete ? draw() : (img.onload = draw);
     window.addEventListener("resize", draw);
   }
 }
+
+/* ---------------- INVESTIGATE ---------------- */
+let LAST_INVESTIGATION = null;
+
+$("#run-investigate").onclick = async () => {
+  const btn = $("#run-investigate"), out = $("#inv-out");
+  const files = $("#inv-files").files, m = $("#mission").value.trim();
+  if (!files.length) return errState(out, "Attach imagery", "No files selected.", "Add 1 to 4 images (e.g. T1, T2, SAR).");
+  if (!m) return errState(out, "Enter a mission", "The mission is empty.", "Describe what to investigate, in plain language.");
+  btn.disabled = true;
+  $("#inv-input").classList.add("is-hidden");
+  const t0 = Date.now();
+  out.innerHTML = `<div class="state" role="status"><h2><span class="spin"></span>Investigation in progress</h2>
+    <p>Planning, then executing specialist models on CPU. The first call loads model checkpoints
+       from disk and can take up to ~90&nbsp;seconds.</p>
+    <p>Step results appear together when the investigation returns.</p>
+    <p class="k">Elapsed <span class="elapsed" id="inv-el">0s</span></p></div>`;
+  const tick = setInterval(() => { const el = $("#inv-el"); if (el) el.textContent = Math.round((Date.now()-t0)/1000)+"s"; }, 1000);
+  const fd = new FormData(); fd.append("query", m); for (const f of files) fd.append("files", f);
+  try {
+    const r = await fetch("/investigate", { method: "POST", body: fd });
+    const b = await r.json();
+    clearInterval(tick);
+    if (!r.ok) { $("#inv-input").classList.remove("is-hidden"); return errState(out, "Investigation could not be started", errMsg(b), errHint(b)); }
+    renderInvestigation(b);
+  } catch (e) {
+    clearInterval(tick); $("#inv-input").classList.remove("is-hidden");
+    errState(out, "Request failed", esc(e.message), "Check that the backend is running.");
+  } finally { btn.disabled = false; }
+};
+
+function renderInvestigation(b) {
+  LAST_INVESTIGATION = b;
+  const out = $("#inv-out");
+  const stById = {}; (b.steps || []).forEach(s => stById[s.step_id] = s);
+  const conf = b.confidence || {};
+  const partial = b.ok === false;
+
+  let bottomNote = "";
+  if (partial) {
+    const done = (b.steps || []).filter(s => s.status === "completed");
+    const notDone = (b.steps || []).filter(s => s.status === "failed" || s.status === "skipped");
+    bottomNote = `<div class="state err" style="margin:0 0 14px;max-width:none;text-align:left">
+      <h2>Partial investigation</h2>
+      <p>Completed: ${done.length ? done.map(s => esc(s.task)).join(", ") : "—"}</p>
+      <p>Could not complete: ${notDone.length ? notDone.map(s => esc(s.task) + (s.status === "skipped" ? " (skipped)" : " (failed)")).join(", ") : "—"}</p>
+    </div>`;
+  }
+
+  const html = `
+  ${bottomNote}
+  <div class="ws fade-in">
+    <div class="col-left">
+      ${missionPanel(b, conf)}
+      ${planPanel(b, stById)}
+      ${adaptivePanel(b, stById)}
+    </div>
+    <div class="col-center">
+      ${viewerPanel(b)}
+      ${centerSpatialPanel(b)}
+    </div>
+    <div class="col-right">
+      ${findingsPanel(b)}
+      ${trustPanel(conf)}
+      ${verificationPanel(b.verification, b.resolution)}
+      ${evidencePanel(b.evidence)}
+      ${warningsPanel(b.warnings, b.failures)}
+    </div>
+    <div class="row-bottom">
+      <div class="panel">
+        <h2>Trace &amp; report</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn sm" id="viewreport">Export investigation report ↗</button>
+          <button class="btn sm ghost" data-nav="#/investigate" id="inv-again">New investigation</button>
+        </div>
+        <details><summary>Execution trace — ${(b.execution_trace || []).length} events</summary>
+          <table class="trace">${(b.execution_trace || []).map(t => `<tr><td class="ts">${esc(t.ts)}</td><td>${esc(t.event)}</td></tr>`).join("") || '<tr><td class="hint">no trace events</td></tr>'}</table>
+        </details>
+        <details><summary>Provenance / audit block</summary><pre class="raw">${esc(JSON.stringify(b.provenance || {}, null, 2))}</pre></details>
+      </div>
+    </div>
+  </div>`;
+  out.innerHTML = html;
+
+  const rb = $("#viewreport"); if (rb) rb.onclick = viewReport;
+  const again = $("#inv-again"); if (again) again.onclick = () => { out.innerHTML = ""; $("#inv-input").classList.remove("is-hidden"); window.scrollTo(0,0); };
+  mountViewer(b);
+}
+
+function missionPanel(b, conf) {
+  const it = b.intent || null;
+  let understood;
+  if (it) {
+    const caps = (it.required_capabilities || []).join(", ");
+    understood = esc(it.task_family) + (caps ? " · " + esc(caps) : "") +
+      (it.source && it.source !== "rule_based" ? ` <span class="hint">(intent via ${esc(it.source)})</span>` : "");
+  } else {
+    understood = `<span class="hint">deterministic plan (${esc(b.planner_used || "rule_based")})</span>`;
+  }
+  return `<div class="panel">
+    <h2>Mission</h2>
+    <div class="conclusion" style="font-size:13px">${esc(b.mission)}</div>
+    <dl class="kv" style="margin-top:11px">
+      <dt>Understood as</dt><dd>${understood}</dd>
+      <dt>Planner</dt><dd>${esc(b.planner_used || "—")}</dd>
+      <dt>Models used</dt><dd>${(b.models_used || []).map(esc).join(", ") || "—"}</dd>
+      <dt>Tool calls</dt><dd>${b.tool_calls ?? "—"} / ${b.max_steps ?? "—"}${b.early_stopped ? " · stopped early" : ""}</dd>
+      <dt>Total time</dt><dd>${num((b.timings || {}).total_s)} s</dd>
+    </dl>
+    ${b.conclusion ? `<div class="conclusion" style="margin-top:11px">${esc(b.conclusion)}</div>` : ""}
+    ${(b.plan_rejection_reasons || []).length ? `<div class="warn-note fail" style="margin-top:10px"><span class="g glyph">⚠</span><span>Plan rejected by the policy layer: ${b.plan_rejection_reasons.map(esc).join("; ")}. Fell back to the deterministic path.</span></div>` : ""}
+  </div>`;
+}
+
+const STATE_GLYPH = { completed: "✓", running: "▸", pending: "○", failed: "✕", skipped: "–" };
+function planPanel(b, stById) {
+  const steps = (b.plan && b.plan.steps) || [];
+  if (!steps.length) return "";
+  return `<div class="panel"><h2>Plan <span class="count">${steps.length} steps</span></h2>
+    <ol class="plan">${steps.map((p, i) => {
+      const s = stById[p.step_id] || { status: "pending" };
+      const n = String(i + 1).padStart(2, "0");
+      return `<li class="s-${s.status}">
+        <span class="st" aria-hidden="true">${STATE_GLYPH[s.status] || "○"}</span>
+        <span class="lbl"><b>${n} ${esc(p.task)}</b> <span class="tool">${esc(p.tool)}</span>
+          <span class="hint" style="display:none">${esc(s.status)}</span>
+          ${s.summary ? `<span class="note">${esc(s.summary)}</span>` : ""}
+          ${s.replan_note ? `<span class="note"><span class="badge b-warn">deviated</span> ${esc(s.replan_note)}</span>` : ""}
+        </span></li>`;
+    }).join("")}</ol>
+    <div class="hint">${(b.replans || []).length ? (b.replans.length + " replan(s)") : "no replans"}${b.early_stopped ? " · early stop: " + esc(b.completion_reason || "evidence sufficient") : ""}</div>
+  </div>`;
+}
+
+/* OBSERVATION → DECISION → OUTCOME, built only from real steps + replans */
+function adaptivePanel(b, stById) {
+  const obs = (b.steps || []).filter(s => s.status === "completed" && s.summary);
+  const replans = b.replans || [];
+  if (!obs.length && !replans.length && !b.early_stopped) return "";
+
+  const obsRows = obs.map(s =>
+    `<div class="ev"><div class="obs"><b>${esc(s.step_id)}</b> ${esc(s.task)} → ${esc(s.summary)}</div></div>`).join("");
+
+  let decisions = "";
+  replans.forEach(r => {
+    decisions += `<div class="ev"><div class="k">Observation</div>
+      <div class="obs">${esc((stById[r.triggering_step] || {}).summary || r.triggering_step)}</div>
+      <div class="k" style="margin-top:5px">Decision</div>
+      <div class="dec">${esc(r.reason)} <span class="hint">(from ${esc(r.triggering_step)})</span></div>
+      <div class="out">${esc(r.detail)}</div>
+      <div class="out">Outcome: ${(r.steps_skipped || []).length ? "skipped " + r.steps_skipped.map(esc).join(", ") : "continued"}</div></div>`;
+  });
+  if (b.early_stopped) {
+    decisions += `<div class="ev stop"><div class="k">Terminated</div>
+      <div class="dec">Investigation stopped early</div>
+      <div class="out">${esc(b.completion_reason || "the agent judged the evidence sufficient")}</div></div>`;
+  }
+
+  const body = decisions
+    ? `<div class="adapt">${decisions}</div>
+       <details style="margin-top:8px"><summary>${obs.length} step observation(s)</summary><div class="adapt" style="margin-top:8px">${obsRows}</div></details>`
+    : `<div class="hint" style="margin-top:-4px;margin-bottom:8px">No replans — every planned step ran. The agent observed each result before continuing.</div>
+       <div class="adapt">${obsRows}</div>`;
+
+  return `<div class="panel"><h2>Adaptive execution</h2>${body}</div>`;
+}
+
+/* spatial-findings coordinate table + GeoJSON — lives under the viewer (centre column) */
+function centerSpatialPanel(b) {
+  const sf = b.spatial_findings || [];
+  if (!sf.length && !b.geojson) return "";
+  return `<div class="panel"><h2>Spatial findings <span class="count">${sf.length}</span></h2>
+    ${sf.length ? `<table class="trace">${sf.map(s => `<tr><td>${esc(s.label)}${s.source_step ? ` <span class="ts">(${esc(s.source_step)})</span>` : ""}</td><td class="ts">${
+      Array.isArray(s.where_lonlat) ? s.where_lonlat.map(coord).join(", ")
+      : Array.isArray(s.where_pixel) ? "px " + s.where_pixel.map(x => Math.round(x)).join(",") : "—"}${
+      s.area_ha != null ? " · " + num(s.area_ha, 3) + " ha" : ""}</td></tr>`).join("")}</table>` : ""}
+    ${b.geojson ? `<div class="hint">GeoJSON FeatureCollection · ${b.geojson.features.length} feature(s) · ${esc(b.geojson.crs)} · <a href="#" id="cpgeo">copy</a></div>` : ""}
+  </div>`;
+}
+
+/* ---- spatial viewer ---- */
+let VIEWER_STATE = null;
+function viewerPanel(b) {
+  const inputUrls = (b.provenance && b.provenance.input_files) || [];
+  const raster = inputUrls.find(isRasterName);
+  const geo = b.geojson && (b.geojson.features || []).length ? b.geojson : null;
+  const sf = b.spatial_findings || [];
+  const hasLonLat = geo || sf.some(s => Array.isArray(s.where_lonlat) && s.where_lonlat.length === 4);
+  const hasPixel = sf.some(s => Array.isArray(s.where_pixel) && s.where_pixel.length === 4);
+
+  if (!raster && !hasLonLat && !hasPixel) {
+    const why = b.early_stopped
+      ? `The agent stopped early — ${esc(b.completion_reason || "the evidence was judged sufficient")} — before the localisation and optical+SAR steps. See <b>Adaptive execution</b>.`
+      : "No spatial geometry was produced for this mission.";
+    return `<div class="viewer"><div class="vhead"><span class="vtitle">Spatial view</span></div>
+      <div class="vstage empty"><div class="hint" style="padding:26px 34px;max-width:520px;text-align:center;line-height:1.7">${why}</div></div></div>`;
+  }
+  const groundEv = (b.evidence || []).find(e => e.evidence_type === "grounding");
+  const groundLonLat = groundEv && groundEv.spatial_region && groundEv.spatial_region.bbox_lonlat;
+  const layers = [];
+  if (raster) layers.push("IMAGE");
+  if (geo || hasLonLat || hasPixel) layers.push("REGIONS");
+  if (raster || groundLonLat) layers.push("GROUNDING");
+  if (geo) layers.push("FOOTPRINT");
+
+  return `<div class="viewer">
+    <div class="vhead">
+      <span class="vtitle">Spatial view</span>
+      ${layers.map(l => `<button class="layerbtn" data-layer="${l}" aria-pressed="true">${l}</button>`).join("")}
+      <button class="zoombtn" data-zoom="fit" aria-label="Fit to extent">FIT</button>
+      <button class="zoombtn" data-zoom="reset" aria-label="Reset layers">RESET</button>
+    </div>
+    <div class="vstage" id="vstage"></div>
+    <div class="vcaption" id="vcap"></div>
+  </div>`;
+}
+
+function mountViewer(b) {
+  const stage = $("#vstage"); if (!stage) return;
+  const cap = $("#vcap");
+  const inputUrls = (b.provenance && b.provenance.input_files) || [];
+  const raster = inputUrls.find(isRasterName);
+  const geo = b.geojson && (b.geojson.features || []).length ? b.geojson : null;
+  const sf = b.spatial_findings || [];
+  const groundEv = (b.evidence || []).find(e => e.evidence_type === "grounding");
+
+  // collect lon/lat rings + grounded box
+  const rings = [];
+  if (geo) (geo.features || []).forEach(f => {
+    const g = f.geometry || {};
+    if (g.type === "Polygon") (g.coordinates || []).forEach(r => rings.push({ pts: r, kind: "region", label: (f.properties||{}).label || "region" }));
+  });
+  sf.forEach(s => {
+    if (Array.isArray(s.where_lonlat) && s.where_lonlat.length === 4) {
+      const [x0,y0,x1,y1] = s.where_lonlat;
+      const kind = /ground/i.test(s.label || "") ? "ground" : "region";
+      rings.push({ pts: [[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]], kind, label: s.label || kind });
+    }
+  });
+  const gll = groundEv && groundEv.spatial_region && groundEv.spatial_region.bbox_lonlat;
+  if (gll && gll.length === 4) {
+    const [x0,y0,x1,y1] = gll;
+    rings.push({ pts: [[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]], kind: "ground", label: "grounded structure" });
+  }
+
+  const state = { mode: null, raster, rings, geo, b, layers: {}, zoom: 1 };
+  VIEWER_STATE = state;
+
+  if (raster) {
+    state.mode = "raster";
+    stage.innerHTML = `<img id="inv-img" alt="input imagery with findings overlaid" src="${esc(raster)}" /><canvas class="ovl" id="inv-ovl"></canvas>`;
+    const img = $("#inv-img");
+    const draw = () => {
+      const cv = $("#inv-ovl"); if (!cv) return;
+      cv.width = img.clientWidth; cv.height = img.clientHeight;
+      const ctx = cv.getContext("2d");
+      const gp = groundEv && groundEv.spatial_region && (groundEv.spatial_region.bbox_xyxy || groundEv.spatial_region.bbox_pixel);
+      const dims = (groundEv && groundEv.payload && groundEv.payload.image_dims) || [img.naturalWidth, img.naturalHeight];
+      const sx = img.clientWidth / dims[0], sy = img.clientHeight / dims[1];
+      if (state.layers.GROUNDING !== false && gp && gp.length === 4) {
+        ctx.lineWidth = 2; ctx.strokeStyle = "#4f9dff"; ctx.fillStyle = "rgba(79,157,255,.12)";
+        ctx.fillRect(gp[0]*sx, gp[1]*sy, (gp[2]-gp[0])*sx, (gp[3]-gp[1])*sy);
+        ctx.strokeRect(gp[0]*sx, gp[1]*sy, (gp[2]-gp[0])*sx, (gp[3]-gp[1])*sy);
+      }
+    };
+    img.complete ? draw() : (img.onload = draw);
+    window.addEventListener("resize", draw);
+    state._draw = draw;
+    cap.textContent = "Input imagery · overlays from the investigation's spatial findings";
+  } else {
+    state.mode = "geo";
+    renderGeoSVG(state);
+    const unit = state.rings.length && Math.abs(state.rings[0].pts[0][0]) <= 360 ? "EPSG:4326 (lon/lat)" : "pixel space";
+    cap.textContent = `${rings.length} feature(s) · ${unit} · source imagery is GeoTIFF — not shown inline`;
+  }
+
+  $$(".layerbtn").forEach(btn => btn.onclick = () => {
+    const L = btn.dataset.layer, on = btn.getAttribute("aria-pressed") !== "true";
+    btn.setAttribute("aria-pressed", String(on));
+    state.layers[L] = on;
+    state.mode === "geo" ? renderGeoSVG(state) : state._draw && state._draw();
+  });
+  $$(".zoombtn").forEach(btn => btn.onclick = () => {
+    if (btn.dataset.zoom === "reset") {
+      state.layers = {};
+      $$(".layerbtn").forEach(b => b.setAttribute("aria-pressed", "true"));
+    }
+    state.mode === "geo" ? renderGeoSVG(state) : state._draw && state._draw();
+  });
+}
+
+function renderGeoSVG(state) {
+  const stage = $("#vstage"); if (!stage) return;
+  const rings = state.rings.filter(r =>
+    (r.kind === "ground" ? state.layers.GROUNDING !== false : state.layers.REGIONS !== false));
+  const showFoot = state.layers.FOOTPRINT !== false && state.geo;
+  let xs = [], ys = [];
+  state.rings.forEach(r => r.pts.forEach(p => { xs.push(p[0]); ys.push(p[1]); }));
+  if (!xs.length) { stage.innerHTML = `<div class="hint" style="padding:40px">No spatial geometry to plot.</div>`; return; }
+  let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const padX = (maxX - minX || 1e-4) * 0.12, padY = (maxY - minY || 1e-4) * 0.12;
+  minX -= padX; maxX += padX; minY -= padY; maxY += padY;
+  const W = 640, H = 420, m = 34;
+  const sx = v => m + (v - minX) / (maxX - minX) * (W - 2*m);
+  const sy = v => H - m - (v - minY) / (maxY - minY) * (H - 2*m);   // invert Y for north-up
+  const path = pts => "M" + pts.map(p => `${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join("L") + "Z";
+
+  let g = "";
+  if (showFoot) {
+    (state.geo.features || []).forEach(f => {
+      const gg = f.geometry || {};
+      if (gg.type === "Polygon") (gg.coordinates || []).forEach(r =>
+        g += `<path d="${path(r)}" fill="none" stroke="#363f50" stroke-dasharray="4 3" stroke-width="1"/>`);
+    });
+  }
+  rings.forEach(r => {
+    const col = r.kind === "ground" ? "#4f9dff" : "#d9a441";
+    const fill = r.kind === "ground" ? "rgba(79,157,255,.10)" : "rgba(217,164,65,.10)";
+    g += `<path d="${path(r.pts)}" fill="${fill}" stroke="${col}" stroke-width="1.6"><title>${esc(r.label)}</title></path>`;
+  });
+  // axis labels
+  const ax = `
+    <text x="${m}" y="${H-10}" fill="#667085" font-size="10" font-family="monospace">${minX.toFixed(4)}</text>
+    <text x="${W-m}" y="${H-10}" fill="#667085" font-size="10" font-family="monospace" text-anchor="end">${maxX.toFixed(4)}</text>
+    <text x="6" y="${H-m}" fill="#667085" font-size="10" font-family="monospace">${minY.toFixed(4)}</text>
+    <text x="6" y="${m+4}" fill="#667085" font-size="10" font-family="monospace">${maxY.toFixed(4)}</text>
+    <line x1="${m}" y1="${H-m}" x2="${W-m}" y2="${H-m}" stroke="#2a313f"/>
+    <line x1="${m}" y1="${m}" x2="${m}" y2="${H-m}" stroke="#2a313f"/>`;
+  stage.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Plot of ${rings.length} spatial findings in geographic coordinates">${ax}${g}</svg>`;
+}
+
+/* ---- right column panels ---- */
+function findingsPanel(b) {
+  const sf = b.spatial_findings || [];
+  const s2 = (b.steps || []).find(s => s.task === "TEMPORAL_CHANGE") || {};
+  const f2 = s2.findings || {};
+  const nRegions = ((b.steps || []).find(s => s.task === "EXTRACT_CHANGED_REGIONS") || {}).findings?.n_regions
+    ?? sf.filter(x => /region/i.test(x.label || "") && !/ground/i.test(x.label || "")).length;
+  const nGround = sf.filter(x => /ground/i.test(x.label || "")).length
+    || (((b.steps || []).find(s => s.task === "GROUND_OBJECT") || {}).findings?.grounded ? 1 : 0);
+  const metrics = [];
+  if (f2.changed_fraction != null) metrics.push([`${(f2.changed_fraction * 100).toFixed(1)}%`, "Scene changed"]);
+  if (f2.changed_area_ha != null) metrics.push([`${num(f2.changed_area_ha)} ha`, "Changed area"]);
+  if (nRegions) metrics.push([String(nRegions), "Changed regions"]);
+  if (nGround) metrics.push([String(nGround), "Grounded structures"]);
+
+  return `<div class="panel"><h2>Findings</h2>
+    ${metrics.length ? `<div class="metrics">${metrics.map(([v, k]) => `<div class="metric"><div class="m-v">${esc(v)}</div><div class="m-k">${esc(k)}</div></div>`).join("")}</div>` : ""}
+    <ul class="findlist">${(b.key_findings || []).map(f => `<li>${esc(f)}</li>`).join("") || '<li class="hint">no key findings recorded</li>'}</ul>
+  </div>`;
+}
+
+function trustPanel(conf) {
+  if (!conf || !conf.category) return "";
+  const c = conf.category;
+  const reasons = conf.reasons || [];
+  const insufficient = c === "INSUFFICIENT_EVIDENCE";
+  return `<div class="panel"><h2>Confidence</h2>
+    <div class="trust-cat">
+      <span class="big ${esc(c)}">${esc(c.replace(/_/g, " "))}</span>
+      <span class="hint">evidence-derived category — NOT a probability or a score</span>
+    </div>
+    ${conf.hard_rule ? `<div class="warn-note fail"><span class="g glyph">⚠</span><span>Forced: ${esc(conf.hard_rule)}</span></div>` : ""}
+    ${insufficient ? `<p class="hint">SatQuery could not establish this claim from the available evidence.</p>` : ""}
+    <div class="k" style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);margin:8px 0 3px">Why</div>
+    <ul class="why">${reasons.map(r => {
+      const q = /missing|limited|not performed|only|reduced|withheld|failed/i.test(r);
+      return `<li class="${q ? "q" : ""}"><span class="g glyph">${q ? "•" : "✓"}</span><span>${esc(r)}</span></li>`;
+    }).join("") || '<li class="hint">no reasons recorded</li>'}</ul>
+    <div class="hint">${esc(conf.note || "deterministic rules — not a calibrated probability")}</div>
+  </div>`;
+}
+
+function verificationPanel(v, resolution) {
+  v = v || {};
+  const checks = v.checks || [];
+  const vnotes = Array.isArray(v.notes) ? v.notes : (v.notes ? [v.notes] : []);
+  const groups = { Structural: [], Geospatial: [], Evidence: [], Other: [] };
+  checks.forEach(c => {
+    const n = String(c.name || "").toLowerCase();
+    if (/geo|crs|transform|coreg|co-reg|bounds|spatial|raster|modality/.test(n)) groups.Geospatial.push(c);
+    else if (/evidence|claim|cross|artifact|mask/.test(n)) groups.Evidence.push(c);
+    else if (/aggregate|step statuses/.test(n)) groups.Other.push(c);
+    else groups.Structural.push(c);
+  });
+  const chk = c => {
+    const st = c.passed === true ? "ok" : c.passed === false ? "bad" : "na";
+    const gl = st === "ok" ? "✓" : st === "bad" ? "✕" : "–";
+    return `<div class="vcheck"><span class="g ${st}">${gl}</span><span>${esc(c.name)}</span><span class="d" title="${esc(c.detail || "")}">${esc(c.detail || "")}</span></div>`;
+  };
+  let body = "";
+  ["Structural", "Geospatial", "Evidence", "Other"].forEach(k => {
+    if (!groups[k].length) return;
+    body += `<div class="vgroup"><div class="gt">${k === "Other" ? "Aggregate" : k} check</div>${groups[k].map(chk).join("")}</div>`;
+  });
+  if (!checks.length) body = `<div class="hint">no structural checks were applicable</div>`;
+  return `<div class="panel"><h2>Verification</h2>
+    <div style="margin-bottom:9px">Overall: ${verdictBadge(v.status)}</div>
+    ${body}
+    ${resolution && resolution.qualifier ? `<div class="hint">Resolution: ${esc(resolution.qualifier)} — ${esc(resolution.note || "deterministic post-execution qualifier, not a confidence value")}</div>` : ""}
+    ${vnotes.length ? `<div class="hint">${vnotes.map(esc).join(" · ")}</div>` : ""}
+  </div>`;
+}
+
+function evidencePanel(evi) {
+  evi = evi || [];
+  if (!evi.length) return `<div class="panel"><h2>Evidence <span class="count">0</span></h2><div class="hint">no evidence items</div></div>`;
+  return `<div class="panel"><h2>Evidence <span class="count">${evi.length}</span></h2>
+    ${evi.map(e => {
+      const claim = e.claim_supported || (e.payload && (e.payload.claim || e.payload.summary)) || "";
+      return `<div class="evi">
+        <div class="et"><span>${esc(e.evidence_type)}</span><span class="src">${esc(e.source_model || "")}</span></div>
+        ${claim ? `<div class="claim">${esc(typeof claim === "string" ? claim : JSON.stringify(claim))}</div>` : ""}
+        <div class="claim"><span class="badge b-ok"><span class="glyph">✓</span>recorded</span></div>
+        <details><summary>payload</summary><pre class="raw">${esc(JSON.stringify({ spatial_region: e.spatial_region, payload: e.payload }, null, 2))}</pre></details>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function warningsPanel(warnings, failures) {
+  warnings = warnings || []; failures = failures || [];
+  if (!warnings.length && !failures.length) return "";
+  const standing = /licen|unverified|experimental|not stated|prototype/i;
+  return `<div class="panel"><h2>Warnings <span class="count">${warnings.length + failures.length}</span></h2>
+    ${failures.map(f => `<div class="warn-note fail"><span class="g glyph">✕</span><span>${esc(f)}</span></div>`).join("")}
+    ${warnings.map(w => `<div class="warn-note${standing.test(w) ? "" : " fail"}"><span class="g glyph">⚠</span><span>${esc(w)}</span></div>`).join("")}
+  </div>`;
+}
+
+/* ---- error / loading helpers ---- */
+function errMsg(b) {
+  return esc(b?.detail?.error?.message || b?.detail?.message || b?.detail || b?.message || (typeof b === "string" ? b : JSON.stringify(b)));
+}
+function errHint(b) {
+  const code = String(b?.detail?.error?.code || b?.detail?.code || "").toLowerCase();
+  const msg = String(b?.detail?.error?.message || b?.detail || "").toLowerCase();
+  if (code.includes("file_count")) return "Attach 1 to 4 image files.";
+  if (code.includes("file_type") || msg.includes("unsupported")) return "Use GeoTIFF, PNG, JPEG or .npy imagery.";
+  if (code.includes("too_large") || msg.includes("413")) return "Each file must be 64 MB or smaller.";
+  if (msg.includes("co-regist") || msg.includes("coregist") || msg.includes("crs") || msg.includes("transform"))
+    return "Provide imagery with a compatible CRS and transform (co-registered onto the same grid).";
+  if (msg.includes("context")) return "The optional context field must be valid JSON.";
+  return "Check the inputs and try again.";
+}
+function errState(host, title, reason, hint) {
+  host.innerHTML = `<div class="state err" role="alert">
+    <h2>${esc(title)}</h2>
+    <p class="k">Reason</p><p>${reason}</p>
+    <p class="k">Resolution</p><p>${esc(hint)}</p></div>`;
+}
+
+/* ---- report export (unchanged endpoint) ---- */
+async function viewReport() {
+  const btn = $("#viewreport");
+  if (!LAST_INVESTIGATION) return;
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "building report…";
+  try {
+    const r = await fetch("/investigate/report", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(LAST_INVESTIGATION),
+    });
+    if (!r.ok) { btn.textContent = "report failed (HTTP " + r.status + ")"; return; }
+    const url = URL.createObjectURL(await r.blob());
+    window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    btn.textContent = label;
+  } catch { btn.textContent = "report failed"; }
+  finally { btn.disabled = false; }
+}
+
+/* copy-geojson delegation */
+document.addEventListener("click", e => {
+  if (e.target && e.target.id === "cpgeo") {
+    e.preventDefault();
+    try { navigator.clipboard.writeText(JSON.stringify(LAST_INVESTIGATION.geojson)); e.target.textContent = "copied"; } catch {}
+  }
+});
+
+/* ---------------- boot ---------------- */
+if (!location.hash) location.hash = "#/";
+route();
+checkHealth();
+setInterval(checkHealth, 30000);
 </script>
 </body>
 </html>
