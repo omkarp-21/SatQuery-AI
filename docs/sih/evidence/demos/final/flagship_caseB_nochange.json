@@ -1,0 +1,713 @@
+{
+ "mission": "Investigate this area. Identify significant changes between the two observations, locate the affected structures, compare optical and SAR evidence, and provide a verified summary.",
+ "inputs": [
+  "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\investigation\\t1_optical.tif",
+  "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\investigation\\t2_nochange.tif",
+  "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\investigation\\s2_dfc_optical.tif",
+  "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\investigation\\s1_dfc_sar.tif"
+ ],
+ "mode": "investigate",
+ "plan": {
+  "goal": "Investigate this area. Identify significant changes between the two observations, locate the affected structures, compare optical and SAR evidence, and provide a verified summary.",
+  "inputs": [
+   "img0",
+   "img1",
+   "img2",
+   "img3"
+  ],
+  "steps": [
+   {
+    "step_id": "s1",
+    "task": "VALIDATE_INPUT",
+    "tool": "validate_geospatial_input",
+    "inputs": {
+     "images": [
+      "img0",
+      "img1",
+      "img2",
+      "img3"
+     ]
+    },
+    "depends_on": [],
+    "reason": "validate imagery (format/CRS/transform) and the co-registration gate for a pair",
+    "required_verification": true,
+    "success_condition": "validation ok"
+   },
+   {
+    "step_id": "s2",
+    "task": "TEMPORAL_CHANGE",
+    "tool": "run_temporal_change",
+    "inputs": {
+     "t1": "img0",
+     "t2": "img1"
+    },
+    "depends_on": [
+     "s1"
+    ],
+    "reason": "quantify change between the two observations",
+    "required_verification": true,
+    "success_condition": "change mask + changed fraction returned"
+   },
+   {
+    "step_id": "s3",
+    "task": "EXTRACT_CHANGED_REGIONS",
+    "tool": "extract_changed_regions",
+    "inputs": {
+     "change_result_ref": "s2"
+    },
+    "depends_on": [
+     "s2"
+    ],
+    "reason": "turn the change mask into discrete regions",
+    "required_verification": true,
+    "success_condition": "at least one region or an explicit none"
+   },
+   {
+    "step_id": "s4",
+    "task": "GROUND_OBJECT",
+    "tool": "run_grounding",
+    "inputs": {
+     "image": "img1",
+     "phrase": "structure"
+    },
+    "depends_on": [
+     "s3"
+    ],
+    "reason": "locate the affected structures on the post-event image",
+    "required_verification": true,
+    "success_condition": "a box or an explicit no-region result"
+   },
+   {
+    "step_id": "s5",
+    "task": "OPTICAL_SAR_ANALYSIS",
+    "tool": "run_optical_sar",
+    "inputs": {
+     "optical": "img2",
+     "sar": "img3"
+    },
+    "depends_on": [
+     "s3"
+    ],
+    "reason": "characterise the area with joint optical+SAR features",
+    "required_verification": true,
+    "success_condition": "a joint representation is produced"
+   },
+   {
+    "step_id": "s6",
+    "task": "CROSS_CHECK_EVIDENCE",
+    "tool": "cross_check_evidence",
+    "inputs": {
+     "refs": [
+      "s3",
+      "s4",
+      "s5"
+     ]
+    },
+    "depends_on": [
+     "s4",
+     "s5"
+    ],
+    "reason": "check the grounded structures fall inside changed regions",
+    "required_verification": true,
+    "success_condition": "cross-check computed"
+   },
+   {
+    "step_id": "s7",
+    "task": "VERIFY",
+    "tool": "verify_result",
+    "inputs": {},
+    "depends_on": [
+     "s6"
+    ],
+    "reason": "aggregate structural + geospatial + evidence verification",
+    "required_verification": true,
+    "success_condition": "verification computed"
+   },
+   {
+    "step_id": "s8",
+    "task": "SUMMARIZE",
+    "tool": "inspect_evidence",
+    "inputs": {},
+    "depends_on": [
+     "s7"
+    ],
+    "reason": "collate the evidence gathered",
+    "required_verification": true,
+    "success_condition": "digest built"
+   },
+   {
+    "step_id": "s9",
+    "task": "FINALIZE",
+    "tool": "finalize_answer",
+    "inputs": {},
+    "depends_on": [
+     "s8"
+    ],
+    "reason": "produce the evidence-first investigation report",
+    "required_verification": true,
+    "success_condition": "report assembled"
+   }
+  ],
+  "constraints": [
+   "<= 8 specialist steps",
+   "no fabricated coordinates",
+   "no fabricated evidence",
+   "no confidence values"
+  ],
+  "expected_output": "an evidence-backed investigation summary",
+  "planner": "rule_based"
+ },
+ "plan_status": "valid",
+ "plan_rejection_reasons": [],
+ "planner_used": "rule_based",
+ "intent": null,
+ "phase": "FINALIZING",
+ "ok": true,
+ "investigation_status": "SUCCESS",
+ "investigation_status_reason": "no significant temporal change detected",
+ "mission_family": "multi_step",
+ "steps": [
+  {
+   "step_id": "s1",
+   "task": "VALIDATE_INPUT",
+   "tool": "validate_geospatial_input",
+   "status": "completed",
+   "verdict": "COHERENT",
+   "summary": "validation ok",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": "SUPPORTED",
+   "resolution_qualifier": null,
+   "findings": {},
+   "numeric": {},
+   "failure": null,
+   "contributed": true,
+   "started_at": "13:04:14",
+   "finished_at": "13:04:14",
+   "runtime_s": 0.01,
+   "replan_note": null
+  },
+  {
+   "step_id": "s2",
+   "task": "TEMPORAL_CHANGE",
+   "tool": "run_temporal_change",
+   "status": "completed",
+   "verdict": "COHERENT",
+   "summary": "changed_fraction 0.0, area 0.0 ha",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": "SUPPORTED",
+   "resolution_qualifier": null,
+   "findings": {
+    "changed_fraction": 0.0,
+    "changed_area_ha": 0.0
+   },
+   "numeric": {
+    "changed_fraction": 0.0
+   },
+   "failure": null,
+   "contributed": true,
+   "started_at": "13:04:14",
+   "finished_at": "13:04:24",
+   "runtime_s": 10.59,
+   "replan_note": null
+  },
+  {
+   "step_id": "s3",
+   "task": "EXTRACT_CHANGED_REGIONS",
+   "tool": "extract_changed_regions",
+   "status": "failed",
+   "verdict": "INSUFFICIENT",
+   "summary": "0 region(s) extracted",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": "INSUFFICIENT_EVIDENCE",
+   "resolution_qualifier": null,
+   "findings": {
+    "n_regions": 0
+   },
+   "numeric": {
+    "changed_fraction": 0.0
+   },
+   "failure": null,
+   "contributed": false,
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
+   "runtime_s": 0.01,
+   "replan_note": null
+  },
+  {
+   "step_id": "s4",
+   "task": "GROUND_OBJECT",
+   "tool": "run_grounding",
+   "status": "skipped",
+   "verdict": "NOT_APPLICABLE",
+   "summary": "",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": null,
+   "resolution_qualifier": null,
+   "findings": {},
+   "numeric": {},
+   "failure": null,
+   "contributed": false,
+   "started_at": "13:04:24",
+   "finished_at": null,
+   "runtime_s": null,
+   "replan_note": "an upstream step was skipped"
+  },
+  {
+   "step_id": "s5",
+   "task": "OPTICAL_SAR_ANALYSIS",
+   "tool": "run_optical_sar",
+   "status": "skipped",
+   "verdict": "NOT_APPLICABLE",
+   "summary": "",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": null,
+   "resolution_qualifier": null,
+   "findings": {},
+   "numeric": {},
+   "failure": null,
+   "contributed": false,
+   "started_at": "13:04:24",
+   "finished_at": null,
+   "runtime_s": null,
+   "replan_note": "an upstream step was skipped"
+  },
+  {
+   "step_id": "s6",
+   "task": "CROSS_CHECK_EVIDENCE",
+   "tool": "cross_check_evidence",
+   "status": "skipped",
+   "verdict": "NOT_APPLICABLE",
+   "summary": "",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": null,
+   "resolution_qualifier": null,
+   "findings": {},
+   "numeric": {},
+   "failure": null,
+   "contributed": false,
+   "started_at": "13:04:24",
+   "finished_at": null,
+   "runtime_s": null,
+   "replan_note": "an upstream step was skipped"
+  },
+  {
+   "step_id": "s7",
+   "task": "VERIFY",
+   "tool": "verify_result",
+   "status": "completed",
+   "verdict": "COHERENT",
+   "summary": "overall SUPPORTED",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": "SUPPORTED",
+   "resolution_qualifier": "SPECIALIST_FAILED",
+   "findings": {},
+   "numeric": {
+    "changed_fraction": 0.0
+   },
+   "failure": null,
+   "contributed": true,
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
+   "runtime_s": 0.0,
+   "replan_note": null
+  },
+  {
+   "step_id": "s8",
+   "task": "SUMMARIZE",
+   "tool": "inspect_evidence",
+   "status": "completed",
+   "verdict": "NOT_APPLICABLE",
+   "summary": "1 evidence items",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": null,
+   "resolution_qualifier": null,
+   "findings": {},
+   "numeric": {
+    "changed_fraction": 0.0
+   },
+   "failure": null,
+   "contributed": true,
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
+   "runtime_s": 0.0,
+   "replan_note": null
+  },
+  {
+   "step_id": "s9",
+   "task": "FINALIZE",
+   "tool": "finalize_answer",
+   "status": "completed",
+   "verdict": "NOT_APPLICABLE",
+   "summary": "",
+   "result_ref": null,
+   "evidence_ids": [],
+   "verification_status": null,
+   "resolution_qualifier": null,
+   "findings": {},
+   "numeric": {
+    "changed_fraction": 0.0
+   },
+   "failure": null,
+   "contributed": true,
+   "started_at": "13:04:24",
+   "finished_at": "13:04:24",
+   "runtime_s": 0.0,
+   "replan_note": null
+  }
+ ],
+ "replans": [
+  {
+   "reason": "NEW_EVIDENCE",
+   "triggering_step": "s2",
+   "previous_phase": "REPLANNING",
+   "detail": "changed_fraction 0.0000 < 0.01: no significant change \u2014 region extraction / grounding / SAR steps are unnecessary",
+   "steps_skipped": [
+    "s3",
+    "s4",
+    "s5"
+   ],
+   "ts": "13:04:24"
+  },
+  {
+   "reason": "TOOL_FAILURE",
+   "triggering_step": "s3",
+   "previous_phase": "REPLANNING",
+   "detail": "extract_changed_regions failed; downstream steps that required it are skipped, no result is fabricated",
+   "steps_skipped": [],
+   "ts": "13:04:24"
+  }
+ ],
+ "tool_calls": 2,
+ "max_steps": 8,
+ "hit_step_cap": false,
+ "early_stopped": true,
+ "completion_reason": "no significant temporal change detected",
+ "conclusion": "No significant change was detected between the two observations, so the localisation and optical+SAR steps were not needed.",
+ "key_findings": [
+  "No significant change: changed fraction ~0.00% (below the 1% threshold).",
+  "Grounding: no matching region could be localised (returned explicitly, not fabricated).",
+  "Optical+SAR analysis was not performed \u2014 no distinct SAR input was supplied."
+ ],
+ "spatial_findings": [],
+ "geojson": null,
+ "evidence": [
+  {
+   "evidence_id": "ev-change_c227eedcb297",
+   "source_model": "changeformer",
+   "task": "change-detection",
+   "modality": "optical-bitemporal",
+   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_1emuiw2x\\changeformer_mask_1788507264817.png",
+   "spatial_region": null,
+   "temporal_context": {
+    "t1": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\investigation\\t1_optical.tif",
+    "t2": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\investigation\\t2_nochange.tif",
+    "relation": "T1 before T2"
+   },
+   "claim_supported": "~0.0% of pixels changed between T1 and T2",
+   "evidence_type": "change-mask",
+   "payload": {
+    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_1emuiw2x\\changeformer_mask_1788507264817.png",
+    "changed_fraction": 0.0,
+    "changed_area_ha": 0.0
+   },
+   "provenance": {
+    "model": "changeformer",
+    "version": "ChangeFormerV6@afd1b7e",
+    "source_repo": "https://github.com/wgcban/ChangeFormer",
+    "license": "MIT",
+    "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\changeformer\\CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw_train_test_200_linear_ce_multi_train_True_multi_infer_False_shuffle_AB_False_embed_dim_256",
+    "capabilities": [
+     "change-detection"
+    ],
+    "modalities": [
+     "optical-bitemporal"
+    ],
+    "runtime_s": 3.023,
+    "timestamp": "2026-09-04T07:34:24Z",
+    "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
+    "input_digest": "e7801ae4f9bcf045:562eaa2d1b77037c",
+    "device": "cpu",
+    "bridge": "scripts/research/changeformer_infer.py",
+    "score_meaning": "fraction of pixels flagged changed - NOT a confidence"
+   },
+   "timestamp": "2026-09-04T07:34:24Z",
+   "status": "ok"
+  }
+ ],
+ "verification": {
+  "status": "SUPPORTED",
+  "checks": [
+   {
+    "name": "aggregate",
+    "passed": true,
+    "detail": "step statuses: ['SUPPORTED', 'INSUFFICIENT_EVIDENCE']"
+   }
+  ]
+ },
+ "confidence": {
+  "category": "MEDIUM",
+  "score": 4.0,
+  "reasons": [
+   "All 1 planned specialist step(s) completed.",
+   "1 evidence item(s) attached.",
+   "Verification: SUPPORTED (aggregate of per-step checks).",
+   "A required modality (SAR) was missing \u2014 optical+SAR was not performed."
+  ],
+  "signals": {
+   "family": "multi_step",
+   "verification": "SUPPORTED",
+   "evidence_items": 1,
+   "specialists_completed": 1,
+   "specialists_failed": 0,
+   "incoherent_steps": 0,
+   "missing_modality": "sar",
+   "ambiguity": "none",
+   "planner_used": "rule_based",
+   "known_limitation_penalty": 0.0
+  },
+  "hard_rule": null,
+  "note": "evidence-derived category, deterministic rules (docs/G17_TRUST_LAYER.md). NOT a calibrated probability."
+ },
+ "resolution": {
+  "qualifier": "RESULT_OK",
+  "answer_surfaced": true,
+  "note": "deterministic post-execution qualifier \u2014 NOT a confidence value"
+ },
+ "provenance": {
+  "layer": "agent",
+  "mask_source": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_1emuiw2x\\changeformer_mask_1788507264817.png",
+  "planner_used": "rule_based",
+  "plan_status": "valid",
+  "mission_family": "multi_step",
+  "plan_steps": [
+   {
+    "step_id": "s1",
+    "task": "VALIDATE_INPUT",
+    "tool": "validate_geospatial_input",
+    "depends_on": []
+   },
+   {
+    "step_id": "s2",
+    "task": "TEMPORAL_CHANGE",
+    "tool": "run_temporal_change",
+    "depends_on": [
+     "s1"
+    ]
+   },
+   {
+    "step_id": "s3",
+    "task": "EXTRACT_CHANGED_REGIONS",
+    "tool": "extract_changed_regions",
+    "depends_on": [
+     "s2"
+    ]
+   },
+   {
+    "step_id": "s4",
+    "task": "GROUND_OBJECT",
+    "tool": "run_grounding",
+    "depends_on": [
+     "s3"
+    ]
+   },
+   {
+    "step_id": "s5",
+    "task": "OPTICAL_SAR_ANALYSIS",
+    "tool": "run_optical_sar",
+    "depends_on": [
+     "s3"
+    ]
+   },
+   {
+    "step_id": "s6",
+    "task": "CROSS_CHECK_EVIDENCE",
+    "tool": "cross_check_evidence",
+    "depends_on": [
+     "s4",
+     "s5"
+    ]
+   },
+   {
+    "step_id": "s7",
+    "task": "VERIFY",
+    "tool": "verify_result",
+    "depends_on": [
+     "s6"
+    ]
+   },
+   {
+    "step_id": "s8",
+    "task": "SUMMARIZE",
+    "tool": "inspect_evidence",
+    "depends_on": [
+     "s7"
+    ]
+   },
+   {
+    "step_id": "s9",
+    "task": "FINALIZE",
+    "tool": "finalize_answer",
+    "depends_on": [
+     "s8"
+    ]
+   }
+  ],
+  "tool_calls": 2,
+  "contributing_tool_calls": 1,
+  "unnecessary_tool_calls": 0,
+  "replans": [
+   {
+    "reason": "NEW_EVIDENCE",
+    "triggering_step": "s2",
+    "previous_phase": "REPLANNING",
+    "detail": "changed_fraction 0.0000 < 0.01: no significant change \u2014 region extraction / grounding / SAR steps are unnecessary",
+    "steps_skipped": [
+     "s3",
+     "s4",
+     "s5"
+    ],
+    "ts": "13:04:24"
+   },
+   {
+    "reason": "TOOL_FAILURE",
+    "triggering_step": "s3",
+    "previous_phase": "REPLANNING",
+    "detail": "extract_changed_regions failed; downstream steps that required it are skipped, no result is fabricated",
+    "steps_skipped": [],
+    "ts": "13:04:24"
+   }
+  ],
+  "early_stopped": true,
+  "completion_reason": "no significant temporal change detected",
+  "hit_step_cap": false,
+  "note": "the LLM/rule planner proposes steps; the deterministic policy layer + executor run them, observe each result, and conditionally replan (see `replans`). No confidence value is produced. Evidence and verification are preserved from each specialist."
+ },
+ "execution_trace": [
+  {
+   "ts": "13:04:14",
+   "event": "Mission received"
+  },
+  {
+   "ts": "13:04:14",
+   "event": "Plan generated (rule_based, 9 steps)"
+  },
+  {
+   "ts": "13:04:14",
+   "event": "Plan validated"
+  },
+  {
+   "ts": "13:04:14",
+   "event": "validate_geospatial_input -> COHERENT (verification SUPPORTED)"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "run_temporal_change -> COHERENT (verification SUPPORTED)"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "REPLAN [NEW_EVIDENCE] from s2: changed_fraction 0.0000 < 0.01: no significant change \u2014 region extraction / grounding / SAR steps are unnecessary"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "extract_changed_regions -> INSUFFICIENT (specialist returned ok=false)"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "REPLAN [TOOL_FAILURE] from s3: extract_changed_regions failed; downstream steps that required it are skipped, no result is fabricated"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "verify_result -> COHERENT (verification SUPPORTED)"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "inspect_evidence -> NOT_APPLICABLE (verification not applicable)"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "finalize_answer -> NOT_APPLICABLE (verification not applicable)"
+  },
+  {
+   "ts": "13:04:24",
+   "event": "Investigation status: SUCCESS \u2014 no significant temporal change detected"
+  }
+ ],
+ "warnings": [
+  "no significant change detected; downstream localisation steps were skipped",
+  "s2_dfc_optical.tif: ['bounds', 'transform_valid']",
+  "s1_dfc_sar.tif: ['bounds', 'transform_valid']"
+ ],
+ "failures": [
+  "s3 (extract_changed_regions): ['no region above size threshold']"
+ ],
+ "models_used": [
+  "ChangeFormer"
+ ],
+ "timings": {
+  "total_s": 10.67,
+  "s1_validate_geospatial_input": 0.01,
+  "s2_run_temporal_change": 10.59,
+  "s3_extract_changed_regions": 0.01
+ },
+ "_capture": {
+  "script": "scripts/demo/run_final_demo.py",
+  "case": "caseB_nochange",
+  "wall_s": 10.7,
+  "architecture": "PRODUCTION: RuleBasedPlanner -> 12-check policy -> bounded adaptive executor -> evidence -> verification -> trust category",
+  "input_metadata": [
+   {
+    "file": "t1_optical.tif",
+    "bands": 3,
+    "size": [
+     256,
+     256
+    ],
+    "dtype": "uint8",
+    "crs": "EPSG:32650",
+    "transform_is_identity": false
+   },
+   {
+    "file": "t2_nochange.tif",
+    "bands": 3,
+    "size": [
+     256,
+     256
+    ],
+    "dtype": "uint8",
+    "crs": "EPSG:32650",
+    "transform_is_identity": false
+   },
+   {
+    "file": "s2_dfc_optical.tif",
+    "bands": 13,
+    "size": [
+     256,
+     256
+    ],
+    "dtype": "uint16",
+    "crs": "EPSG:4326",
+    "transform_is_identity": true
+   },
+   {
+    "file": "s1_dfc_sar.tif",
+    "bands": 2,
+    "size": [
+     256,
+     256
+    ],
+    "dtype": "float64",
+    "crs": "EPSG:4326",
+    "transform_is_identity": true
+   }
+  ],
+  "note": "Same mission for caseA and caseB; only the post-event image differs. CASE B's shorter path is decided by the real ChangeFormer output, not hard-coded."
+ }
+}

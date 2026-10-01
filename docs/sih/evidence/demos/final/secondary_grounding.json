@@ -1,0 +1,276 @@
+{
+ "query": "Where is the largest ship?",
+ "interpreted_task": "grounding",
+ "task_code": "SINGLE_IMAGE_GROUNDING",
+ "execution_plan": [
+  "remotesam"
+ ],
+ "ok": true,
+ "answer": "1 region grounded for the referring phrase.",
+ "model_used": "RemoteSAM",
+ "latency_s": 196.03,
+ "yesno": null,
+ "labels": [],
+ "boxes": [
+  {
+   "xyxy_pixel": [
+    211.0,
+    427.0,
+    634.0,
+    512.0
+   ],
+   "bbox_lonlat": null,
+   "label": null,
+   "score": 0.9988861680030823
+  }
+ ],
+ "regions": [],
+ "mask_url": "/artifact?name=tmpzd3msrea.png",
+ "image_dimensions": [
+  800,
+  800
+ ],
+ "changed_fraction": null,
+ "area_ha": null,
+ "centroid_lonlat": null,
+ "representation_dim": null,
+ "score": 0.9988861680030823,
+ "score_meaning": "RemoteSAM foreground softmax probability - a raw model score, NOT a calibrated confidence",
+ "crs": null,
+ "geospatial_available": false,
+ "geospatial_note": "geospatial coordinates unavailable because CRS/transform is missing",
+ "evidence": [
+  {
+   "evidence_id": "ev-ground_c7743b76b4c4",
+   "source_model": "remotesam",
+   "task": "grounding",
+   "modality": "optical-single",
+   "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpzd3msrea.png",
+   "spatial_region": {
+    "bbox_pixel": [
+     427,
+     211,
+     512,
+     634
+    ],
+    "bbox_xyxy": [
+     211.0,
+     427.0,
+     634.0,
+     512.0
+    ]
+   },
+   "temporal_context": null,
+   "claim_supported": "the phrase 'Where is the largest ship?' refers to the region [211.0, 427.0, 634.0, 512.0]",
+   "evidence_type": "grounding",
+   "payload": {
+    "bbox_xyxy": [
+     211.0,
+     427.0,
+     634.0,
+     512.0
+    ],
+    "image_dims": [
+     800,
+     800
+    ],
+    "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpzd3msrea.png",
+    "mask_fg_fraction": 0.006321875,
+    "score": 0.9988861680030823,
+    "score_meaning": "foreground softmax probability - not a calibrated confidence"
+   },
+   "provenance": {
+    "model": "remotesam",
+    "version": "RemoteSAM@ebb7bc2",
+    "source_repo": "https://github.com/1e12Leon/RemoteSAM",
+    "license": "NOT STATED (no LICENSE file in repo or on the HF checkpoint)",
+    "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remotesam\\RemoteSAM\\RemoteSAMv1.pth",
+    "capabilities": [
+     "grounding",
+     "referring-segmentation"
+    ],
+    "modalities": [
+     "optical-single"
+    ],
+    "runtime_s": 8.28,
+    "timestamp": "2026-09-04T07:37:40Z",
+    "checkpoint_sha256": "0c8e1085208737d481e3e8f1064f5b428995916f668f0ff7ac6a21bb1ee3ee4f",
+    "input_digest": "86feb8ab012ceca7",
+    "device": "cpu",
+    "bridge": "scripts/research/remotesam_infer.py",
+    "repo_commit": "ebb7bc278c7343c29c8c16b035289f78f40f0f72",
+    "env": {
+     "python": "3.11.0",
+     "torch": "2.2.2+cpu",
+     "numpy": "1.26.4",
+     "device": "cpu"
+    },
+    "note": "license NOT STATED upstream; score is a raw model probability",
+    "score_meaning": "RemoteSAM foreground softmax probability - a raw model score, NOT a calibrated confidence"
+   },
+   "timestamp": "2026-09-04T07:37:40Z",
+   "status": "ok"
+  }
+ ],
+ "verification": {
+  "status": "SUPPORTED",
+  "checks": [
+   {
+    "name": "inputs_exist",
+    "passed": true,
+    "detail": "1 declared, missing=[]"
+   },
+   {
+    "name": "modality_supported",
+    "passed": true,
+    "detail": "requested 'optical-single' vs model ['optical-single']"
+   },
+   {
+    "name": "grounding_box_valid[ev-ground_c7743b76b4c4]",
+    "passed": true,
+    "detail": "box=[211.0, 427.0, 634.0, 512.0] image_dims=[800, 800]"
+   },
+   {
+    "name": "grounding_mask_artifact[ev-ground_c7743b76b4c4]",
+    "passed": true,
+    "detail": "mask_path=C:\\Users\\Dikshita\\AppData\\Local\\Temp\\tmpzd3msrea.png"
+   }
+  ],
+  "notes": "structural / deterministic checks only - NOT a semantic correctness judgement"
+ },
+ "resolution": {
+  "qualifier": "RESULT_OK",
+  "answer_surfaced": true,
+  "disputed": false,
+  "reasons": [],
+  "advisories": [],
+  "fallback_used": null,
+  "structural_status": "SUPPORTED",
+  "semantic_status": null,
+  "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+ },
+ "provenance": {
+  "layer": "analyze",
+  "interpretation": {
+   "intent": "grounding",
+   "notes": [
+    "matched grounding keywords"
+   ]
+  },
+  "routing": {
+   "selected_task": "grounding",
+   "selected_specialists": [
+    "remotesam"
+   ],
+   "routing_code": "SINGLE_IMAGE_GROUNDING",
+   "routing_rule": "one image + a grounding intent -> the RS grounding specialist (text -> box + mask; RemoteSAM). NOT a VQA model.",
+   "required_inputs": [
+    "image-open-check"
+   ],
+   "execution_order": [
+    "remotesam"
+   ],
+   "status": "routed"
+  },
+  "pair_co_registered": null,
+  "resolution": {
+   "qualifier": "RESULT_OK",
+   "answer_surfaced": true,
+   "disputed": false,
+   "reasons": [],
+   "advisories": [],
+   "fallback_used": null,
+   "structural_status": "SUPPORTED",
+   "semantic_status": null,
+   "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+  },
+  "sub_service_provenance": {
+   "layer": "grounding_slice",
+   "model": "remotesam",
+   "stages": [
+    "image-open-check",
+    "remotesam_adapter",
+    "spatial-correspondence",
+    "evidence",
+    "verify"
+   ],
+   "adapter_provenance": {
+    "model": "remotesam",
+    "version": "RemoteSAM@ebb7bc2",
+    "source_repo": "https://github.com/1e12Leon/RemoteSAM",
+    "license": "NOT STATED (no LICENSE file in repo or on the HF checkpoint)",
+    "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remotesam\\RemoteSAM\\RemoteSAMv1.pth",
+    "capabilities": [
+     "grounding",
+     "referring-segmentation"
+    ],
+    "modalities": [
+     "optical-single"
+    ],
+    "runtime_s": 8.28,
+    "timestamp": "2026-09-04T07:37:40Z",
+    "checkpoint_sha256": "0c8e1085208737d481e3e8f1064f5b428995916f668f0ff7ac6a21bb1ee3ee4f",
+    "input_digest": "86feb8ab012ceca7",
+    "device": "cpu",
+    "bridge": "scripts/research/remotesam_infer.py",
+    "repo_commit": "ebb7bc278c7343c29c8c16b035289f78f40f0f72",
+    "env": {
+     "python": "3.11.0",
+     "torch": "2.2.2+cpu",
+     "numpy": "1.26.4",
+     "device": "cpu"
+    },
+    "note": "license NOT STATED upstream; score is a raw model probability",
+    "score_meaning": "RemoteSAM foreground softmax probability - a raw model score, NOT a calibrated confidence"
+   },
+   "standardized": {
+    "model": "remotesam",
+    "version": "RemoteSAM@ebb7bc2",
+    "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remotesam\\RemoteSAM\\RemoteSAMv1.pth",
+    "checkpoint_sha256": "0c8e1085208737d481e3e8f1064f5b428995916f668f0ff7ac6a21bb1ee3ee4f",
+    "input_ids": [
+     "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\grounding\\scene.jpg"
+    ],
+    "task": "grounding",
+    "parameters": {},
+    "preprocessing": [
+     "resize-896",
+     "bert-tokenize"
+    ],
+    "environment": null,
+    "device": "cpu",
+    "execution_time_s": 8.28,
+    "timestamp": "2026-09-04T07:37:40Z",
+    "status": "ok"
+   },
+   "orchestration_runtime_s": 195.997,
+   "note": "RemoteSAM: text -> box + mask. Score is a raw model probability, NOT a confidence. Upstream licence NOT STATED. Reproduced, not measured on a benchmark."
+  },
+  "orchestration_runtime_s": 196.03,
+  "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced; `resolution` is a deterministic failure-aware qualifier, not a confidence"
+ },
+ "execution_trace": {
+  "steps": [
+   "validate_input",
+   "interpret_query",
+   "route",
+   "specialist:remotesam",
+   "evidence",
+   "verify",
+   "resolve"
+  ],
+  "routing_code": "SINGLE_IMAGE_GROUNDING",
+  "routing_rule": "one image + a grounding intent -> the RS grounding specialist (text -> box + mask; RemoteSAM). NOT a VQA model."
+ },
+ "failures": [],
+ "warnings": [
+  "RemoteSAM upstream licence is NOT STATED \u2014 treat grounding output as prototype-only."
+ ],
+ "_capture": {
+  "script": "scripts/demo/run_final_demo.py",
+  "query": "Where is the largest ship?",
+  "image": "scene.jpg",
+  "wall_s": 196.0,
+  "purpose": "fast judge attention-grabber (~15-30 s): query -> grounding -> box/mask -> geospatial position -> verification"
+ }
+}

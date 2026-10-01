@@ -42,6 +42,8 @@ def main() -> int:
     ap.add_argument("--size", default="base")
     ap.add_argument("--resolution", type=int, default=120)
     ap.add_argument("--random", type=int, default=0)
+    ap.add_argument("--lora-weights", default=None,
+                    help="OPTIONAL EXP-008 LoRA delta (torch.save dict). Absent = frozen CROMA.")
     ap.add_argument("--out-json", required=True)
     a = ap.parse_args()
     try:
@@ -63,12 +65,50 @@ def main() -> int:
 
         model = PretrainedCROMA(pretrained_path=a.checkpoint, size=a.size,
                                 modality="both", image_resolution=R).eval()
+        encoder_mode = "frozen"
+        if a.lora_weights:
+            # EXP-008 LoRA delta applied as a merged weight delta so inference
+            # code is unchanged. If nothing matches, fail loudly (never silently
+            # frozen). Two accepted on-disk shapes:
+            #   (a) exp008_adapt.py: {"lora_r","lora_alpha","targets",
+            #       "state_dict": {f"{mod}.a": A(r,in), f"{mod}.b": B(out,r)}}
+            #   (b) legacy: {mod_name: (A, B, scaling)}
+            blob = torch.load(a.lora_weights, map_location="cpu")
+            if isinstance(blob, dict) and "state_dict" in blob:
+                lsd = blob["state_dict"]
+                lscaling = float(blob["lora_alpha"]) / float(blob["lora_r"])
+                grouped: dict[str, dict] = {}
+                for k, v in lsd.items():
+                    if k.endswith(".a"):
+                        grouped.setdefault(k[:-2], {})["a"] = v
+                    elif k.endswith(".b"):
+                        grouped.setdefault(k[:-2], {})["b"] = v
+                delta = {
+                    m: (g["a"], g["b"], lscaling)
+                    for m, g in grouped.items()
+                    if "a" in g and "b" in g
+                }
+            else:
+                delta = blob
+            applied = 0
+            sd = model.state_dict()
+            for name, mod in model.named_modules():
+                key = f"{name}.weight"
+                if name in delta and key in sd and hasattr(mod, "weight"):
+                    A, B, scaling = delta[name]
+                    with torch.no_grad():
+                        mod.weight.add_((B @ A) * float(scaling))
+                    applied += 1
+            if applied == 0:
+                raise RuntimeError(f"--lora-weights supplied but 0 layers matched in {a.lora_weights}")
+            encoder_mode = f"lora_adapted ({applied} layers)"
         with torch.no_grad():
             out = model(SAR_images=s1, optical_images=s2)
         payload = {
             "ok": True,
             "model": "croma",
             "size": a.size,
+            "encoder_mode": encoder_mode,
             "joint_gap": [round(v, 6) for v in out["joint_GAP"][0].tolist()],
             "optical_gap": [round(v, 6) for v in out["optical_GAP"][0].tolist()],
             "sar_gap": [round(v, 6) for v in out["SAR_GAP"][0].tolist()],

@@ -1,0 +1,36 @@
+{
+  "name": "RSVQA-LR A/B gate sample (EXP-002)",
+  "frozen": "2026-09-01",
+  "purpose": "Fixed, deterministic single-image VQA sample for the G5A A/B reproduction gate. Used identically across RSCoVLM-3B, TinyRS-2B, Qwen2-VL-2B.",
+  "source_dataset": {
+    "id": "RSVQA-LR",
+    "paper": "Lobry et al., 'RSVQA: Visual Question Answering for Remote Sensing Data', IEEE TGRS 2020",
+    "images": "Sentinel-2 (RGB) patches, 256x256, over the Netherlands",
+    "files_expected": [
+      "LR_split_test_questions.json",
+      "LR_split_test_answers.json",
+      "LR_split_test_images.json",
+      "Images_LR/<id>.tif"
+    ],
+    "acquisition": "https://rsvqa.sylvainlobry.com/  (Zenodo 3945396). NOT downloaded from this host - multi-GB, see EXP-002 blocker log."
+  },
+  "selection_policy": {
+    "deterministic": true,
+    "split": "test",
+    "question_types_included": ["presence", "comparison"],
+    "question_types_excluded": ["count", "area", "rural_urban"],
+    "rationale": "presence + comparison are yes/no -> balanced accuracy is well-defined; count/area are open-ended regression-like; rural_urban is 2-class but semantically different. Excluding them keeps the metric a clean binary balanced accuracy.",
+    "ordering": "ascending integer question id",
+    "take": 40,
+    "answer_normalisation": "lower-case, strip, map {'yes'->1,'no'->0}; anything else -> discard question and log as MALFORMED_REFERENCE",
+    "class_balance_target": "report actual yes/no counts; balanced accuracy corrects for imbalance"
+  },
+  "resolved_ids": [],
+  "resolved_note": "resolved_ids is populated by evaluation/scripts/exp002_ab_gate.py --resolve once LR_split_test_questions.json is present. Empty here because the dataset is not acquired (artifact-acquisition BLOCKED, see docs/research/EXP-002.md).",
+  "metric": {
+    "primary": "balanced_accuracy",
+    "threshold": 0.60,
+    "threshold_kind": "INTERNAL USABILITY THRESHOLD - not an official SIH scoring criterion",
+    "latency_budget_s_per_query": 45
+  }
+}

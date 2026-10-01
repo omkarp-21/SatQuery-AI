@@ -14,15 +14,63 @@
 `MEASURED (we scored it vs data)` → `INTEGRATED (runs in SatQuery via an adapter)`
 → `VALIDATED (end-to-end in the pipeline with provenance)`.
 
-Current (post-G4): 4 models REPRODUCED behind the standard `SpecialistAdapter`
+**G6–G8 (2026-09-01):** model discovery is **stopped** — roles below are frozen;
+the *stack* cannot freeze until A/B/D/E are measured (ADR-015/016). Local
+unblocked work done: EXP-005 structural verifier (P/R/F1 = 1.00, n=24); EXP-003b
+crop strategies (agreement 4/6); EXP-005b model-independent semantic verifier
+(P/R/F1 = 1.00, n=34, INTEGRATED); **G8: failure-aware routing INTEGRATED**
+(`derive_resolution` 6 qualifiers + `image_difference_fallback`, 10 tests).
+EXP-002 / EXP-004 Run 2 / EXP-008 / EXP-C1/C2 stay blocked on the remote GPU box
+(`docs/deployment/REMOTE_GPU_SETUP.md`). Scorecards:
+`docs/research/G6_CAPABILITY_CLOSURE.md`, `docs/sih/evidence/README.md`.
+
+Current (post-G5A): 4 models REPRODUCED behind the standard `SpecialistAdapter`
 contract. **ChangeFormer + RemoteCLIP INTEGRATED**, now reachable through the
 unified **`POST /analyze`** (deterministic interpret → route → dispatch →
 aggregate). CROMA/DOFA INTEGRATED as `run_joint_representation()` (representation-
 level). A `COMPOSED_SEMANTIC_CHANGE_BASELINE` chains ChangeFormer + RemoteCLIP for
-capability C (experimental, disclaimed). Nothing is VALIDATED — and the
-model-selection experiments (EXP-002 VQA, EXP-004 Run 2 optical-SAR, EXP-008
-adaptation) are **BLOCKED on data acquisition from this host**; a remote Linux GPU
-box is now the path. Ledger: `EVIDENCE_LEDGER.md`. Confidence: `CONFIDENCE_PLAN.md`.
+capability C (experimental, disclaimed). Nothing is VALIDATED. The
+model-selection experiments (EXP-002 VQA/grounding, EXP-004 Run 2 optical-SAR,
+EXP-008 adaptation) are **BLOCKED on artifact acquisition from this host** — **G5A
+ran the A/B gate and hit the 6th documented weight-download failure** (0-byte
+safetensors on a fresh `Qwen/` repo, 8-min bound); frozen sample specs +
+`evaluation/scripts/exp002_ab_gate.py` are committed and ready. **Remote reference
+gate OPEN (ADR-013).** Ledger: `EVIDENCE_LEDGER.md`. Confidence: `CONFIDENCE_PLAN.md`.
+
+---
+
+## Model hierarchy (authoritative — ADR-011, ADR-012)
+
+Role labels, not a ranking of quality. **No repo is a "ceiling"** — that word is
+reserved for a model that has been *reproduced and measured* under our evaluation,
+which none has. Until then EarthDial and GeoChat are **references**. No new
+repositories were added; the core SatQuery architecture is unchanged.
+
+| Role | Model | Repo | Licence | Evidence state | Where it runs |
+|------|-------|------|---------|----------------|---------------|
+| **VQA PRIMARY (A)** | **TinyRS-2B** | github.com/aybora/TinyRS | Apache-2.0 (code) | **MEASURED + INTEGRATED (G11)** — bal acc 0.87 on RSVQA-LR n=40, CPU | CPU verified; GPU 4-bit unverified |
+| **VQA FALLBACK / CONTROL** | **Qwen2-VL-2B** | github.com/QwenLM/Qwen2-VL | Apache-2.0 | **MEASURED (G11)** — bal acc 0.70 (generic) | CPU verified |
+| ~~RSCoVLM-3B~~ | — | Qingyun/rscovlm | — | **NO 3B ARTIFACT** — only 7B released (remote-only) | — |
+| **GROUNDING PRIMARY (B)** | **RemoteSAM** | github.com/1e12Leon/RemoteSAM | **NOT STATED** | **MEASURED + INTEGRATED (G11)** — acc@IoU0.5 0.84 on DIOR-RSVG n=25, CPU | CPU verified (~6 GB RSS); GPU unverified |
+| **TEMPORAL** | **ChangeFormer** | github.com/wgcban/ChangeFormer | MIT | **INTEGRATED** — MEASURED IoU 0.83 / F1 0.91 (n=7) | CPU / 4 GB GPU |
+| **OPTICAL-SAR PRIMARY** | **CROMA** | github.com/antofuller/CROMA | MIT | **REPRODUCED** — decide vs DOFA in EXP-004 Run 2 | CPU / 4 GB GPU |
+| **OPTICAL-SAR CHALLENGER** | **DOFA** | github.com/zhu-xlab/DOFA | MIT | **REPRODUCED** | CPU / 4 GB GPU |
+| **GROUNDING REFERENCE** | **GeoGround** | github.com/VisionXLab/GeoGround | not stated | DOCUMENTED | remote (~7B) |
+| **AUXILIARY** | **RemoteCLIP** | github.com/ChenDelong1999/RemoteCLIP | Apache-2.0 | **INTEGRATED** — retrieval / zero-shot / embedding; **not VQA** | CPU / 4 GB GPU |
+| **PRIMARY HIGH-CAPABILITY REFERENCE** | **EarthDial** | github.com/hiyamdebary/EarthDial | code MIT / weights unconfirmed | **REFERENCE CANDIDATE** — not reproduced | remote (4B; ≈8–9 GB bf16) |
+| **SECONDARY / HISTORICAL RS-VLM REFERENCE** | **GeoChat** | github.com/mbzuai-oryx/GeoChat | Apache¹ (no LICENSE file) | secondary reference — **not** on the critical path; local-run inability is **not** a blocker | remote (~7B) |
+| **RESEARCH REFERENCE** | **SARLANG-1M** | github.com/jimmyxichen/sarlang-1m | not stated | dataset/benchmark — SAR-language eval + fine-tune data | n/a (data) |
+
+**EarthDial verification (2026-09-01, no large artifacts downloaded):**
+checkpoints **exist** — HF `akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`,
+Safetensors / BF16 / `internvl_chat` / "4B params"; HF pages show **"No model
+card"**. Licence: repo footer **MIT**, HF pages assert **no licence** → weights
+licence **unconfirmed**. Hardware: trained on 8×A100-80GB; **inference VRAM not
+documented** (4B bf16 ≈ 8–9 GB — no 4 GB fit; 4-bit ≈ 3–3.5 GB, unverified).
+Env: Python 3.9, InternVL2 + Phi-3-Mini, `flash-attn==2.3.6` (training); torch /
+CUDA / `transformers` **not pinned**. Inference path: README points to a "demo
+section" — **exact entrypoint not confirmed, not run**. Repo health: 45 commits,
+140 stars, CVPR 2025. → **REFERENCE CANDIDATE until reproduced.**
 
 ---
 
@@ -31,7 +79,8 @@ box is now the path. Ledger: `EVIDENCE_LEDGER.md`. Confidence: `CONFIDENCE_PLAN.
 | # | Repo | Intended role | License | Weights released? | Local-feasible (4 GB)? | This session |
 |---|------|---------------|---------|-------------------|------------------------|--------------|
 | 1 | awesome-rs-vlms | catalogue | MIT | n/a | n/a | reference only |
-| 2 | **GeoChat** | single-img VQA/caption/grounding | Apache¹ (no LICENSE file) | yes (`MBZUAI/geochat-7B`) | **no** (7B > 4 GB; deepspeed/bnb fail on Windows) | BLOCKED (G1) |
+| 2 | **GeoChat** | **secondary / historical** RS-VLM reference (VQA/caption/grounding) | Apache¹ (no LICENSE file) | yes (`MBZUAI/geochat-7B`) | **no** (7B > 4 GB; deepspeed/bnb fail on Windows) | BLOCKED (G1) — **not a project blocker** |
+| 2b | **EarthDial** | **primary high-capability reference** (RS multi-task VLM, +SAR +temporal +grounding) | code **MIT** / weights unconfirmed | yes (`akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`, InternVL2+Phi-3, 4B, BF16) | **no** (4B ≈ 8–9 GB bf16; 4-bit ~3–3.5 GB unverified) | **REFERENCE CANDIDATE** (verified checkpoints exist; not reproduced) |
 | 3 | **Change-Agent** | temporal semantic + caption | MIT | yes (`MCI_model.pth`) | **no** (`mmcv==1.3.1` unbuildable) | BLOCKED (G1) |
 | 4 | **ChangeChat** | temporal change caption/VQA | absent | **no** ("coming soon"); README now says **≥48 GB VRAM** (L20) for training; `requirements.txt` present | no | **RE-VERIFIED — still REJECT** |
 | 5 | **ChangeFormer** | change mask worker | MIT | yes (GH release) | **yes** | RUNNING (G1) — **KEEP** |
@@ -40,11 +89,14 @@ box is now the path. Ledger: `EVIDENCE_LEDGER.md`. Confidence: `CONFIDENCE_PLAN.
 | 8 | **DOFA** | multi-sensor (incl. SAR) representation | **MIT** | yes (`XShadow/DOFA`) | **yes** | **REPRODUCED (G1.6)** — CROMA challenger |
 | 9 | **RS-MoE** | lightweight RS VQA + captioning (MoE) | not stated | **no** — no checkpoint, no inference script, training-only (InstructBLIP cfgs) | no | **REJECT for now** (no artifacts) |
 | 10 | **TinyRS / TinyRS-R1** | lightweight single-image VLM | Apache-2.0 (code) | yes (`aybora/Qwen2-VL-TinyRS*` on HF) | **borderline yes** (2B, 4-bit ~1.5 GB / CPU) | DOCUMENTED — **primary local VQA candidate** |
-| 11 | **GeoGround** | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`, LLaVA framework) | **no** (~7B) | DOCUMENTED — remote grounding ceiling |
+| 11 | **GeoGround** | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`, LLaVA framework) | **no** (~7B) | DOCUMENTED — **GROUNDING REFERENCE** (remote) |
 | 12 | **UniRS** | unified single / dual-temporal / video VLM | code Apache-2.0; **weights CC-BY-NC-SA-4.0 (non-commercial)** | not clearly stated | **no** (VILA-1.5, flash-attn 2.4.2) | DOCUMENTED — remote, licence-restricted |
 | 13 | **LRS-VQA** | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (Qwen2-7B / Vicuna-7B on HF/ModelScope) | **no** (7B, A100-tested) | DOCUMENTED — useful as a **VQA benchmark** |
 | 14 | **RSCoVLM** | multi-task RS VLM (VQA + grounding + detect) | **code MIT / data CC-BY-4.0** | yes (HF collection); **3B and 7B** (Qwen2.5-VL) | **borderline yes (3B)** | DOCUMENTED — **strong TinyRS challenger** (best licence) |
 | 15 | **SARLANG-1M** | SAR-language **dataset/benchmark** (1M pairs, 7 tasks) | not stated | n/a — **data only**, no model (`YiminJimmy/SARLANG-1M`) | n/a | DOCUMENTED — **SAR-language eval + fine-tune data** |
+| 16 | **RemoteSAM** (`1e12Leon/RemoteSAM`) | GROUNDING/SEGMENTATION specialist — text→box+mask; NOT a VLM | **NOT STATED** | yes (`RemoteSAMv1.pth` 2.57 GB, Swin-B+BERT ~200 M, ACM MM 2025) | **`CPU-FALLBACK` verified** (~6 GB RSS); env solved (`mmcv` lite) | **KEEP — capability-B grounding specialist, REPRODUCED + INTEGRATED + MEASURED (G11): acc@IoU0.5 0.84 on DIOR-RSVG n=25**; licence NOT STATED; `EXP-GROUNDING.md`, ADR-020 |
+| 17 | **DynamicVis** (`KyanChen/DynamicVis`) | PERCEPTION/ENCODER (Mamba SSM); NOT a VLM | Apache-2.0 | yes (b/l) | VRAM easy (~800 MB) but **Windows+CPU incompatible** | **REJECT for product** (portability); watch-item |
+| 18 | **RS-MoE** (`CongcongWen1208/RS-MoE`) | GENERAL VLM (claim) — caption + VQA | not stated | **no** (training-only; base Vicuna-13B) | ❌ | **REJECT (no artifact)** |
 
 ¹ classifier metadata only; verify before redistribution.
 Carry-over from G1.5: **TEOChat** (temporal EO VLM, ~7B, non-commercial) — remote
@@ -67,7 +119,7 @@ deps (torch + einops for CROMA; torch + `timm==0.9.2` for DOFA). No source edits
 | Model | Failure class | Reason | Decision |
 |-------|---------------|--------|----------|
 | GeoChat | hardware + dependency | 7B > 4 GB VRAM (even 4-bit ~5–6 GB); `deepspeed==0.9.5` fails to build on Windows; `bitsandbytes==0.41.0` Linux-only | TEST FURTHER on a remote GPU ≥16 GB |
-| GeoGround | hardware | ~7B LLaVA class | TEST FURTHER on remote GPU (grounding ceiling) |
+| GeoGround | hardware | ~7B LLaVA class | TEST FURTHER on remote GPU (GROUNDING REFERENCE) |
 | UniRS | hardware + licence | VILA-1.5 + flash-attn; weights **non-commercial** | TEST FURTHER on remote GPU; licence blocks deployment claims |
 | LRS-VQA | hardware | 7B, A100-tested | Use as a **benchmark**, not a runtime model |
 | RSCoVLM (7B) | hardware | 7B | its **3B** variant is the local candidate instead |
@@ -91,28 +143,35 @@ deps (torch + einops for CROMA; torch + `timm==0.9.2` for DOFA). No source edits
 | **RSCoVLM-3B** | DOCUMENTED, local-feasible | Qwen2.5-VL-3B, **MIT/CC-BY-4.0**, HF weights, multi-task (VQA+grounding+detect); newer |
 | LRS-VQA | benchmark, not a runtime pick | use its 7 333-QA set to score the others |
 
-**Best VQA candidate (evidence-based): none proven yet. Recommended path —
-TinyRS as the primary *local* candidate, RSCoVLM-3B as challenger; GeoChat as the
-*remote* quality reference.** Rationale: they are the only released-weight VQA
-models that plausibly run on 4 GB; RS-MoE (the hoped-for lightweight winner) has no
-artifacts. **Decision experiment: EXP-002** — run TinyRS + RSCoVLM-3B on an RSVQA-LR
-sample locally; rent a GPU for GeoChat only if both materially underperform.
+**Best VQA candidate (evidence-based): none proven yet.** Recommended path
+(ADR-011/012): **RSCoVLM-3B = LOCAL A/B PRIMARY**, **TinyRS-2B = LOCAL A/B
+FALLBACK**, **Qwen2-VL-2B = GENERIC CONTROL**. High-capability references are
+**EarthDial (primary, REFERENCE CANDIDATE)** and **GeoChat (secondary /
+historical)** — neither is a "ceiling" until reproduced + measured. **Decision
+experiment: EXP-002** — run RSCoVLM-3B + TinyRS-2B + Qwen2-VL-2B on an RSVQA-LR /
+DIOR-RSVG sample locally @ 4-bit; a remote GPU box reproduces EarthDial + GeoChat
+for the reference comparison **only** once the local arms are measured.
 
 ### Tournament B — Secondary single-image task (grounding vs captioning)  *(mandatory capability B)*
 
 | Candidate | Status | Notes |
 |-----------|--------|-------|
-| GeoGround | DOCUMENTED | grounding-specialised (HBB/OBB/**mask**), HF weights, ~7B → remote |
-| GeoChat grounding | BLOCKED locally | remote |
-| RS-MoE captioning | REJECTED | no weights |
+| **RemoteSAM** | **KEEP — MEASURED + INTEGRATED (G11)** | dedicated ~200 M grounding specialist (**mask + box**), ACM MM 2025. CPU; **acc@IoU0.5 = 0.84 (21/25) on frozen DIOR-RSVG** via the integrated bridge. `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING`. Licence **NOT STATED**; GPU/4 GB unverified. `EXP-GROUNDING.md`, ADR-020 |
+| RSCoVLM grounding | DOCUMENTED, local | spatial grounding at 3B — fallback |
 | TinyRS grounding | DOCUMENTED, local | boxes-in-text at 2B |
-| RSCoVLM grounding | DOCUMENTED, local | spatial grounding at 3B |
+| Qwen2-VL-2B | DOCUMENTED | native `<box>` tokens — generic control |
+| GeoGround | DOCUMENTED | grounding-specialised (~7B) → **GROUNDING REFERENCE** (remote) |
+| RS-MoE captioning | REJECTED | no weights / no inference code (2 repos) |
 
-**Recommendation: choose GROUNDING** over captioning — stronger evidence
-visualisation (a box on the map is inspectable), better demo value, and a clean
-benchmark (DIOR-RSVG acc@IoU0.5). Local path: whichever of TinyRS / RSCoVLM-3B
-grounds acceptably (measured inside EXP-002). **GeoGround is the remote quality
-ceiling / backup.**
+**Recommendation: GROUNDING, as a DEDICATED SPECIALIST — DONE (G10).**
+**RemoteSAM** (~200 M, text→mask+box) is **REPRODUCED + INTEGRATED** as the
+capability-B specialist (`RemoteSamAdapter`, router `SINGLE_IMAGE_GROUNDING`,
+`/analyze` grounding path, grounding `EvidenceItem` + structural verify). It runs
+on the ASUS CPU (`mmcv` **lite** 1.7.1 — the audit's `mmcv-full` blocker does not
+apply to the inference path). **Fallback = RSCoVLM-3B grounding head**
+(EXP-002, blocked); **reference = GeoGround** (remote). **Still open:** DIOR-RSVG
+acc@IoU0.5 (dataset unacquirable), GPU/4 GB-VRAM verification, and an upstream
+**licence** (NOT STATED). See `EXP-GROUNDING.md` + ADR-019.
 
 ### Tournament C — Temporal  *(mandatory capability C)*
 
@@ -129,8 +188,10 @@ mandatory *language* side (change description / change-VQA), the recommended fir
 build is a **cheap composed pipeline** — `T1+T2 → ChangeFormer → mask → connected
 components → caption each region with the chosen single-image VLM → rule-assemble a
 change description` — MEASURED in **EXP-003** on a LEVIR-MCI / LEVIR-CC sample.
-TEOChat / Change-Agent / UniRS are remote quality ceilings, compared only if the
-cheap pipeline underperforms. No single model should do everything.
+TEOChat / Change-Agent / UniRS are remote high-capability references, compared
+only if the cheap pipeline underperforms. **EarthDial** (PRIMARY HIGH-CAPABILITY
+REFERENCE) natively covers temporal + change and is the first to reproduce on a
+remote box for C. No single model should do everything.
 
 ### Tournament D — Optical + SAR  *(mandatory capability D — biggest gap, now has evidence)*
 
@@ -177,10 +238,12 @@ linear probe (train only a linear head) ≠ LoRA (low-rank adapters in the backb
 | ChangeFormer | **measured** IoU 0.83 (n=7) | — | LEVIR-trained | ✅ | ~790 ms | ✅ | LOW–MED (env pins) | MIT | C (mask) | **KEEP** |
 | CROMA | reproduced (embeddings) | — | S1/S2 pretrain | ✅ | ~340 ms | ✅ | LOW–MED | MIT | D (joint), E (probe) | **KEEP FOR TOURNAMENT** (primary D) |
 | DOFA | reproduced (embeddings) | — | multi-sensor | ✅ | ~120 ms | ✅ | LOW | MIT | D (challenger), E | **KEEP FOR TOURNAMENT** |
-| TinyRS | paper-only | — | RS instruction-tuned | borderline | untested | not yet | MED | Apache-2.0 | A, B | **TEST FURTHER** (local, EXP-002) |
-| RSCoVLM-3B | paper-only | — | RS multi-task | borderline | untested | not yet | MED | **MIT** | A, B | **TEST FURTHER** (local, EXP-002) |
-| GeoChat | documented | — | RS instruction-tuned | ❌ local | — | not yet | HIGH | Apache¹ | A, B | **TEST FURTHER** (remote GPU) |
-| GeoGround | documented | — | RS grounding | ❌ local | — | not yet | HIGH | B | **TEST FURTHER** (remote) / **BACKUP** |
+| RSCoVLM-3B | paper-only | — | RS multi-task | borderline (4-bit) | untested | not yet | MED | **MIT** | A, B | **LOCAL A/B PRIMARY** (EXP-002) |
+| TinyRS-2B | paper-only | — | RS instruction-tuned | borderline (4-bit) | untested | not yet | MED | Apache-2.0 | A, B | **LOCAL A/B FALLBACK** (EXP-002; DL blocked) |
+| Qwen2-VL-2B | generic #1 only | — | generic (not RS) | ✅ (4-bit) | untested | not yet | LOW | Apache-2.0 | A, B (control) | **GENERIC CONTROL** |
+| EarthDial | paper-only | — | RS multi-task (+SAR +temporal) | ❌ local (4B) | — | not yet | MED–HIGH | code MIT / weights unconfirmed | A, B, C, D | **PRIMARY HIGH-CAPABILITY REFERENCE** (REFERENCE CANDIDATE) |
+| GeoChat | documented | — | RS instruction-tuned | ❌ local | — | not yet | HIGH | Apache¹ | A, B | **SECONDARY / HISTORICAL REFERENCE** (not a blocker) |
+| GeoGround | documented | — | RS grounding | ❌ local | — | not yet | HIGH | B | **GROUNDING REFERENCE** (remote) |
 | LRS-VQA | documented + benchmark | — | large-RS-image VQA | ❌ local | — | not yet | HIGH | A (benchmark) | **KEEP FOR LATER** (as benchmark) |
 | TEOChat | documented | — | temporal EO | ❌ local | — | not yet | HIGH | C | **TEST FURTHER** (remote); licence risk |
 | UniRS | documented | — | unified temporal | ❌ local | — | not yet | HIGH | C | **BACKUP** (non-commercial) |
@@ -194,12 +257,19 @@ linear probe (train only a linear head) ≠ LoRA (low-rank adapters in the backb
 
 ## Final recommendations (report items D–N)
 
-**D. Best single-image VQA candidate** — *No winner yet (nothing reproduced).*
-Local: **TinyRS** (primary), **RSCoVLM-3B** (challenger). Remote reference:
-GeoChat. Resolve via EXP-002.
+**D. Best single-image VQA candidate** — *No winner (G5A: nothing reproduced —
+artifact acquisition BLOCKED, 6th download failure).* **LOCAL A/B PRIMARY =
+RSCoVLM-3B**, **FALLBACK = TinyRS-2B**, **GENERIC CONTROL = Qwen2-VL-2B**;
+references **EarthDial** (primary) + **GeoChat** (secondary). No "ceiling" until
+reproduced + measured. **Remote reference gate OPEN (ADR-013)** — run
+`exp002_ab_gate.py` on a Linux GPU box; local + reference on the same frozen
+RSVQA-LR / DIOR-RSVG samples.
 
-**E. Best grounding/caption candidate** — Choose **grounding**. Local: TinyRS /
-RSCoVLM grounding head (via EXP-002). Ceiling/backup: **GeoGround** (remote).
+**E. Best grounding/caption candidate** — Choose **grounding, as a dedicated
+specialist**. **Primary = RemoteSAM** (~200 M, mask + box, RS-native; repro
+BLOCKED on the `mmcv` env). Fallback = RSCoVLM-3B grounding head (via EXP-002).
+Control = Qwen2-VL-2B native `<box>`. **GROUNDING REFERENCE: GeoGround** (remote).
+See `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`.
 
 **F. Best temporal candidate** — **ChangeFormer** (mask, MEASURED) **+ a composed
 caption pipeline** for the language side. Ceilings: TEOChat / Change-Agent (remote).
@@ -231,11 +301,17 @@ before→after.
 4. F/G/H are code we haven't written (blocked on adapters + the geospatial stage).
 5. GeoChat / TEOChat / GeoGround / Change-Agent all need a remote Linux GPU.
 
-**K. Is remote GPU justified?** — **Not yet.** Every next high-value experiment
-(EXP-004 optical–SAR, EXP-008 adaptation, EXP-002 TinyRS/RSCoVLM-3B local) runs on
-the 4 GB laptop. Rent **one** Linux GPU ≥16 GB **only after** EXP-002/004/008, and
-**only if** the local VQA candidates materially underperform GeoChat on our RSVQA
-subset — then a few hours reproduces GeoChat + TEOChat + GeoGround on the same box.
+**K. Is remote GPU justified?** — **Yes now — the local A/B path is exhausted.**
+G5A ran the A/B gate and hit the **6th** documented weight-download failure
+(0-byte safetensors on a fresh `Qwen/` repo, 8-min bound → the blocker is this
+host's path to the HF CDN, not any one repo). RSVQA-LR + DIOR-RSVG are the same
+multi-GB problem. A remote Linux GPU ≥ 16 GB is needed for: (a) reliable bandwidth
+to fetch RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B weights + the eval datasets,
+(b) reproducing the references EarthDial-4B + GeoChat-7B + GeoGround on the same
+frozen samples, (c) EXP-004 Run 2 / EXP-008 S1+S2. Run the committed
+`evaluation/scripts/exp002_ab_gate.py` there. CROMA/DOFA/ChangeFormer still need
+no GPU. **GeoChat's local-run inability is not a project blocker** — it is one of
+five models the one box unblocks.
 
 **L. Recommended minimum V0 stack** (all locally reproduced, no GPU spend):
 - **RemoteCLIP** — retrieval / zero-shot tagging / planner-aux embedding index.
@@ -250,7 +326,10 @@ subset — then a few hours reproduces GeoChat + TEOChat + GeoGround on the same
    probe. Closes D, tests H3, first integrated #3 number. *(local)*
 2. **EXP-008** — linear-probe → LoRA on frozen CROMA/DOFA over the same reBEN
    subset. Closes E with a before→after. *(local, shares EXP-004 data)*
-3. **EXP-002** — TinyRS vs RSCoVLM-3B on an RSVQA-LR sample (VQA + grounding),
-   4-bit / CPU. Picks the local single-image model for A/B. *(local)*
+3. **EXP-002** — RSCoVLM-3B (primary) vs TinyRS-2B (fallback) vs Qwen2-VL-2B
+   (control) on an RSVQA-LR + DIOR-RSVG sample (VQA + grounding), 4-bit / CPU.
+   Picks the local single-image model for A/B; **EarthDial** (primary
+   high-capability reference) + GeoChat reproduced on a remote box afterwards for
+   the local-vs-reference comparison. *(local first)*
 
 **N. Win scorecard** — see `docs/PROJECT_STATUS.md` (updated this session).

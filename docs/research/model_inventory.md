@@ -19,13 +19,36 @@
 | **INTEGRATED** | Runs inside the SatQuery pipeline via an adapter, with provenance. |
 | **VALIDATED** | End-to-end in the pipeline, verified, with provenance. |
 
+> **G7–G9 (2026-09-01):** semantic verifier MEASURED + INTEGRATED (EXP-005b);
+> failure-aware routing INTEGRATED (`derive_resolution` + `image_difference_fallback`
+> + `LOW_MARGIN` advisory). Stack NOT frozen.
+>
+> **Local Lightweight Model Tournament (2026-09-01):** inspected 3 new candidates
+> from official GitHub/HF. **RemoteSAM** (~200 M grounding/segmentation
+> specialist) → **TEST FURTHER, lead capability-B candidate**. **RS-MoE** → REJECT
+> (no artifact; "MoE not yet implemented"). **DynamicVis** → REJECT for product
+> (Mamba: Windows + CPU incompatible). Product confirmed to have **no mandatory
+> 7B/16 GB dependency**. Full record: `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`.
+>
+> **Model hierarchy (ADR-011/012) — role labels, not a quality ranking.** LOCAL
+> A/B PRIMARY = **RSCoVLM-3B**; LOCAL A/B FALLBACK = **TinyRS-2B**; GENERIC CONTROL
+> = **Qwen2-VL-2B**; TEMPORAL = **ChangeFormer**; OPTICAL-SAR PRIMARY = **CROMA**;
+> OPTICAL-SAR CHALLENGER = **DOFA**; GROUNDING REFERENCE = **GeoGround**; AUXILIARY
+> = **RemoteCLIP**; PRIMARY HIGH-CAPABILITY REFERENCE = **EarthDial** (REFERENCE
+> CANDIDATE — not reproduced); SECONDARY / HISTORICAL RS-VLM REFERENCE = **GeoChat**
+> (not on the critical path; local-run inability is **not** a blocker); RESEARCH
+> REFERENCE = **SARLANG-1M**. Authoritative table: `MODEL_TOURNAMENT.md`.
+> **No repo is a "ceiling" until reproduced + measured.**
+
 | Model | Documented | Reproduced | Measured | Integrated | Overall |
 |-------|:---------:|:---------:|:--------:|:----------:|---------|
-| RemoteCLIP | ✅ | ✅ (zero-shot airport 97.8 %) | ⚠️ latency only (~150 ms) | ❌ | **RUNNING** — KEEP, wire first (V0) |
-| ChangeFormer | ✅ | ✅ (`demo_LEVIR.py`) | ✅ change-IoU 0.832 / F1 0.908 (n=7) | ❌ | **RUNNING** — KEEP, change-mask backend (V1) |
-| **CROMA** | ✅ | ✅ (`use_croma.py` — joint SAR+optical embeddings, 194 M, ~340 ms CPU) | ❌ | ❌ | **RUNNING** (G1.6) — KEEP FOR TOURNAMENT, **primary optical–SAR** |
-| **DOFA** | ✅ | ✅ (`forward_features` S1 2ch + S2 12ch, 111 M, ~120 ms CPU) | ❌ | ❌ | **RUNNING** (G1.6) — KEEP FOR TOURNAMENT, CROMA challenger |
-| GeoChat | ✅ | ❌ (7B > 4 GB VRAM; `deepspeed`/`bnb` unbuildable) | ❌ | ❌ | **BLOCKED** — TEST FURTHER on ≥16 GB Linux GPU |
+| RemoteCLIP | ✅ | ✅ (zero-shot airport 97.8 %) | ⚠️ latency only (~150 ms) | ❌ | **RUNNING** — AUXILIARY (retrieval / zero-shot / embedding; **not VQA**) |
+| ChangeFormer | ✅ | ✅ (`demo_LEVIR.py`) | ✅ change-IoU 0.832 / F1 0.908 (n=7) | ❌ | **RUNNING** — TEMPORAL (change-mask backend) |
+| **CROMA** | ✅ | ✅ (`use_croma.py` — joint SAR+optical embeddings, 194 M, ~340 ms CPU) | ❌ | ❌ | **RUNNING** (G1.6) — OPTICAL-SAR PRIMARY |
+| **DOFA** | ✅ | ✅ (`forward_features` S1 2ch + S2 12ch, 111 M, ~120 ms CPU) | ❌ | ❌ | **RUNNING** (G1.6) — OPTICAL-SAR CHALLENGER |
+| EarthDial | ✅ (checkpoints verified to exist) | ❌ (4B ≈ 8–9 GB bf16; not run) | ❌ | ❌ | **REFERENCE CANDIDATE** — PRIMARY HIGH-CAPABILITY REFERENCE (remote) |
+| GeoChat | ✅ | ❌ (7B > 4 GB VRAM; `deepspeed`/`bnb` unbuildable) | ❌ | ❌ | **SECONDARY / HISTORICAL REFERENCE** — TEST FURTHER on ≥16 GB Linux GPU; **not a blocker** |
+| **RemoteSAM** | ✅ | ✅ (CPU, `.venvs/remotesam`; 3/5 smoke phrases → in-bounds box+mask) | ❌ (DIOR-RSVG blocked) | ✅ (`RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING` + grounding evidence + verify) | **KEEP — local grounding specialist (G10)**; licence NOT STATED; not benchmarked |
 | Change-Agent | ✅ | ❌ (`mmcv==1.3.1` unbuildable; `transformers` conflict) | ❌ | ❌ | **BLOCKED** — TEST FURTHER on Linux+conda |
 | ChangeChat | ✅ | ❌ (no weights; README now ≥48 GB VRAM to train) | ❌ | ❌ | **REJECT for now** (re-verified G1.6) |
 
@@ -37,9 +60,14 @@
 |-----------|------|---------|----------|---------------|---------|
 | CROMA | optical–SAR joint repr. | MIT | yes | ✅ | **REPRODUCED** — primary D |
 | DOFA | multi-sensor repr. (incl. SAR) | MIT | yes | ✅ | **REPRODUCED** — D challenger |
-| TinyRS / R1 | lightweight single-image VLM (VQA, grounding) | Apache-2.0 | yes (`aybora/Qwen2-VL-TinyRS*`) | borderline (2B) | **TEST FURTHER** — primary local VQA (EXP-002) |
-| RSCoVLM | multi-task RS VLM (VQA+grounding+detect) | **MIT / CC-BY-4.0** | yes (3B & 7B) | borderline (3B) | **TEST FURTHER** — TinyRS challenger, best licence |
-| GeoGround | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`) | ❌ (~7B) | **TEST FURTHER / BACKUP** — remote grounding ceiling |
+| RSCoVLM | multi-task RS VLM (VQA+grounding+detect) | **MIT / CC-BY-4.0** | yes (3B & 7B) | borderline (3B @ 4-bit) | **LOCAL A/B PRIMARY** — **G5A: N=0, artifact BLOCKED**; harness ready |
+| TinyRS / R1 | lightweight single-image VLM (VQA, grounding) | Apache-2.0 | yes (`aybora/Qwen2-VL-TinyRS*`) | borderline (2B @ 4-bit) | **LOCAL A/B FALLBACK** — **G5A: N=0**, weight DL failed 5× |
+| Qwen2-VL-2B | generic VLM (VQA, native bbox grounding) | Apache-2.0 | yes (`Qwen/Qwen2-VL-2B-Instruct`) | ✅ (4-bit) | **GENERIC CONTROL** — **G5A: N=0**, 6th DL failure (0-byte safetensors) |
+| EarthDial | RS multi-task VLM (VQA+grounding+caption, **+SAR +temporal**) | code MIT / weights unconfirmed | yes (`akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`, InternVL2+Phi-3, 4B) | ❌ (4B ≈ 8–9 GB bf16) | **PRIMARY HIGH-CAPABILITY REFERENCE** — REFERENCE CANDIDATE; **G5A remote reference gate** (run on same frozen samples) |
+| GeoGround | RS visual grounding (HBB/OBB/mask) | not stated | yes (`erenzhou/GeoGround`) | ❌ (~7B) | **GROUNDING REFERENCE** (remote) / BACKUP |
+| **RemoteSAM** | GROUNDING/SEGMENTATION specialist — text→box+mask | **NOT STATED** (no LICENSE in repo or HF) | yes (`1e12Leon/RemoteSAM`, `RemoteSAMv1.pth` 2.57 GB, Swin-B+BERT ~200 M) | **`CPU-FALLBACK` verified** (~8 GB RSS, ~16–22 s/query); GPU/4 GB unverified; env solved (`mmcv` **lite** 1.7.1) | **KEEP — local grounding specialist, REPRODUCED + INTEGRATED (G10)**; not benchmarked; `EXP-GROUNDING.md` |
+| **DynamicVis** | PERCEPTION/ENCODER (Mamba SSM) — NOT a VLM; classif/detect/seg/change/retrieval | Apache-2.0 | yes (`KyanChen/DynamicVis` b/l) | VRAM `LOCAL-EASY` (~800 MB/2048px) but **Windows+CPU incompatible** | **REJECT for product** (portability); research watch-item |
+| **RS-MoE** (`CongcongWen1208/RS-MoE`) | GENERAL VLM (claim) — captioning + VQA | not stated | **no** — training-only, "MoE not yet implemented", base Vicuna-13B | ❌ | **REJECT (no artifact)** — "RS-MoE-1B" is a paper claim |
 | LRS-VQA | large-RS-image VQA + token-pruning + **benchmark** | not stated | yes (7B) | ❌ | **KEEP FOR LATER** — as a VQA benchmark |
 | UniRS | unified single/dual-temporal/video VLM | code Apache; **weights CC-BY-NC-SA (non-commercial)** | unclear | ❌ (VILA-1.5) | **BACKUP** — remote, licence-restricted |
 | TEOChat | temporal EO VLM (semantic change, change-QA) | non-commercial (LLaMA-derived) | yes | ❌ (~7B) | **TEST FURTHER** — remote C ceiling |
@@ -181,12 +209,37 @@ Where a repo is silent, the field says "not stated" — nothing is invented.
 
 ---
 
+## 7. EarthDial — **not cloned** (PRIMARY HIGH-CAPABILITY REFERENCE, REFERENCE CANDIDATE)
+
+> Added to the inventory as a **reference** by ADR-012. **The repo is NOT cloned
+> into `external/research/`** (no new repositories added this pass) — the fields
+> below are from the public README + Hugging Face pages, 2026-09-01, **no large
+> artifacts downloaded**. Classification: **REFERENCE CANDIDATE until reproduced.**
+
+| Field | Value (verified 2026-09-01) |
+|-------|-----------------------------|
+| Upstream | github.com/hiyamdebary/EarthDial (CVPR 2025). 45 commits, 140 stars. |
+| README | Yes. Conversational multimodal RS assistant; "image input together with a user query … natural language responses interleaved with corresponding object locations". Claims classification / detection / captioning / QA / reasoning / **grounding** / **change detection**, over RGB / **SAR** / NIR / multispectral, **single and multi-temporal**. Capability list is **DOCUMENTED (README), not verified by us.** |
+| License | Repo footer: **MIT**. HF checkpoint pages (`akshaydudhane/EarthDial_4B_*`): **no license stated** ("No model card"). → **code MIT; weights licence UNCONFIRMED.** |
+| Architecture / params | `internvl_chat` (InternVL2 vision encoder + **Phi-3-Mini** LLM). HF: **"4B params"**, tensor type **BF16**. |
+| Checkpoints | **Verified to exist** — HF `akshaydudhane/EarthDial_4B_RGB`, `_MS`, `_Methane_UHI` (Safetensors). File list / total size not shown on the card page. Download example in README: `snapshot_download(repo_id="akshaydudhane/EarthDial_4B_RGB", …)`. **Not downloaded.** |
+| Python / PyTorch / CUDA | README: `python=3.9`; `flash-attn==2.3.6` for **training**. **PyTorch / CUDA / `transformers` versions not pinned** in the visible README. |
+| Hardware | README: trained on **8× A100 80 GB**. **Inference VRAM not documented.** 4B BF16 ≈ **8–9 GB** → does **not** fit the 4 GB laptop at bf16; 4-bit ≈ 3–3.5 GB (**undocumented, unverified**). → remote box. |
+| Inference command | README: "check demo section for instructions on how to run the earthdial demo". **Exact entrypoint / script not quoted in the README excerpt; not run by us.** |
+| Input / Output | Input: image(s) (RGB / SAR / NIR / MS; single or temporal) + text query. Output: natural-language text **interleaved with object locations** (grounding coords). |
+| Quantization | **Not mentioned.** |
+| SatQuery role | **PRIMARY HIGH-CAPABILITY REFERENCE** — the model to reproduce on a remote GPU for the local-vs-reference A/B comparison and (natively) the C/D-language arms. Replaces the earlier "GeoChat = ceiling" framing. **Not a "ceiling" until reproduced + measured. Not required by the core SatQuery architecture.** |
+| Runtime status | **REFERENCE CANDIDATE** — not reproduced. Blocked locally on size (4B) + this host's multi-GB download failures; unblocked by a remote Linux GPU ≥ 16 GB. |
+
+---
+
 ## Cross-repo summary
 
 | Repo | License | Python | PyTorch | CUDA | Weights available? | CPU-capable? | G1 runtime |
 |------|---------|--------|---------|------|--------------------|--------------|------------|
 | awesome-rs-vlms | MIT | – | – | – | – | – | n/a (link list) |
-| GeoChat | Apache-2.0¹ | 3.10 | 2.0.1 | 11.7/11.8 | Yes (LoRA + base) | Inference yes²; no 4/8-bit on Windows | **BLOCKED** (7B > 4 GB; deepspeed/bnb) |
+| GeoChat | Apache-2.0¹ | 3.10 | 2.0.1 | 11.7/11.8 | Yes (LoRA + base) | Inference yes²; no 4/8-bit on Windows | **BLOCKED** (7B > 4 GB; deepspeed/bnb) — SECONDARY / HISTORICAL REFERENCE, **not a blocker** |
+| EarthDial (not cloned) | code MIT / weights unconfirmed | 3.9 | not pinned | not pinned | Yes (`akshaydudhane/EarthDial_4B_*`, 4B BF16) | Not attempted (4B ≈ 8–9 GB bf16) | **REFERENCE CANDIDATE** — PRIMARY HIGH-CAPABILITY REFERENCE (remote) |
 | Change-Agent | MIT | 3.9 | 2.0.1+cu118 | 11.8 | Yes (`MCI_model.pth`) | Model yes; agent needs LLM API | **BLOCKED** (mmcv 1.3.1 build) |
 | ChangeChat | Apache-2.0¹ | 3.9 | 2.0.1 | 11.7+ | **No (coming soon)** | n/a yet | **BLOCKED** (no weights) |
 | ChangeFormer | MIT | 3.8 | 1.10.1 | **10.2** | Yes (Releases v0.1.0) | Yes (`--gpu_ids -1`) | **RUNNING** (torch<2.6, numpy<1.24) |

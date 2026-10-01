@@ -1,0 +1,1166 @@
+{
+  "name": "SatQuery Agent Evaluation - internal frozen evaluation (G15)",
+  "note": "NOT an external benchmark. 50 frozen missions over local demo fixtures. Metrics measure the PLANNER + POLICY + EXECUTOR (plan validity, tool selection, dependency validity, mission completion, evidence/verification retention, unsupported-action rate, recovery, unnecessary tool calls, early-stop efficiency, latency) - NOT model accuracy. Each mission encodes what a CORRECT agent SHOULD DO, never the exact answer.",
+  "seed": 20260902,
+  "categories": [
+    "single_step",
+    "temporal",
+    "optical_sar",
+    "multi_step",
+    "adversarial"
+  ],
+  "fixtures": {
+    "single_optical": [
+      "data/demo/vqa/scene.jpg",
+      "data/demo/grounding/scene.jpg",
+      "data/demo/scene/airport.jpg"
+    ],
+    "temporal_pair": [
+      "data/demo/temporal/t1.tif",
+      "data/demo/temporal/t2.tif"
+    ],
+    "temporal_misregistered": [
+      "data/demo/temporal/t1.tif",
+      "data/demo/temporal/t2_shifted.tif"
+    ],
+    "optical_sar_pair": [
+      "data/demo/optical_sar/s2_optical.tif",
+      "data/demo/optical_sar/s1_sar.tif"
+    ],
+    "investigation_quad": [
+      "data/demo/investigation/t1_optical.tif",
+      "data/demo/investigation/t2_optical.tif",
+      "data/demo/investigation/s2_dfc_optical.tif",
+      "data/demo/investigation/s1_dfc_sar.tif"
+    ]
+  },
+  "missions": [
+    {
+      "mission_id": "ss-01",
+      "category": "single_step",
+      "user_query": "What objects are visible in this satellite image?",
+      "required_inputs": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_vqa"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < VQA",
+        "VQA < FINALIZE"
+      ],
+      "expected_termination_behavior": "finish after a valid answer + verification",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding",
+        "run_temporal_change",
+        "run_optical_sar"
+      ],
+      "notes": "plain VQA"
+    },
+    {
+      "mission_id": "ss-02",
+      "category": "single_step",
+      "user_query": "Is there a runway in this image?",
+      "required_inputs": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_vqa"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < VQA"
+      ],
+      "expected_termination_behavior": "finish after yes/no answer",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "yes/no VQA"
+    },
+    {
+      "mission_id": "ss-03",
+      "category": "single_step",
+      "user_query": "How many buildings can you see?",
+      "required_inputs": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_vqa"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < VQA"
+      ],
+      "expected_termination_behavior": "finish after count answer",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "count VQA"
+    },
+    {
+      "mission_id": "ss-04",
+      "category": "single_step",
+      "user_query": "Locate the largest building.",
+      "required_inputs": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after a box or an explicit no-region result",
+      "expected_failure_behavior": "no region -> explicit, no fabricated box",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "grounding"
+    },
+    {
+      "mission_id": "ss-05",
+      "category": "single_step",
+      "user_query": "Where is the runway?",
+      "required_inputs": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after grounding",
+      "expected_failure_behavior": "no region -> explicit",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "grounding, runway phrase"
+    },
+    {
+      "mission_id": "ss-06",
+      "category": "single_step",
+      "user_query": "Point to the roads.",
+      "required_inputs": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after grounding",
+      "expected_failure_behavior": "no region -> explicit",
+      "forbid_tools": [
+        "run_scene_retrieval"
+      ],
+      "notes": "grounding"
+    },
+    {
+      "mission_id": "ss-07",
+      "category": "single_step",
+      "user_query": "Identify the structures in this image.",
+      "required_inputs": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after grounding",
+      "expected_failure_behavior": "no region -> explicit",
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "identify structures -> grounding"
+    },
+    {
+      "mission_id": "ss-08",
+      "category": "single_step",
+      "user_query": "What type of scene is this?",
+      "required_inputs": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_scene_retrieval"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < SCENE_UNDERSTANDING"
+      ],
+      "expected_termination_behavior": "finish after a ranking + verification",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "scene"
+    },
+    {
+      "mission_id": "ss-09",
+      "category": "single_step",
+      "user_query": "Classify the scene as airport or residential.",
+      "required_inputs": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_scene_retrieval"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < SCENE_UNDERSTANDING"
+      ],
+      "expected_termination_behavior": "finish after a ranking",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "scene classify"
+    },
+    {
+      "mission_id": "ss-10",
+      "category": "single_step",
+      "user_query": "Describe the contents of this image.",
+      "required_inputs": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_vqa"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < VQA"
+      ],
+      "expected_termination_behavior": "finish after answer",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "describe (single image) -> VQA, not temporal"
+    },
+    {
+      "mission_id": "tm-01",
+      "category": "temporal",
+      "user_query": "What changed between these two images?",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < TEMPORAL_CHANGE",
+        "TEMPORAL_CHANGE < VERIFY"
+      ],
+      "expected_termination_behavior": "finish after change result + verification",
+      "expected_failure_behavior": "misregistered -> validation blocks temporal",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "temporal"
+    },
+    {
+      "mission_id": "tm-02",
+      "category": "temporal",
+      "user_query": "Which areas changed between the two dates?",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < TEMPORAL_CHANGE"
+      ],
+      "expected_termination_behavior": "finish after change result",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "temporal"
+    },
+    {
+      "mission_id": "tm-03",
+      "category": "temporal",
+      "user_query": "Detect the difference between these observations.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < TEMPORAL_CHANGE"
+      ],
+      "expected_termination_behavior": "finish after change result",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "temporal"
+    },
+    {
+      "mission_id": "tm-04",
+      "category": "temporal",
+      "user_query": "Find the largest changed area.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS"
+      ],
+      "expected_termination_behavior": "finish after the largest region is identified",
+      "expected_failure_behavior": "no regions -> report none",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "temporal + regions"
+    },
+    {
+      "mission_id": "tm-05",
+      "category": "temporal",
+      "user_query": "Which regions changed significantly?",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS"
+      ],
+      "expected_termination_behavior": "finish after regions listed",
+      "expected_failure_behavior": "no regions -> report none",
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "temporal + regions"
+    },
+    {
+      "mission_id": "tm-06",
+      "category": "temporal",
+      "user_query": "What happened in this area over time?",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < TEMPORAL_CHANGE"
+      ],
+      "expected_termination_behavior": "finish after change result",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "temporal"
+    },
+    {
+      "mission_id": "tm-07",
+      "category": "temporal",
+      "user_query": "Describe what kind of change happened between these images.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_semantic_temporal_baseline"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < SEMANTIC_CHANGE"
+      ],
+      "expected_termination_behavior": "finish after the (experimental) description + regions",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "semantic-change -> composed baseline (experimental)"
+    },
+    {
+      "mission_id": "tm-08",
+      "category": "temporal",
+      "user_query": "Give me the changed fraction and area for this scene.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < TEMPORAL_CHANGE"
+      ],
+      "expected_termination_behavior": "finish after change stats",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "temporal stats"
+    },
+    {
+      "mission_id": "tm-09",
+      "category": "temporal",
+      "user_query": "Compare the before and after imagery.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < TEMPORAL_CHANGE"
+      ],
+      "expected_termination_behavior": "finish after change result",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "temporal (no SAR present)"
+    },
+    {
+      "mission_id": "tm-10",
+      "category": "temporal",
+      "user_query": "Has this area evolved between the two observations?",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t1.tif"
+      ],
+      "expected_task_family": "temporal",
+      "expected_tool_set": [
+        "run_temporal_change"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < TEMPORAL_CHANGE"
+      ],
+      "expected_termination_behavior": "NEW_EVIDENCE replan -> early_stopped; conclude no significant change",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "early-stop probe: identical T1/T2 -> ~0 change -> agent concludes no significant change and stops",
+      "expected_early_stop": true
+    },
+    {
+      "mission_id": "os-01",
+      "category": "optical_sar",
+      "user_query": "Compare the optical and SAR observations for this area.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after a joint representation + verification",
+      "expected_failure_behavior": "SAR missing -> do NOT call CROMA, report partial",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-02",
+      "category": "optical_sar",
+      "user_query": "What additional information does the SAR provide over the optical?",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation; do not invent a textual fact from the embedding",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "opt+SAR, representation-level"
+    },
+    {
+      "mission_id": "os-03",
+      "category": "optical_sar",
+      "user_query": "Analyze this area using both modalities.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-04",
+      "category": "optical_sar",
+      "user_query": "Fuse the Sentinel-1 and Sentinel-2 observations here.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_scene_retrieval"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-05",
+      "category": "optical_sar",
+      "user_query": "Characterize this scene with radar and optical evidence.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-06",
+      "category": "optical_sar",
+      "user_query": "Produce a joint optical-radar representation for this location.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-07",
+      "category": "optical_sar",
+      "user_query": "Use SAR together with optical to assess this area.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-08",
+      "category": "optical_sar",
+      "user_query": "Compare radar and optical backscatter for this scene.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-09",
+      "category": "optical_sar",
+      "user_query": "Give me the optical + SAR analysis of this location.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_scene_retrieval"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "os-10",
+      "category": "optical_sar",
+      "user_query": "Combine the two sensor observations for this patch.",
+      "required_inputs": [
+        "data/demo/optical_sar/s2_optical.tif",
+        "data/demo/optical_sar/s1_sar.tif"
+      ],
+      "expected_task_family": "optical_sar",
+      "expected_tool_set": [
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after joint representation",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "notes": "opt+SAR"
+    },
+    {
+      "mission_id": "mi-01",
+      "category": "multi_step",
+      "user_query": "Investigate this area. Identify significant changes between the two observations, locate the affected structures, and use SAR evidence to characterize the changes. Give me an evidence-backed summary.",
+      "required_inputs": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "EXTRACT_CHANGED_REGIONS < GROUND_OBJECT",
+        "GROUND_OBJECT < CROSS_CHECK_EVIDENCE",
+        "CROSS_CHECK_EVIDENCE < VERIFY",
+        "VERIFY < FINALIZE"
+      ],
+      "expected_termination_behavior": "finish once change + regions + grounding + SAR + cross-check + verify are done",
+      "expected_failure_behavior": "if change is negligible, skip localisation and stop early; a failed specialist is recorded, not faked",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "flagship"
+    },
+    {
+      "mission_id": "mi-02",
+      "category": "multi_step",
+      "user_query": "Compare these two images, identify the major changes, and locate the changed buildings.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "EXTRACT_CHANGED_REGIONS < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after change + regions + grounding + verify",
+      "expected_failure_behavior": "no SAR supplied -> no optical+SAR step at all",
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "change + ground, no SAR"
+    },
+    {
+      "mission_id": "mi-03",
+      "category": "multi_step",
+      "user_query": "Investigate the area between these dates and describe what changed and where.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS"
+      ],
+      "expected_termination_behavior": "finish after change + regions + verify",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "change + regions"
+    },
+    {
+      "mission_id": "mi-04",
+      "category": "multi_step",
+      "user_query": "Full analysis: detect changes, extract the changed regions, locate structures, verify the evidence.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "EXTRACT_CHANGED_REGIONS < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after all listed steps + verify",
+      "expected_failure_behavior": "no regions -> skip grounding",
+      "forbid_tools": [
+        "run_scene_retrieval"
+      ],
+      "notes": "multi-step"
+    },
+    {
+      "mission_id": "mi-05",
+      "category": "multi_step",
+      "user_query": "Investigate this location comprehensively using the optical pair and the SAR image, and give a verified summary of the changes and affected structures.",
+      "required_inputs": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding",
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "EXTRACT_CHANGED_REGIONS < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after change + regions + grounding + SAR + cross-check + verify",
+      "expected_failure_behavior": "failed specialist recorded honestly",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "flagship, alt phrasing"
+    },
+    {
+      "mission_id": "mi-06",
+      "category": "multi_step",
+      "user_query": "Find significant changes and cross-check them using SAR.",
+      "required_inputs": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "EXTRACT_CHANGED_REGIONS < OPTICAL_SAR_ANALYSIS"
+      ],
+      "expected_termination_behavior": "finish after change + regions + SAR + cross-check + verify",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "change + SAR cross-check"
+    },
+    {
+      "mission_id": "mi-07",
+      "category": "multi_step",
+      "user_query": "Perform a remote sensing investigation of this area and summarize the evidence.",
+      "required_inputs": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "VERIFY < FINALIZE"
+      ],
+      "expected_termination_behavior": "finish after the investigation steps + verify + summary",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "generic investigation phrasing"
+    },
+    {
+      "mission_id": "mi-08",
+      "category": "multi_step",
+      "user_query": "Tell me what changed and identify the affected buildings, then verify.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "EXTRACT_CHANGED_REGIONS < GROUND_OBJECT",
+        "GROUND_OBJECT < VERIFY"
+      ],
+      "expected_termination_behavior": "finish after change + regions + grounding + verify",
+      "expected_failure_behavior": "no SAR -> no SAR step",
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "notes": "change + ground + verify"
+    },
+    {
+      "mission_id": "mi-09",
+      "category": "multi_step",
+      "user_query": "Assess the changes in this area step by step and locate the impacted structures.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "EXTRACT_CHANGED_REGIONS < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "finish after change + regions + grounding + verify",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "multi-step"
+    },
+    {
+      "mission_id": "mi-10",
+      "category": "multi_step",
+      "user_query": "Cross-check the detected changes with SAR and give a verified summary.",
+      "required_inputs": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions",
+        "run_optical_sar"
+      ],
+      "expected_order_constraints": [
+        "TEMPORAL_CHANGE < EXTRACT_CHANGED_REGIONS",
+        "OPTICAL_SAR_ANALYSIS < CROSS_CHECK_EVIDENCE"
+      ],
+      "expected_termination_behavior": "finish after change + regions + SAR + cross-check + verify",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "change + SAR cross-check + verify"
+    },
+    {
+      "mission_id": "ad-01",
+      "category": "adversarial",
+      "user_query": "What changed between these images?",
+      "required_inputs": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expected_task_family": "unsupported",
+      "expected_tool_set": [],
+      "expected_order_constraints": [],
+      "expected_termination_behavior": "explain that a change task needs two images; do not run temporal",
+      "expected_failure_behavior": "MISSING_INPUT / unsupported -> honest partial",
+      "forbid_tools": [
+        "run_temporal_change",
+        "run_optical_sar"
+      ],
+      "unsupported": true,
+      "notes": "change asked with ONE image"
+    },
+    {
+      "mission_id": "ad-02",
+      "category": "adversarial",
+      "user_query": "Compare the optical and SAR imagery.",
+      "required_inputs": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expected_task_family": "unsupported",
+      "expected_tool_set": [],
+      "expected_order_constraints": [],
+      "expected_termination_behavior": "explain that opt+SAR needs two rasters; do not run CROMA",
+      "expected_failure_behavior": "MISSING_INPUT -> honest partial",
+      "forbid_tools": [
+        "run_optical_sar"
+      ],
+      "unsupported": true,
+      "notes": "opt+SAR asked with ONE image"
+    },
+    {
+      "mission_id": "ad-03",
+      "category": "adversarial",
+      "user_query": "Compare the optical and SAR imagery for this area.",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "unsupported",
+      "expected_tool_set": [],
+      "expected_order_constraints": [],
+      "expected_termination_behavior": "the second raster is not SAR (3-band optical) -> MISSING_INPUT, do not run CROMA",
+      "expected_failure_behavior": "MISSING_INPUT replan -> optical+SAR not performed",
+      "forbid_tools": [],
+      "unsupported": true,
+      "notes": "missing SAR modality (both images are optical)"
+    },
+    {
+      "mission_id": "ad-04",
+      "category": "adversarial",
+      "user_query": "What changed between these two images?",
+      "required_inputs": [
+        "data/demo/temporal/t1.tif",
+        "data/demo/temporal/t2_shifted.tif"
+      ],
+      "expected_task_family": "unsupported",
+      "expected_tool_set": [],
+      "expected_order_constraints": [],
+      "expected_termination_behavior": "policy rejects the temporal plan (pair not co-registered) -> deterministic fallback, PLANNER_UNAVAILABLE",
+      "expected_failure_behavior": "no fabricated change result",
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "unsupported": true,
+      "notes": "misregistered pair -> policy check 7"
+    },
+    {
+      "mission_id": "ad-05",
+      "category": "adversarial",
+      "user_query": "What changed between these two images?",
+      "required_inputs": [
+        "data/demo/investigation/broken.tif",
+        "data/demo/temporal/t2.tif"
+      ],
+      "expected_task_family": "unsupported",
+      "expected_tool_set": [],
+      "expected_order_constraints": [],
+      "expected_termination_behavior": "validation catches the corrupt raster -> temporal never runs",
+      "expected_failure_behavior": "no 500, explicit VALIDATION failure",
+      "forbid_tools": [
+        "run_temporal_change"
+      ],
+      "unsupported": true,
+      "synthetic_broken": true,
+      "notes": "invalid GeoTIFF",
+      "runtime_detected": true
+    },
+    {
+      "mission_id": "ad-06",
+      "category": "adversarial",
+      "user_query": "Locate the aircraft carrier in this farmland image.",
+      "required_inputs": [
+        "data/demo/grounding/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_grounding"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < GROUND_OBJECT"
+      ],
+      "expected_termination_behavior": "grounding returns no region -> explicit insufficient result, NO fabricated box",
+      "expected_failure_behavior": "INSUFFICIENT_EVIDENCE replan, honest",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "object absent"
+    },
+    {
+      "mission_id": "ad-07",
+      "category": "adversarial",
+      "user_query": "the image",
+      "required_inputs": [
+        "data/demo/vqa/scene.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_vqa"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < VQA"
+      ],
+      "expected_termination_behavior": "ambiguous -> default to the most general single-image tool (VQA); never silently pick grounding/temporal",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_temporal_change",
+        "run_grounding",
+        "run_optical_sar"
+      ],
+      "notes": "ambiguous query"
+    },
+    {
+      "mission_id": "ad-08",
+      "category": "adversarial",
+      "user_query": "Predict next week's weather for this location.",
+      "required_inputs": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_vqa"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < VQA"
+      ],
+      "expected_termination_behavior": "out-of-scope -> a VLM attempts it; the executor must not fabricate spatial/temporal findings",
+      "expected_failure_behavior": "no spatial findings, no confidence value",
+      "forbid_tools": [
+        "run_temporal_change",
+        "run_optical_sar"
+      ],
+      "unsupported": true,
+      "notes": "out-of-scope question"
+    },
+    {
+      "mission_id": "ad-09",
+      "category": "adversarial",
+      "user_query": "Use RemoteSAM to answer: how many planes are there?",
+      "required_inputs": [
+        "data/demo/scene/airport.jpg"
+      ],
+      "expected_task_family": "single_step",
+      "expected_tool_set": [
+        "run_vqa"
+      ],
+      "expected_order_constraints": [
+        "VALIDATE_INPUT < VQA"
+      ],
+      "expected_termination_behavior": "the user named the wrong tool; the planner/policy route the VQA question to run_vqa, NOT run_grounding",
+      "expected_failure_behavior": "n/a",
+      "forbid_tools": [
+        "run_grounding"
+      ],
+      "notes": "user names wrong tool for a VQA question"
+    },
+    {
+      "mission_id": "ad-10",
+      "category": "adversarial",
+      "user_query": "Investigate everything about this area in maximum detail forever.",
+      "required_inputs": [
+        "data/demo/investigation/t1_optical.tif",
+        "data/demo/investigation/t2_optical.tif",
+        "data/demo/investigation/s2_dfc_optical.tif",
+        "data/demo/investigation/s1_dfc_sar.tif"
+      ],
+      "expected_task_family": "multi_step",
+      "expected_tool_set": [
+        "run_temporal_change",
+        "extract_changed_regions"
+      ],
+      "expected_order_constraints": [
+        "VERIFY < FINALIZE"
+      ],
+      "expected_termination_behavior": "bounded: <= 8 specialist calls, then stop and return a partial-but-honest result",
+      "expected_failure_behavior": "no infinite loop; hit_step_cap surfaced if reached",
+      "forbid_tools": [
+        "run_vqa"
+      ],
+      "notes": "unbounded-ask -> bounded execution"
+    }
+  ]
+}

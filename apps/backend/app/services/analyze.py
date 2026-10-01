@@ -9,9 +9,13 @@
       -> AnalyzeResult (+ observable routing info)
 
 No unrestricted LLM planning. No confidence value. The multimodal path is
-representation-level only (not full optical-SAR reasoning). Single-image VQA has
-no specialist and the router says so (NO_VQA_SPECIALIST) - it is never silently
-routed to RemoteCLIP.
+representation-level only (not full optical-SAR reasoning).
+
+Routing codes and their frozen-stack specialists (G12): SINGLE_IMAGE_VQA -> TinyRS
+(fallback Qwen2-VL-2B), SINGLE_IMAGE_GROUNDING -> RemoteSAM, SINGLE_IMAGE_SCENE ->
+RemoteCLIP, TEMPORAL -> ChangeFormer (+ image-difference fallback), MULTIMODAL_REPR
+-> CROMA (fallback DOFA). A VQA intent with no `vqa` capability still returns
+NO_VQA_SPECIALIST and is never routed to RemoteCLIP or RemoteSAM.
 """
 
 from __future__ import annotations
@@ -27,10 +31,13 @@ from satquery_core.routing import RoutingRequest, route
 from satquery_evidence import EvidenceItem, VerificationResult
 from satquery_geospatial import check_pair_compatibility, read_raster_meta, validate_geotiff
 
-from app.services.multimodal_slice import run_joint_representation
+from app.services.failure_aware import ResolutionInfo, derive_resolution
+from app.services.grounding_slice import run_grounding
+from app.services.multimodal_slice import run_joint_from_geotiffs, run_joint_representation
 from app.services.scene_slice import run_scene
 from app.services.semantic_change_baseline import run_composed_semantic_change
-from app.services.temporal_slice import run_change_slice
+from app.services.temporal_slice import run_change_fallback, run_change_slice
+from app.services.vqa_slice import run_vqa
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _CF_CKPT = _REPO_ROOT / ("models/cache/changeformer/CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw"
@@ -39,7 +46,11 @@ _CF_CKPT = _REPO_ROOT / ("models/cache/changeformer/CD_ChangeFormerV6_LEVIR_b16_
 _CHANGE_KW = ("change", "changed", "difference", "before and after", "bi-temporal", "bitemporal")
 _SEMANTIC_KW = ("describe", "what kind", "what type", "semantic", "explain the change", "characteri")
 _SCENE_KW = ("scene", "what is this", "classify", "retrieve", "find similar", "land cover", "tag", "identify the")
-_VQA_KW = ("how many", "count", "is there", "are there", "where is", "locate", "point to", "?")
+# grounding = "point me at the region this phrase refers to" -> RemoteSAM specialist
+_GROUNDING_KW = ("where is", "where's", "locate", "point to", "point at", "find the", "show me the",
+                 "segment the", "highlight the", "which region", "ground the")
+_VQA_KW = ("how many", "count", "is there", "are there", "does the", "what color",
+           "what colour", "what kind of", "?")
 _SAR_KW = ("sar", "radar", "sentinel-1", "backscatter", "vv", "vh")
 
 
@@ -49,7 +60,8 @@ class QueryInterpretation(BaseModel):
 
 
 def interpret_query(query: str) -> QueryInterpretation:
-    """Deterministic keyword -> intent. Order: semantic-change > change > scene > vqa."""
+    """Deterministic keyword -> intent. Order: semantic-change > change > optical-sar
+    > scene > grounding > vqa."""
     q = (query or "").strip().lower()
     notes: list[str] = []
     if not q:
@@ -59,8 +71,12 @@ def interpret_query(query: str) -> QueryInterpretation:
         return QueryInterpretation(intent="semantic-change", notes=notes)
     if any(k in q for k in _CHANGE_KW):
         return QueryInterpretation(intent="change", notes=["matched change keywords"])
+    if any(k in q for k in _SAR_KW):
+        return QueryInterpretation(intent="optical-sar", notes=["matched optical/SAR keywords"])
     if any(k in q for k in _SCENE_KW):
         return QueryInterpretation(intent="scene", notes=["matched scene/retrieval keywords"])
+    if any(k in q for k in _GROUNDING_KW):
+        return QueryInterpretation(intent="grounding", notes=["matched grounding keywords"])
     if any(k in q for k in _VQA_KW):
         return QueryInterpretation(intent="vqa", notes=["matched VQA-style keywords"])
     return QueryInterpretation(intent="unknown", notes=["no keyword match"])
@@ -83,11 +99,20 @@ class AnalyzeResult(BaseModel):
     routing: RoutingInfo
     metadata_valid: bool
     validation_errors: list[str] = []
+    geo_warnings: list[str] = []  # non-blocking: raster is sound but has no valid CRS/transform
     result: dict[str, Any] | None = None  # the sub-service's structured output
     evidence: list[EvidenceItem] = []
     verification: VerificationResult | None = None
+    resolution: ResolutionInfo | None = None  # failure-aware post-execution qualifier (G8)
     provenance: dict[str, Any] = {}
     errors: list[str] = []
+
+
+def _band_count(p: Path) -> int:
+    try:
+        return int(read_raster_meta(p).count)
+    except Exception:  # noqa: BLE001
+        return 0
 
 
 def _modalities_from(paths: list[Path], context: dict[str, Any]) -> list[str]:
@@ -110,21 +135,47 @@ def run_analyze(
     query: str,
     image_paths: list[str | Path],
     context: dict[str, Any] | None = None,
+    *,
+    artifact_dir: str | Path | None = None,
 ) -> AnalyzeResult:
+    """Deterministic end-to-end analysis.
+
+    `artifact_dir` (optional) is where specialist slices write mask PNGs so a
+    caller (the upload endpoint) can serve them back. When None, each slice keeps
+    its own default location.
+    """
     ctx = context or {}
     started = time.time()
+    adir = str(artifact_dir) if artifact_dir else None
     paths = [Path(p) for p in image_paths]
     interp = interpret_query(query)
 
     # --- input validation (safeguards preserved) ---
+    # A GeoTIFF whose ONLY failures are georeferencing (transform/bounds/crs) is
+    # still structurally sound: we allow pixel-level analysis but flag that no
+    # geographic coordinates can be produced. Hard failures (unreadable, bad
+    # dimensions, no bands, bad NoData) still block.
+    _GEO_ONLY = {"transform_valid", "bounds", "crs_present"}
     val_errors: list[str] = []
+    geo_warnings: list[str] = []
     for p in paths:
         if not p.exists():
             val_errors.append(f"input not found: {p}")
         elif p.suffix.lower() in (".tif", ".tiff"):
-            v = validate_geotiff(p)
+            try:
+                v = validate_geotiff(p)
+            except Exception as exc:  # noqa: BLE001 - unreadable / corrupt raster
+                val_errors.append(f"{p.name}: unreadable raster ({type(exc).__name__})")
+                continue
             if not v.ok:
-                val_errors.append(f"{p.name}: validation failed ({[c.name for c in v.failed()]})")
+                failed = {c.name for c in v.failed()}
+                if failed <= _GEO_ONLY:
+                    geo_warnings.append(
+                        f"{p.name}: no valid CRS/transform ({sorted(failed)}) - "
+                        "pixel-level analysis only, no geographic coordinates"
+                    )
+                else:
+                    val_errors.append(f"{p.name}: validation failed ({sorted(failed)})")
     pair_ok = None
     if len(paths) == 2 and not val_errors:
         try:
@@ -160,7 +211,8 @@ def run_analyze(
     )
 
     base = dict(ok=False, query=query, interpretation=interp, routing=info,
-                metadata_valid=metadata_valid, validation_errors=val_errors)
+                metadata_valid=metadata_valid, validation_errors=val_errors,
+                geo_warnings=geo_warnings)
 
     if decision.code == "VALIDATION_FAILED":
         return AnalyzeResult(**base, errors=val_errors or ["metadata validation failed"])
@@ -170,43 +222,80 @@ def run_analyze(
         return AnalyzeResult(**base, errors=[decision.reason])
 
     # --- dispatch ---
+    sem_vr = None
+    fallback_used: str | None = None
+    low_margin_n = 0
     try:
         if decision.code == "SINGLE_IMAGE_SCENE":
             prompts = ctx.get("prompts") or ["urban area", "farmland", "forest", "water body",
                                              "bare land", "industrial area"]
             sub = run_scene(paths[0], prompts)
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
-        elif decision.code == "TEMPORAL" and interp.intent == "semantic-change":
-            sub = run_composed_semantic_change(paths[0], paths[1], checkpoint_dir=_CF_CKPT)
+        elif decision.code == "SINGLE_IMAGE_GROUNDING":
+            sub = run_grounding(paths[0], query, device=ctx.get("device", "cpu"), artifact_dir=adir)
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
+        elif decision.code == "SINGLE_IMAGE_VQA":
+            sub = run_vqa(paths[0], ctx.get("question") or query)
+            payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
+        elif decision.code == "TEMPORAL" and interp.intent == "semantic-change":
+            sub = run_composed_semantic_change(paths[0], paths[1], checkpoint_dir=_CF_CKPT,
+                                               artifact_dir=adir)
+            payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
+            sem_vr = sub.semantic_verification
+            low_margin_n = sum(1 for r in sub.regions if r.low_margin)
         elif decision.code == "TEMPORAL":
-            sub = run_change_slice(paths[0], paths[1], checkpoint_dir=_CF_CKPT, strict=True)
+            sub = run_change_slice(paths[0], paths[1], checkpoint_dir=_CF_CKPT, strict=True,
+                                   artifact_dir=adir)
+            # failure-aware single-step fallback: the pair is already co-registered
+            # here (mis-registration is caught earlier as VALIDATION_FAILED), so any
+            # failure of run_change_slice means the ChangeFormer env is unavailable.
+            if not sub.ok:
+                fb = run_change_fallback(paths[0], paths[1], artifact_dir=adir)
+                if fb.ok:
+                    sub, fallback_used = fb, "image_difference_fallback"
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
         elif decision.code == "MULTIMODAL_REPR":
-            opt = next((p for p in paths if p.suffix.lower() in (".npy",)), paths[0])
-            sar = paths[1] if len(paths) > 1 else paths[0]
             model = decision.specialists[0] if decision.specialists else "croma"
-            sub = run_joint_representation(opt, sar, model=model)  # representation-level
+            tifs = [p for p in paths if p.suffix.lower() in (".tif", ".tiff")]
+            if len(tifs) == 2:
+                # paired GeoTIFFs: pick S2 (>=12 bands) as optical, S1 (2 bands) as SAR
+                s2 = next((p for p in tifs if _band_count(p) >= 12), tifs[0])
+                s1 = next((p for p in tifs if p != s2), tifs[1])
+                sub = run_joint_from_geotiffs(s2, s1, model=model, artifact_dir=adir)
+            else:
+                opt = next((p for p in paths if p.suffix.lower() == ".npy"), paths[0])
+                sar = paths[1] if len(paths) > 1 else paths[0]
+                sub = run_joint_representation(opt, sar, model=model)  # representation-level
             payload, ev, vr, prov = sub.model_dump(), sub.evidence, sub.verification, sub.provenance
         else:
             return AnalyzeResult(**base, errors=[f"unhandled routing code {decision.code}"])
     except Exception as exc:  # noqa: BLE001 - sanitized
         return AnalyzeResult(**base, errors=[f"specialist execution failed: {type(exc).__name__}"])
 
+    resolution = derive_resolution(
+        sub_ok=bool(payload.get("ok", True)), verification=vr,
+        semantic_verification=sem_vr, fallback_used=fallback_used,
+        low_margin_regions=low_margin_n,
+    )
+
     agg_prov = {
         "layer": "analyze",
         "interpretation": interp.model_dump(),
         "routing": info.model_dump(),
         "pair_co_registered": pair_ok,
+        "resolution": resolution.model_dump(),
         "sub_service_provenance": prov,
         "orchestration_runtime_s": round(time.time() - started, 3),
         "note": ("multimodal path is representation-level only; VQA has no specialist; "
-                 "no confidence value is produced"),
+                 "no confidence value is produced; `resolution` is a deterministic "
+                 "failure-aware qualifier, not a confidence"),
     }
     return AnalyzeResult(
         ok=bool(payload.get("ok", True)),
         query=query, interpretation=interp, routing=info,
         metadata_valid=metadata_valid, validation_errors=val_errors,
-        result=payload, evidence=list(ev), verification=vr, provenance=agg_prov,
+        geo_warnings=geo_warnings,
+        result=payload, evidence=list(ev), verification=vr, resolution=resolution,
+        provenance=agg_prov,
         errors=list(payload.get("errors", []) or []),
     )

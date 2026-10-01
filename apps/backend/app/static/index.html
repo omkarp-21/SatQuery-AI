@@ -1,0 +1,1201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SatQuery AI — Geospatial Intelligence</title>
+<style>
+  :root {
+    --bg: #0c0e12; --bg2: #0f1218; --panel: #151922; --panel2: #1b202b; --panel3: #212734;
+    --line: #2a313f; --line2: #363f50;
+    --fg: #e7ebf2; --fg-dim: #b9c1cf; --muted: #8b95a6; --faint: #667085;
+    --accent: #4f9dff; --accent-ink: #041020;
+    --ok: #43b581; --warn: #d9a441; --bad: #e0655f; --info: #6ea8fe;
+    --focus: #7cc0ff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --r: 8px; --r-lg: 12px;
+    --t: 140ms ease;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: var(--sans); font-size: 14px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  h1, h2, h3 { font-weight: 650; }
+  .mono { font-family: var(--mono); }
+  .is-hidden { display: none !important; }
+
+  /* focus visibility */
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---------- top nav ---------- */
+  #nav {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 18px; height: 52px;
+    background: linear-gradient(180deg, #12161e, #0f1218);
+    border-bottom: 1px solid var(--line);
+  }
+  #nav .brand {
+    display: flex; align-items: baseline; gap: 9px; margin-right: 14px;
+    font-weight: 750; letter-spacing: .4px; font-size: 15px; cursor: pointer;
+    background: none; border: 0; color: var(--fg); padding: 6px 4px;
+  }
+  #nav .brand .tag { font-size: 10.5px; font-weight: 600; color: var(--faint); letter-spacing: 1.4px; text-transform: uppercase; }
+  #nav .navlink {
+    background: none; border: 0; color: var(--muted); font: inherit; font-size: 12.5px;
+    letter-spacing: .6px; text-transform: uppercase; padding: 8px 12px; cursor: pointer;
+    border-radius: 6px; transition: color var(--t), background var(--t);
+  }
+  #nav .navlink:hover { color: var(--fg-dim); background: var(--panel2); }
+  #nav .navlink[aria-current="page"] { color: var(--fg); background: var(--panel3); }
+  #nav .spacer { flex: 1; }
+  #sysbtn {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--fg-dim);
+    font: inherit; font-size: 11.5px; letter-spacing: .5px; text-transform: uppercase;
+    padding: 6px 11px; border-radius: 20px; cursor: pointer;
+  }
+  #sysbtn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  #sysbtn .dot.ready { background: var(--ok); box-shadow: 0 0 0 3px rgba(67,181,129,.16); }
+  #sysbtn .dot.offline { background: var(--bad); }
+  #syspop {
+    position: absolute; right: 14px; top: 52px; width: 260px;
+    background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r);
+    padding: 12px 14px; box-shadow: 0 18px 40px rgba(0,0,0,.5); z-index: 30;
+  }
+  #syspop h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+  #syspop .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12.5px; border-top: 1px solid var(--line); }
+  #syspop .row:first-of-type { border-top: 0; }
+  #syspop .v { color: var(--fg-dim); }
+  #syspop .v.warn { color: var(--warn); }
+
+  main { min-height: calc(100% - 52px - 34px); }
+
+  /* ---------- hero / landing ---------- */
+  .hero { max-width: 900px; margin: 0 auto; padding: 72px 24px 40px; text-align: center; }
+  .hero h1 { font-size: 34px; line-height: 1.2; margin: 0 0 14px; letter-spacing: -.2px; }
+  .hero p.sub { font-size: 15.5px; color: var(--fg-dim); margin: 0 auto 30px; max-width: 620px; }
+  .hero .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--r);
+    font: inherit; font-weight: 700; font-size: 13.5px; letter-spacing: .3px;
+    padding: 12px 22px; cursor: pointer; transition: filter var(--t), transform var(--t);
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: var(--panel2); color: var(--fg); border: 1px solid var(--line2); }
+  .btn.sm { padding: 8px 14px; font-size: 12.5px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .pipeline {
+    margin: 46px auto 0; max-width: 780px; display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 6px 4px; color: var(--faint); font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase;
+  }
+  .pipeline b { color: var(--fg-dim); font-weight: 600; }
+  .pipeline .arw { color: var(--accent); }
+
+  /* ---------- generic panels ---------- */
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 15px 16px; margin-bottom: 14px;
+  }
+  .panel > h2, .phead {
+    margin: 0 0 11px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.1px;
+    color: var(--muted); font-weight: 650; display: flex; align-items: center; gap: 8px;
+  }
+  .panel > h2 .count { color: var(--faint); font-weight: 600; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; }
+  input[type=text], textarea {
+    width: 100%; background: var(--panel2); border: 1px solid var(--line2); color: var(--fg);
+    border-radius: 7px; padding: 10px 11px; font-family: var(--sans); font-size: 13.5px; resize: vertical;
+  }
+  input[type=file] { width: 100%; font-size: 12.5px; color: var(--muted); padding: 8px 0; }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    background: var(--panel2); color: var(--fg-dim); border: 1px solid var(--line);
+    border-radius: 16px; padding: 5px 11px; font-size: 11.5px; cursor: pointer; transition: border-color var(--t), color var(--t);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--fg); }
+  .hint { font-size: 11.5px; color: var(--faint); margin-top: 9px; }
+  .kv { display: grid; grid-template-columns: 128px 1fr; gap: 6px 12px; font-size: 13px; }
+  .kv dt { color: var(--muted); }
+  .kv dd { margin: 0; color: var(--fg-dim); }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 16px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+  .b-ok   { background: rgba(67,181,129,.15); color: var(--ok); }
+  .b-warn { background: rgba(217,164,65,.15); color: var(--warn); }
+  .b-bad  { background: rgba(224,101,95,.15); color: var(--bad); }
+  .b-mut  { background: var(--panel2); color: var(--muted); }
+  .glyph { font-family: var(--mono); font-weight: 700; }
+
+  /* answer / conclusion */
+  .conclusion { font-size: 14.5px; background: var(--panel2); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 4px; color: var(--fg); }
+
+  .warn-note { display: flex; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12.5px; margin-bottom: 7px; background: rgba(217,164,65,.08); border: 1px solid rgba(217,164,65,.28); color: var(--fg-dim); }
+  .warn-note.fail { background: rgba(224,101,95,.08); border-color: rgba(224,101,95,.32); }
+  .warn-note .g { color: var(--warn); }
+  .warn-note.fail .g { color: var(--bad); }
+
+  details { margin-top: 8px; }
+  details > summary { cursor: pointer; color: var(--muted); font-size: 12px; list-style: none; padding: 4px 0; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "▸ "; color: var(--accent); }
+  details[open] > summary::before { content: "▾ "; }
+  pre.raw { font-family: var(--mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; background: var(--bg2); border: 1px solid var(--line); border-radius: 6px; padding: 10px; max-height: 320px; overflow: auto; color: var(--fg-dim); }
+
+  /* ---------- ASK view ---------- */
+  #view-ask { max-width: 720px; margin: 0 auto; padding: 30px 22px 60px; }
+  .view-head { margin: 4px 0 18px; }
+  .view-head h1 { font-size: 20px; margin: 0 0 4px; }
+  .view-head p { margin: 0; color: var(--muted); font-size: 13px; }
+
+  /* ---------- INVESTIGATE workspace ---------- */
+  #view-investigate { padding: 20px; }
+  #inv-input { max-width: 760px; margin: 12px auto 0; }
+  .ws {
+    display: grid; gap: 14px;
+    grid-template-columns: minmax(290px, 350px) minmax(420px, 1fr) minmax(300px, 380px);
+    grid-template-areas: "left center right" "bottom bottom bottom";
+    align-items: start;
+  }
+  .ws .col-left   { grid-area: left; }
+  .ws .col-center { grid-area: center; }
+  .ws .col-right  { grid-area: right; }
+  .ws .row-bottom { grid-area: bottom; }
+  @media (max-width: 1240px) {
+    .ws { grid-template-columns: 1fr; grid-template-areas: "center" "left" "right" "bottom"; }
+  }
+
+  /* spatial viewer */
+  .viewer {
+    background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--r-lg);
+    overflow: hidden; position: relative;
+  }
+  .viewer .vhead { display: flex; align-items: center; gap: 6px; padding: 9px 11px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .viewer .vhead .vtitle { font-size: 11px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--muted); margin-right: auto; }
+  .layerbtn, .zoombtn {
+    background: var(--panel2); color: var(--muted); border: 1px solid var(--line); font: inherit;
+    font-size: 11px; letter-spacing: .4px; padding: 4px 9px; border-radius: 5px; cursor: pointer; transition: color var(--t), border-color var(--t);
+  }
+  .layerbtn[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); background: var(--panel3); }
+  .layerbtn:hover, .zoombtn:hover { color: var(--fg-dim); }
+  .vstage { position: relative; width: 100%; min-height: 300px; display: flex; align-items: center; justify-content: center; background:
+      repeating-linear-gradient(0deg, transparent 0 23px, rgba(255,255,255,.02) 23px 24px),
+      repeating-linear-gradient(90deg, transparent 0 23px, rgba(255,255,255,.02) 23px 24px), var(--bg2); }
+  .vstage.empty { min-height: 130px; background: var(--bg2); }
+  .vstage img { display: block; max-width: 100%; max-height: 560px; }
+  .vstage canvas.ovl { position: absolute; inset: 0; pointer-events: none; }
+  .vstage svg { display: block; width: 100%; height: auto; max-height: 560px; }
+  .vcaption { padding: 8px 11px; font-size: 11px; color: var(--faint); border-top: 1px solid var(--line); background: var(--panel); }
+
+  /* G20.1 status banner — the primary element of an investigation result */
+  .status-banner {
+    display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 6px 14px;
+    padding: 14px 18px; margin-bottom: 14px; border-radius: var(--r-lg);
+    border: 1px solid var(--line2); background: var(--panel);
+  }
+  .status-banner .sb-label { font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--faint); }
+  .status-banner .sb-status { font-size: 20px; font-weight: 750; letter-spacing: .5px; }
+  .status-banner .sb-reason { font-size: 13px; color: var(--fg-dim); grid-column: 1 / -1; }
+  .status-banner.st-success { border-left: 4px solid var(--ok); }
+  .status-banner.st-success .sb-status { color: var(--ok); }
+  .status-banner.st-partial { border-left: 4px solid var(--warn); }
+  .status-banner.st-partial .sb-status { color: var(--warn); }
+  .status-banner.st-blocked { border-left: 4px solid var(--warn); }
+  .status-banner.st-blocked .sb-status { color: var(--warn); }
+  .status-banner.st-failed  { border-left: 4px solid var(--bad); }
+  .status-banner.st-failed .sb-status { color: var(--bad); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .two-col { grid-template-columns: 1fr; } }
+  .ct-h { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); margin-bottom: 3px; }
+  .why-btn { background: none; border: 0; color: var(--warn); font: inherit; font-size: 11.5px; cursor: pointer; padding: 1px 4px; margin-left: 6px; }
+  .why-box { margin-top: 4px; font-size: 12px; color: var(--fg-dim); background: var(--panel2); border-left: 2px solid var(--bad); padding: 6px 9px; border-radius: 4px; }
+
+  /* plan */
+  ol.plan { margin: 0; padding: 0; list-style: none; }
+  ol.plan.compact li { padding: 5px 6px; }
+  ol.plan.compact li .note { color: var(--muted); display: block; margin-top: 2px; }
+  ol.plan li {
+    display: grid; grid-template-columns: 20px 1fr; gap: 8px; align-items: start;
+    padding: 7px 8px; margin: 3px 0; border-left: 2px solid var(--line2); border-radius: 0 5px 5px 0;
+    font-size: 12.5px; transition: background var(--t), border-color var(--t);
+  }
+  ol.plan li .st { font-family: var(--mono); font-weight: 700; text-align: center; }
+  ol.plan li .lbl b { font-weight: 650; color: var(--fg); }
+  ol.plan li .lbl .tool { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+  ol.plan li .lbl .note { color: var(--muted); display: block; margin-top: 2px; }
+  ol.plan li.s-completed { border-left-color: var(--ok); }
+  ol.plan li.s-completed .st { color: var(--ok); }
+  ol.plan li.s-running   { border-left-color: var(--accent); background: rgba(79,157,255,.06); }
+  ol.plan li.s-running .st { color: var(--accent); }
+  ol.plan li.s-failed    { border-left-color: var(--bad); }
+  ol.plan li.s-failed .st { color: var(--bad); }
+  ol.plan li.s-skipped   { border-left-color: var(--warn); opacity: .62; }
+  ol.plan li.s-skipped .st { color: var(--warn); }
+  ol.plan li.s-pending .st { color: var(--faint); }
+
+  /* adaptive execution timeline */
+  .adapt { position: relative; padding-left: 16px; }
+  .adapt::before { content: ""; position: absolute; left: 4px; top: 4px; bottom: 4px; width: 2px; background: var(--line2); }
+  .adapt .ev { position: relative; margin-bottom: 12px; }
+  .adapt .ev::before { content: ""; position: absolute; left: -14px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .adapt .ev.stop::before { background: var(--warn); }
+  .adapt .ev { font-size: 12.5px; color: var(--fg-dim); }
+  .adapt .ev > div { padding: 1px 0; }
+  .adapt .ev .k { display: inline-block; min-width: 84px; font-size: 10px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--faint); }
+  .adapt .ev.stop { color: var(--warn); }
+  .adapt .ev.stop::before { background: var(--warn); }
+
+  /* trust */
+  .trust-cat { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .trust-cat .big { font-size: 22px; font-weight: 750; letter-spacing: .5px; }
+  .trust-cat .big.HIGH { color: var(--ok); }
+  .trust-cat .big.MEDIUM { color: var(--warn); }
+  .trust-cat .big.LOW { color: var(--warn); }
+  .trust-cat .big.INSUFFICIENT_EVIDENCE { color: var(--bad); font-size: 15px; }
+  .why { list-style: none; margin: 6px 0 0; padding: 0; }
+  .why li { display: grid; grid-template-columns: 16px 1fr; gap: 7px; font-size: 12.5px; color: var(--fg-dim); padding: 3px 0; }
+  .why li .g { color: var(--ok); font-family: var(--mono); }
+  .why li.q .g { color: var(--warn); }
+
+  /* verification groups */
+  .vgroup { margin-bottom: 8px; }
+  .vgroup .gt { font-size: 11px; letter-spacing: .6px; text-transform: uppercase; color: var(--faint); margin-bottom: 3px; }
+  .vcheck { display: grid; grid-template-columns: 16px 1fr auto; gap: 7px; font-size: 12px; padding: 2px 0; color: var(--fg-dim); }
+  .vcheck .g.ok { color: var(--ok); } .vcheck .g.bad { color: var(--bad); } .vcheck .g.na { color: var(--faint); }
+  .vcheck .d { color: var(--faint); font-size: 11px; font-family: var(--mono); text-align: right; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* findings */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+  .metric { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; }
+  .metric .m-v { font-size: 16px; font-weight: 700; color: var(--fg); }
+  .metric .m-k { font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase; color: var(--faint); margin-top: 1px; }
+  ul.findlist { list-style: none; margin: 0; padding: 0; }
+  ul.findlist li { padding: 5px 0; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--fg-dim); }
+  ul.findlist li:first-child { border-top: 0; }
+
+  /* evidence */
+  .evi { border: 1px solid var(--line); border-radius: 7px; padding: 9px 11px; margin-bottom: 7px; background: var(--panel2); }
+  .evi .et { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .evi .et .src { color: var(--faint); font-family: var(--mono); font-size: 11px; }
+  .evi .claim { font-size: 12.5px; color: var(--fg-dim); margin-top: 3px; }
+
+  table.trace { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.trace td { padding: 3px 8px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--fg-dim); }
+  table.trace td.ts { color: var(--faint); font-family: var(--mono); white-space: nowrap; }
+
+  /* loading / states */
+  .state {
+    background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r-lg);
+    padding: 22px; text-align: center; max-width: 560px; margin: 20px auto;
+  }
+  .state h2 { margin: 0 0 6px; font-size: 15px; letter-spacing: .5px; }
+  .state p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+  .state.err { border-color: rgba(224,101,95,.4); }
+  .state.err h2 { color: var(--bad); }
+  .state .k { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); margin-top: 12px; }
+  .spin {
+    display: inline-block; width: 15px; height: 15px; border: 2px solid var(--line2);
+    border-top-color: var(--accent); border-radius: 50%; animation: sp .8s linear infinite; vertical-align: -3px; margin-right: 7px;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .elapsed { font-family: var(--mono); color: var(--fg-dim); }
+
+  /* footer status strip */
+  #status {
+    height: 34px; display: flex; align-items: center; gap: 16px;
+    padding: 0 18px; border-top: 1px solid var(--line);
+    background: var(--bg2); color: var(--faint); font-size: 11px; letter-spacing: .4px;
+  }
+  #status .s { display: flex; align-items: center; gap: 6px; }
+  #status .s .g { color: var(--ok); }
+  #status .s.warn .g { color: var(--warn); }
+
+  .fade-in { animation: fi var(--t); }
+  @keyframes fi { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+    .spin { border-top-color: var(--accent); }
+  }
+  @media (max-width: 720px) {
+    .hero h1 { font-size: 25px; }
+    .metrics { grid-template-columns: 1fr; }
+    #nav .navlink { padding: 8px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header id="nav">
+  <button class="brand" data-nav="#/" aria-label="SatQuery AI — home">
+    SATQUERY&nbsp;AI <span class="tag">Geospatial Intelligence</span>
+  </button>
+  <button class="navlink" data-nav="#/ask">Ask</button>
+  <button class="navlink" data-nav="#/investigate">Investigate</button>
+  <button class="navlink" data-nav="#/about">About</button>
+  <span class="spacer"></span>
+  <button id="sysbtn" aria-haspopup="true" aria-expanded="false">
+    <span class="dot" id="sysdot"></span><span id="sysword">System</span>
+  </button>
+</header>
+<div id="syspop" class="is-hidden" role="dialog" aria-label="System status">
+  <h3>System</h3>
+  <div class="row"><span>Status</span><span class="v" id="pop-status">checking…</span></div>
+  <div class="row"><span>Planner</span><span class="v">Deterministic (default)</span></div>
+  <div class="row"><span>Models</span><span class="v">Local · one resident at a time</span></div>
+  <div class="row"><span>Geo validation</span><span class="v">✓ enforced</span></div>
+  <div class="row"><span>Evidence</span><span class="v">✓ typed + provenance</span></div>
+  <div class="row"><span>Agent</span><span class="v">✓ bounded (≤ 8 steps)</span></div>
+  <div class="row"><span>GPU</span><span class="v warn">UNVERIFIED</span></div>
+</div>
+
+<main>
+  <!-- ================= LANDING ================= -->
+  <section id="view-landing">
+    <div class="hero">
+      <h1>Investigate satellite imagery with natural language.</h1>
+      <p class="sub">Plan, analyze, verify, and map geospatial findings using specialized
+        remote-sensing intelligence. Runs locally on CPU — no cloud, no confidence guesswork.</p>
+      <div class="cta">
+        <button class="btn" data-nav="#/investigate">Investigate an area</button>
+        <button class="btn ghost" data-nav="#/ask">Ask a question</button>
+      </div>
+      <div class="pipeline" aria-hidden="true">
+        <b>Mission</b><span class="arw">→</span><b>Plan</b><span class="arw">→</span>
+        <b>Specialist analysis</b><span class="arw">→</span><b>Observation</b><span class="arw">→</span>
+        <b>Adaptive action</b><span class="arw">→</span><b>Evidence</b><span class="arw">→</span>
+        <b>Verification</b><span class="arw">→</span><b>Verified map &amp; report</b>
+      </div>
+      <div class="chips" style="justify-content:center;margin-top:26px">
+        <span class="chip" style="cursor:default">Bi-temporal change detection</span>
+        <span class="chip" style="cursor:default">Optical + SAR representation</span>
+        <span class="chip" style="cursor:default">Text-guided object grounding</span>
+        <span class="chip" style="cursor:default">Scene understanding &amp; VQA</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ASK ================= -->
+  <section id="view-ask" class="is-hidden">
+    <div class="view-head">
+      <h1>Ask</h1>
+      <p>One image, one question. Routed to a single frozen-stack specialist, verified, returned with its evidence.</p>
+    </div>
+    <div class="panel">
+      <h2>Query</h2>
+      <label for="ask-files">Image (PNG / JPEG / GeoTIFF)</label>
+      <input type="file" id="ask-files" accept=".tif,.tiff,.png,.jpg,.jpeg,.npy" />
+      <label for="ask-q">Question</label>
+      <textarea id="ask-q" rows="2" placeholder="e.g. Where is the largest ship?"></textarea>
+      <div class="chips" id="ask-chips"></div>
+      <button class="btn" id="run-ask" style="margin-top:14px; width:100%">Run</button>
+    </div>
+    <div id="ask-out"></div>
+  </section>
+
+  <!-- ================= INVESTIGATE ================= -->
+  <section id="view-investigate" class="is-hidden">
+    <div id="inv-input">
+      <div class="view-head">
+        <h1>Investigate</h1>
+        <p>A natural-language mission is planned, policy-checked, and run by a bounded agent that
+          observes each specialist result and adapts. The map and evidence are the output.</p>
+      </div>
+      <div class="panel">
+        <h2>Mission</h2>
+        <textarea id="mission" rows="3" placeholder="e.g. Investigate this area. Identify significant changes between the two observations, locate the affected structures, compare optical and SAR evidence, and provide a verified summary."></textarea>
+        <label for="inv-files">Inputs — 1 to 4 images (e.g. T1 &amp; T2 optical, Sentinel-2, Sentinel-1 SAR)</label>
+        <input type="file" id="inv-files" multiple accept=".tif,.tiff,.png,.jpg,.jpeg,.npy" />
+        <div class="chips" id="inv-chips"></div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer">
+          <input type="checkbox" id="demo-toggle" style="width:auto" />
+          <span>Demo mode — prefill the official flagship mission (still runs the real backend)</span>
+        </label>
+        <div class="hint is-hidden" id="demo-hint"></div>
+        <button class="btn" id="run-investigate" style="margin-top:14px; width:100%">Run investigation</button>
+      </div>
+    </div>
+    <div id="inv-out"></div>
+  </section>
+
+  <!-- ================= ABOUT ================= -->
+  <section id="view-about" class="is-hidden">
+    <div class="view-head" style="max-width:820px;margin:24px auto 0;padding:0 22px">
+      <h1>About SatQuery</h1>
+      <p>A natural-language geospatial investigation system. Not one large vision-language model —
+        a deterministic planner, a policy layer, and a bounded agent orchestrating specialist
+        remote-sensing models, with geospatial validation, evidence and verification.</p>
+    </div>
+    <div style="max-width:820px;margin:16px auto 60px;padding:0 22px">
+      <div class="panel">
+        <h2>Frozen specialist stack</h2>
+        <dl class="kv">
+          <dt>VQA</dt><dd>TinyRS-2B · fallback Qwen2-VL-2B</dd>
+          <dt>Grounding</dt><dd>RemoteSAM <span class="badge b-warn">licence NOT STATED — optional component</span></dd>
+          <dt>Temporal change</dt><dd>ChangeFormer</dd>
+          <dt>Semantic change</dt><dd>ChangeFormer + RemoteCLIP <span class="badge b-mut">experimental composed baseline</span></dd>
+          <dt>Optical + SAR</dt><dd>CROMA · fallback DOFA <span class="badge b-mut">representation-level only</span></dd>
+          <dt>Scene / retrieval</dt><dd>RemoteCLIP</dd>
+        </dl>
+      </div>
+      <div class="panel">
+        <h2>How a mission runs</h2>
+        <div class="pipeline" style="justify-content:flex-start;margin:0">
+          <b>Mission</b><span class="arw">→</span><b>Plan</b><span class="arw">→</span><b>Policy</b><span class="arw">→</span>
+          <b>Specialists</b><span class="arw">→</span><b>Observe</b><span class="arw">→</span><b>Adapt</b><span class="arw">→</span>
+          <b>Evidence</b><span class="arw">→</span><b>Verify</b><span class="arw">→</span><b>Map &amp; report</b>
+        </div>
+        <p class="hint">Confidence is an evidence-derived <b>category</b> (HIGH / MEDIUM / LOW /
+          INSUFFICIENT_EVIDENCE) with an explicit "why" — never a probability or a number.
+          Evaluation is sanity-scale. GPU / 4&nbsp;GB fit is unverified. The larger validation did
+          not support an earlier SAR-benefit claim, which was withdrawn.</p>
+      </div>
+      <div class="panel">
+        <h2>Endpoints</h2>
+        <pre class="raw">POST /analyze/upload      single-step question
+POST /investigate         agentic multi-step mission
+POST /investigate/report  the same result as a standalone HTML report
+GET  /artifact            per-request input / mask artifacts
+GET  /health              readiness</pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer id="status">
+  <span class="s"><span class="g glyph">●</span> Local inference</span>
+  <span class="s"><span class="g glyph">✓</span> Deterministic planner</span>
+  <span class="s"><span class="g glyph">✓</span> Geospatial validation</span>
+  <span class="s warn"><span class="g glyph">⚠</span> GPU: UNVERIFIED (CPU-only)</span>
+</footer>
+
+<script>
+"use strict";
+const $  = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+const num = (x, d=3) => (x === null || x === undefined || Number.isNaN(x)) ? "—" : (typeof x === "number" ? (Math.abs(x) >= 100 && d <= 3 ? x.toFixed(1) : x.toFixed(d)) : String(x));
+const coord = x => (typeof x === "number" ? x.toFixed(5) : "—");
+const isRasterName = n => /\.(png|jpe?g)$/i.test(String(n || ""));
+
+function catClass(c) {
+  return c === "HIGH" ? "b-ok" : (c === "MEDIUM" || c === "LOW") ? "b-warn" : "b-bad";
+}
+function verdictBadge(status) {
+  if (!status) return '<span class="badge b-mut">n/a</span>';
+  const s = String(status).toUpperCase();
+  if (s.includes("SUPPORTED") || s.includes("COHERENT") || s === "RESULT_OK" || s === "PASS")
+    return `<span class="badge b-ok"><span class="glyph">✓</span>${esc(s)}</span>`;
+  if (s.includes("CONTRADICT") || s.includes("INCOHERENT") || s.includes("FAIL"))
+    return `<span class="badge b-bad"><span class="glyph">✕</span>${esc(s)}</span>`;
+  return `<span class="badge b-warn"><span class="glyph">•</span>${esc(s)}</span>`;
+}
+
+/* ---------------- routing ---------------- */
+const VIEWS = { "#/": "view-landing", "#/ask": "view-ask", "#/investigate": "view-investigate", "#/about": "view-about" };
+function route() {
+  const h = VIEWS[location.hash] ? location.hash : "#/";
+  Object.values(VIEWS).forEach(id => $("#" + id).classList.add("is-hidden"));
+  $("#" + VIEWS[h]).classList.remove("is-hidden");
+  $$("#nav .navlink").forEach(b => b.setAttribute("aria-current", b.dataset.nav === h ? "page" : "false"));
+  $("#syspop").classList.add("is-hidden"); $("#sysbtn").setAttribute("aria-expanded", "false");
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+$$("[data-nav]").forEach(b => b.onclick = () => { location.hash = b.dataset.nav; });
+
+/* ---------------- system status ---------------- */
+async function checkHealth() {
+  const dot = $("#sysdot"), word = $("#sysword"), pop = $("#pop-status");
+  try {
+    const r = await fetch("/health", { cache: "no-store" });
+    const ok = r.ok && (await r.json()).status === "ok";
+    dot.className = "dot " + (ok ? "ready" : "offline");
+    word.textContent = ok ? "Ready" : "Offline";
+    pop.textContent = ok ? "Ready · local" : "Backend not reachable";
+    pop.className = "v" + (ok ? "" : " warn");
+  } catch {
+    dot.className = "dot offline"; word.textContent = "Offline";
+    pop.textContent = "Backend not reachable"; pop.className = "v warn";
+  }
+}
+$("#sysbtn").onclick = () => {
+  const p = $("#syspop"), open = p.classList.contains("is-hidden");
+  p.classList.toggle("is-hidden", !open); $("#sysbtn").setAttribute("aria-expanded", String(open));
+};
+document.addEventListener("click", e => {
+  if (!$("#syspop").classList.contains("is-hidden") && !e.target.closest("#syspop") && !e.target.closest("#sysbtn"))
+    { $("#syspop").classList.add("is-hidden"); $("#sysbtn").setAttribute("aria-expanded", "false"); }
+});
+
+/* ---------------- examples / demo ---------------- */
+const ASK_EXAMPLES = [
+  "What is visible in this image?",
+  "Where is the largest ship?",
+  "Is there a runway in this scene?",
+  "What type of scene is this?",
+];
+const MISSION_EXAMPLES = [
+  "Compare these two images, identify the major changes, and locate the changed buildings.",
+  "Investigate the change between the two dates and describe what changed and where.",
+  "Detect changes, extract the changed regions, locate the affected structures, and verify the evidence.",
+];
+const OFFICIAL_MISSION =
+  "Investigate this area. Identify significant changes between the two observations, locate the " +
+  "affected structures, compare optical and SAR evidence, and provide a verified summary.";
+const DEMO_TILES = "data/demo/investigation/t1_optical.tif, t2_optical.tif, s2_dfc_optical.tif, s1_dfc_sar.tif " +
+  "(CASE A · real change) — swap t2_optical.tif → t2_nochange.tif for CASE B";
+
+function chips(host, arr, target) {
+  host.innerHTML = "";
+  arr.forEach(q => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.type = "button";
+    b.textContent = q.length > 62 ? q.slice(0, 62) + "…" : q; b.title = q;
+    b.onclick = () => { target.value = q; target.focus(); };
+    host.appendChild(b);
+  });
+}
+chips($("#ask-chips"), ASK_EXAMPLES, $("#ask-q"));
+chips($("#inv-chips"), MISSION_EXAMPLES, $("#mission"));
+
+$("#demo-toggle").onchange = e => {
+  const on = e.target.checked, hint = $("#demo-hint");
+  if (on) { $("#mission").value = OFFICIAL_MISSION; hint.textContent = "Select these tiles: " + DEMO_TILES; hint.classList.remove("is-hidden"); }
+  else { hint.classList.add("is-hidden"); }
+};
+
+/* ---------------- ASK ---------------- */
+$("#run-ask").onclick = async () => {
+  const btn = $("#run-ask"), out = $("#ask-out");
+  const files = $("#ask-files").files, q = $("#ask-q").value.trim();
+  if (!files.length) return errState(out, "Attach an image", "No file selected.", "Choose one PNG, JPEG or GeoTIFF image.");
+  if (!q) return errState(out, "Enter a question", "The question is empty.", "Type what you want to know about the image.");
+  btn.disabled = true;
+  out.innerHTML = `<div class="state" role="status"><h2><span class="spin"></span>Analyzing</h2>
+    <p>validate → interpret → route → specialist → verify</p>
+    <p class="k">Elapsed <span class="elapsed" id="ask-el">0s</span></p></div>`;
+  const t0 = Date.now(); const tick = setInterval(() => { const el = $("#ask-el"); if (el) el.textContent = Math.round((Date.now()-t0)/1000)+"s"; }, 1000);
+  const fd = new FormData(); fd.append("query", q); for (const f of files) fd.append("files", f);
+  try {
+    const r = await fetch("/analyze/upload", { method: "POST", body: fd });
+    const b = await r.json();
+    clearInterval(tick);
+    if (!r.ok) return errState(out, "Analysis could not be completed", errMsg(b), errHint(b));
+    renderAsk(b);
+  } catch (e) { clearInterval(tick); errState(out, "Request failed", esc(e.message), "Check that the backend is running."); }
+  finally { btn.disabled = false; }
+};
+
+function renderAsk(b) {
+  const out = $("#ask-out");
+  const inputUrls = (b.provenance && b.provenance.input_files) || [];
+  let h = `<div class="panel fade-in"><h2>Result ${b.ok ? verdictBadge("PASS") : '<span class="badge b-bad">not ok</span>'}</h2>
+    <div class="conclusion">${esc(b.answer) || '<span class="hint">no answer produced</span>'}</div>
+    <dl class="kv" style="margin-top:12px">
+      <dt>Task</dt><dd class="mono">${esc(b.interpreted_task)} · ${esc(b.task_code)}</dd>
+      <dt>Model</dt><dd>${esc(b.model_used) || "—"}</dd>
+      <dt>Latency</dt><dd>${num(b.latency_s)} s</dd>
+      ${b.yesno !== null && b.yesno !== undefined ? `<dt>Yes / No</dt><dd>${b.yesno ? "yes" : "no"}</dd>` : ""}
+      ${b.changed_fraction != null ? `<dt>Changed fraction</dt><dd>${num(b.changed_fraction)}</dd>` : ""}
+      ${b.area_ha != null ? `<dt>Changed area</dt><dd>${num(b.area_ha)} ha</dd>` : ""}
+      ${b.score != null ? `<dt>Model score</dt><dd>${num(b.score)} <span class="hint">${esc(b.score_meaning || "raw model score — not a calibrated confidence")}</span></dd>` : ""}
+    </dl></div>`;
+
+  const previewUrl = inputUrls[0];
+  const showViz = previewUrl && isRasterName(previewUrl) && (b.boxes?.length || b.regions?.length || b.mask_url || String(b.task_code||"").startsWith("SINGLE_IMAGE"));
+  if (showViz) {
+    h += `<div class="viewer fade-in" style="margin-bottom:14px">
+      <div class="vhead"><span class="vtitle">Spatial output</span></div>
+      <div class="vstage"><img id="ask-img" alt="analysed scene with model output overlaid" src="${esc(previewUrl)}" />
+        <canvas class="ovl" id="ask-ovl"></canvas></div>
+      <div class="vcaption">${b.image_dimensions ? b.image_dimensions[0]+"×"+b.image_dimensions[1]+" px" : ""}
+        ${b.geospatial_available ? " · CRS "+esc(b.crs) : " · "+esc(b.geospatial_note || "no CRS/transform")}
+        ${b.mask_url ? ` · <a href="${esc(b.mask_url)}" target="_blank" rel="noopener">mask PNG ↗</a>` : ""}</div></div>`;
+  }
+  if ((b.labels || []).length) {
+    h += `<div class="panel fade-in"><h2>Zero-shot ranking</h2><table class="trace">` +
+      b.labels.map(([l, s]) => `<tr><td>${esc(l)}</td><td class="ts">${num(s)}</td></tr>`).join("") + `</table></div>`;
+  }
+  h += verificationLine(b);
+  h += evidencePanel(b.evidence);
+  h += warningsPanel(b.warnings, b.failures);
+  out.innerHTML = h;
+
+  const img = $("#ask-img");
+  if (img) {
+    const draw = () => {
+      const cv = $("#ask-ovl"); if (!cv) return;
+      cv.width = img.clientWidth; cv.height = img.clientHeight;
+      const ctx = cv.getContext("2d");
+      const dims = b.image_dimensions || [img.naturalWidth, img.naturalHeight];
+      const sx = img.clientWidth / dims[0], sy = img.clientHeight / dims[1];
+      ctx.lineWidth = 2; ctx.strokeStyle = "#4f9dff"; ctx.fillStyle = "rgba(79,157,255,.14)";
+      (b.boxes || []).forEach(bx => {
+        const p = bx.xyxy_pixel || []; if (p.length === 4 && p.every(n => typeof n === "number")) {
+          ctx.fillRect(p[0]*sx, p[1]*sy, (p[2]-p[0])*sx, (p[3]-p[1])*sy);
+          ctx.strokeRect(p[0]*sx, p[1]*sy, (p[2]-p[0])*sx, (p[3]-p[1])*sy);
+        }
+      });
+      ctx.strokeStyle = "#d9a441";
+      (b.regions || []).forEach(rg => {
+        const p = rg.bbox_pixel || []; if (p.length === 4 && p.every(n => typeof n === "number"))
+          ctx.strokeRect(p[1]*sx, p[0]*sy, (p[3]-p[1])*sx, (p[2]-p[0])*sy);
+      });
+    };
+    img.complete ? draw() : (img.onload = draw);
+    window.addEventListener("resize", draw);
+  }
+}
+
+/* ---------------- INVESTIGATE ---------------- */
+let LAST_INVESTIGATION = null;
+
+$("#run-investigate").onclick = async () => {
+  const btn = $("#run-investigate"), out = $("#inv-out");
+  const files = $("#inv-files").files, m = $("#mission").value.trim();
+  if (!files.length) return errState(out, "Attach imagery", "No files selected.", "Add 1 to 4 images (e.g. T1, T2, SAR).");
+  if (!m) return errState(out, "Enter a mission", "The mission is empty.", "Describe what to investigate, in plain language.");
+  btn.disabled = true;
+  $("#inv-input").classList.add("is-hidden");
+  const t0 = Date.now();
+  out.innerHTML = `<div class="state" role="status"><h2><span class="spin"></span>Investigation in progress</h2>
+    <p>Planning, then executing specialist models on CPU. The first call loads model checkpoints
+       from disk and can take up to ~90&nbsp;seconds.</p>
+    <p>Step results appear together when the investigation returns.</p>
+    <p class="k">Elapsed <span class="elapsed" id="inv-el">0s</span></p></div>`;
+  const tick = setInterval(() => { const el = $("#inv-el"); if (el) el.textContent = Math.round((Date.now()-t0)/1000)+"s"; }, 1000);
+  const fd = new FormData(); fd.append("query", m); for (const f of files) fd.append("files", f);
+  try {
+    const r = await fetch("/investigate", { method: "POST", body: fd });
+    const b = await r.json();
+    clearInterval(tick);
+    if (!r.ok) { $("#inv-input").classList.remove("is-hidden"); return errState(out, "Investigation could not be started", errMsg(b), errHint(b)); }
+    renderInvestigation(b);
+  } catch (e) {
+    clearInterval(tick); $("#inv-input").classList.remove("is-hidden");
+    errState(out, "Request failed", esc(e.message), "Check that the backend is running.");
+  } finally { btn.disabled = false; }
+};
+
+/* G20.1: top-level investigation status — DISTINCT from verification/confidence */
+const STATUS_META = {
+  SUCCESS:  { cls: "st-success", word: "Investigation complete" },
+  PARTIAL:  { cls: "st-partial", word: "Investigation partially complete" },
+  BLOCKED:  { cls: "st-blocked", word: "Investigation blocked" },
+  FAILED:   { cls: "st-failed",  word: "Investigation could not run" },
+};
+const TASK_LABEL = {
+  VALIDATE_INPUT: "Validate imagery", TEMPORAL_CHANGE: "Compare temporal imagery",
+  SEMANTIC_CHANGE: "Describe the change", EXTRACT_CHANGED_REGIONS: "Extract changed regions",
+  GROUND_OBJECT: "Locate affected structures", OPTICAL_SAR_ANALYSIS: "Analyze optical + SAR",
+  CROSS_CHECK_EVIDENCE: "Cross-check evidence", VERIFY: "Verify findings",
+  SUMMARIZE: "Summarize", FINALIZE: "Finalize", VQA: "Answer the question",
+  SCENE_UNDERSTANDING: "Read the scene",
+};
+const taskLabel = t => TASK_LABEL[t] || String(t || "").replace(/_/g, " ").toLowerCase();
+
+function renderInvestigation(b) {
+  LAST_INVESTIGATION = b;
+  const out = $("#inv-out");
+  const stById = {}; (b.steps || []).forEach(s => stById[s.step_id] = s);
+  const conf = b.confidence || {};
+  const status = b.investigation_status || (b.ok ? "SUCCESS" : "FAILED");
+  const meta = STATUS_META[status] || STATUS_META.FAILED;
+  const reason = b.investigation_status_reason || b.conclusion || "";
+  const blocked = status === "BLOCKED" || status === "FAILED";
+
+  const html = `
+  <div class="status-banner ${meta.cls} fade-in">
+    <div class="sb-label">Investigation</div>
+    <div class="sb-status">${esc(status)}</div>
+    <div class="sb-reason">${esc(reason)}</div>
+  </div>
+  <div class="ws fade-in">
+    <div class="col-left">
+      ${missionPanel(b)}
+      ${planPanel(b, stById)}
+    </div>
+    <div class="col-center">
+      ${viewerPanel(b, status)}
+      ${!blocked ? centerSpatialPanel(b) : ""}
+    </div>
+    <div class="col-right">
+      ${findingsPanel(b, status)}
+      ${trustPanel(conf)}
+      ${verificationLine(b)}
+    </div>
+    <div class="row-bottom">
+      ${completionPanel(b)}
+      ${adaptivePanel(b, stById)}
+      ${evidencePanel(b.evidence)}
+      ${warningsPanel(b.warnings, b.failures)}
+      <div class="panel">
+        <h2>Report &amp; details</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+          <button class="btn sm" id="viewreport">Export investigation report ↗</button>
+          <button class="btn sm ghost" id="inv-again">New investigation</button>
+        </div>
+        <details><summary>Execution trace — ${(b.execution_trace || []).length} events</summary>
+          <table class="trace">${(b.execution_trace || []).map(t => `<tr><td class="ts">${esc(t.ts)}</td><td>${esc(t.event)}</td></tr>`).join("") || '<tr><td class="hint">no trace events</td></tr>'}</table>
+        </details>
+        <details><summary>Technical validation &amp; provenance</summary><pre class="raw">${esc(JSON.stringify({ resolution: b.resolution, verification: b.verification, provenance: b.provenance }, null, 2))}</pre></details>
+      </div>
+    </div>
+  </div>`;
+  out.innerHTML = html;
+
+  const rb = $("#viewreport"); if (rb) rb.onclick = viewReport;
+  const again = $("#inv-again"); if (again) again.onclick = () => { out.innerHTML = ""; $("#inv-input").classList.remove("is-hidden"); window.scrollTo(0, 0); };
+  if (!blocked) mountViewer(b);
+  $$('[data-step-why]').forEach(el => el.onclick = () => {
+    const box = el.nextElementSibling;
+    if (box) box.hidden = !box.hidden;
+  });
+}
+
+function missionPanel(b) {
+  const it = b.intent || null;
+  let understood;
+  if (it && (it.required_capabilities || []).length) {
+    understood = esc(it.required_capabilities.map(taskLabel).join(", "));
+  } else {
+    const specTasks = ((b.plan && b.plan.steps) || [])
+      .filter(p => p.tool && (p.tool.startsWith("run_") || p.tool === "extract_changed_regions"))
+      .map(p => taskLabel(p.task));
+    understood = specTasks.length
+      ? esc([...new Set(specTasks)].join(", "))
+      : `<span class="hint">${esc((b.mission_family && b.mission_family !== "unknown") ? b.mission_family : "geospatial investigation")}</span>`;
+  }
+  return `<div class="panel">
+    <h2>Mission</h2>
+    <div class="conclusion" style="font-size:13px">${esc(b.mission)}</div>
+    <dl class="kv" style="margin-top:11px">
+      <dt>Understood as</dt><dd>${understood}</dd>
+      <dt>Time</dt><dd>${num((b.timings || {}).total_s)} s${b.early_stopped ? " · stopped early" : ""}</dd>
+    </dl>
+    ${(b.plan_rejection_reasons || []).length ? `<div class="warn-note fail" style="margin-top:10px"><span class="g glyph">⚠</span><span>The plan did not pass the safety policy; the deterministic path was used instead.</span></div>` : ""}
+  </div>`;
+}
+
+const STATE_GLYPH = { completed: "✓", running: "▸", pending: "○", failed: "✕", skipped: "–" };
+const STATE_WORD  = { completed: "done", running: "running", pending: "waiting", failed: "could not run", skipped: "skipped" };
+function planPanel(b, stById) {
+  const steps = (b.plan && b.plan.steps) || [];
+  if (!steps.length) return "";
+  return `<div class="panel"><h2>Plan</h2>
+    <ol class="plan compact">${steps.map(p => {
+      const s = stById[p.step_id] || { status: "pending" };
+      const why = s.status === "failed"
+        ? (s.failure || (s.findings && s.findings.pair_mismatches ? "differences: " + s.findings.pair_mismatches.join(", ") : "") || s.summary || "this step could not run")
+        : "";
+      return `<li class="s-${s.status}">
+        <span class="st" aria-hidden="true">${STATE_GLYPH[s.status] || "○"}</span>
+        <span class="lbl">
+          <b>${esc(taskLabel(p.task))}</b>
+          ${s.status === "failed" ? `<button class="why-btn" data-step-why aria-label="why did this step fail">why ▾</button><div class="why-box" hidden>${esc(why)}</div>` : ""}
+          ${s.status === "skipped" ? `<span class="note">not needed — an earlier step did not run</span>` : ""}
+        </span></li>`;
+    }).join("")}</ol>
+  </div>`;
+}
+
+/* Observation → Decision → Outcome — plain language, enum names live in "details" only */
+const _REASON_PLAIN = {
+  NEW_EVIDENCE: "No significant change was found, so the localisation steps were not needed.",
+  TOOL_FAILURE: "A step could not run, so the steps that depended on it were skipped (nothing was fabricated).",
+  MISSING_INPUT: "A required input was not supplied, so that step was skipped.",
+  INSUFFICIENT_EVIDENCE: "A step produced nothing usable, so no result was asserted from it.",
+  VERIFICATION_CONTRADICTION: "A step's result did not hold up to checking, so its claim was withheld.",
+  TASK_COMPLETE: "The required evidence was already gathered, so the remaining steps were skipped.",
+};
+function adaptivePanel(b, stById) {
+  const replans = b.replans || [];
+  const obs = (b.steps || []).filter(s => s.status === "completed" && s.summary);
+  if (!replans.length && !b.early_stopped && !obs.length) return "";
+
+  let rows = "";
+  replans.forEach(r => {
+    const trig = stById[r.triggering_step] || {};
+    rows += `<div class="ev">
+      <div><span class="k">Observation</span> ${esc(trig.summary || taskLabel(trig.task) || "a step result")}</div>
+      <div><span class="k">Decision</span> ${esc(_REASON_PLAIN[r.reason] || r.detail)}</div>
+      ${(r.steps_skipped || []).length ? `<div><span class="k">Outcome</span> ${esc(r.steps_skipped.length)} downstream step(s) skipped</div>` : ""}
+    </div>`;
+  });
+  if (b.early_stopped) {
+    rows += `<div class="ev stop"><div><span class="k">Outcome</span> Investigation stopped early — ${esc(b.completion_reason || "a sufficient result was reached")}.</div></div>`;
+  }
+  if (!rows) return "";
+  return `<div class="panel"><h2>Adaptive execution</h2>
+    <div class="hint" style="margin-top:-4px;margin-bottom:8px">The agent observed each result and chose the next action.</div>
+    <div class="adapt">${rows}</div>
+    <details style="margin-top:8px"><summary>Step-by-step observations &amp; internal codes</summary>
+      <table class="trace">${(b.steps || []).map(s => `<tr><td>${esc(taskLabel(s.task))}</td><td class="ts">${esc(STATE_WORD[s.status] || s.status)}${s.summary ? " · " + esc(s.summary) : ""}</td></tr>`).join("")}
+      ${replans.map(r => `<tr><td class="ts">replan</td><td class="ts">${esc(r.reason)} — ${esc(r.detail)}</td></tr>`).join("")}</table>
+    </details>
+  </div>`;
+}
+
+/* "What we completed" / "What we could not complete" — the human summary (Part 5) */
+function completionPanel(b) {
+  const steps = (b.steps || []).filter(s => s.tool && (s.tool.startsWith("run_") || s.tool === "validate_geospatial_input" || s.tool === "extract_changed_regions"));
+  const done = steps.filter(s => s.status === "completed").map(s => taskLabel(s.task));
+  const notDone = steps.filter(s => s.status === "failed" || s.status === "skipped")
+    .map(s => taskLabel(s.task) + (s.status === "skipped" ? " (skipped)" : ""));
+  if (!done.length && !notDone.length) return "";
+  const fix = b.investigation_status === "BLOCKED"
+    ? "Provide two observations aligned to the same CRS, transform, and raster grid."
+    : b.investigation_status === "FAILED"
+      ? "Retry with different inputs, or check that the backend services are available."
+      : "";
+  return `<div class="panel"><h2>What happened</h2>
+    <div class="two-col">
+      <div><div class="ct-h">Completed</div><ul class="findlist">${done.map(d => `<li><span class="g glyph" style="color:var(--ok)">✓</span> ${esc(d)}</li>`).join("") || '<li class="hint">—</li>'}</ul></div>
+      <div><div class="ct-h">Could not complete</div><ul class="findlist">${notDone.map(d => `<li><span class="g glyph" style="color:var(--bad)">✕</span> ${esc(d)}</li>`).join("") || '<li class="hint">—</li>'}</ul></div>
+    </div>
+    ${fix ? `<div class="ct-h" style="margin-top:10px">How to fix this</div><div class="hint" style="font-size:12.5px">${esc(fix)}</div>` : ""}
+  </div>`;
+}
+
+/* spatial-findings coordinate table + GeoJSON — lives under the viewer (centre column) */
+function centerSpatialPanel(b) {
+  const sf = b.spatial_findings || [];
+  if (!sf.length && !b.geojson) return "";
+  return `<div class="panel"><h2>Spatial findings <span class="count">${sf.length}</span></h2>
+    ${sf.length ? `<table class="trace">${sf.map(s => `<tr><td>${esc(s.label)}${s.source_step ? ` <span class="ts">(${esc(s.source_step)})</span>` : ""}</td><td class="ts">${
+      Array.isArray(s.where_lonlat) ? s.where_lonlat.map(coord).join(", ")
+      : Array.isArray(s.where_pixel) ? "px " + s.where_pixel.map(x => Math.round(x)).join(",") : "—"}${
+      s.area_ha != null ? " · " + num(s.area_ha, 3) + " ha" : ""}</td></tr>`).join("")}</table>` : ""}
+    ${b.geojson ? `<div class="hint">GeoJSON FeatureCollection · ${b.geojson.features.length} feature(s) · ${esc(b.geojson.crs)} · <a href="#" id="cpgeo">copy</a></div>` : ""}
+  </div>`;
+}
+
+/* ---- spatial viewer ---- */
+let VIEWER_STATE = null;
+function viewerPanel(b, status) {
+  const inputUrls = (b.provenance && b.provenance.input_files) || [];
+  const raster = inputUrls.find(isRasterName);
+  const geo = b.geojson && (b.geojson.features || []).length ? b.geojson : null;
+  const sf = b.spatial_findings || [];
+  const hasLonLat = geo || sf.some(s => Array.isArray(s.where_lonlat) && s.where_lonlat.length === 4);
+  const hasPixel = sf.some(s => Array.isArray(s.where_pixel) && s.where_pixel.length === 4);
+
+  // G20.1: on a blocked/failed run the input image is NOT a result — do not show it.
+  if (status === "BLOCKED" || status === "FAILED") {
+    return `<div class="viewer"><div class="vhead"><span class="vtitle">Spatial view</span></div>
+      <div class="vstage empty"><div style="padding:34px 40px;max-width:460px;text-align:center;line-height:1.7">
+        <div class="glyph" style="font-size:22px;color:var(--faint)">⊘</div>
+        <div style="font-weight:650;margin:6px 0 4px">Spatial comparison unavailable</div>
+        <div class="hint">${esc(b.investigation_status_reason || "The analysis did not produce a spatial result.")}</div>
+      </div></div></div>`;
+  }
+
+  if (!raster && !hasLonLat && !hasPixel) {
+    const why = b.early_stopped
+      ? `No spatial output — the agent stopped early because ${esc((b.completion_reason || "the result was already sufficient")).toLowerCase()}. See <b>Adaptive execution</b>.`
+      : "No spatial geometry was produced for this mission.";
+    return `<div class="viewer"><div class="vhead"><span class="vtitle">Spatial view</span></div>
+      <div class="vstage empty"><div class="hint" style="padding:26px 34px;max-width:520px;text-align:center;line-height:1.7">${why}</div></div></div>`;
+  }
+  const groundEv = (b.evidence || []).find(e => e.evidence_type === "grounding");
+  const groundLonLat = groundEv && groundEv.spatial_region && groundEv.spatial_region.bbox_lonlat;
+  const layers = [];
+  if (raster) layers.push("IMAGE");
+  if (geo || hasLonLat || hasPixel) layers.push("REGIONS");
+  if (raster || groundLonLat) layers.push("GROUNDING");
+  if (geo) layers.push("FOOTPRINT");
+
+  return `<div class="viewer">
+    <div class="vhead">
+      <span class="vtitle">Spatial view</span>
+      ${layers.map(l => `<button class="layerbtn" data-layer="${l}" aria-pressed="true">${l}</button>`).join("")}
+      <button class="zoombtn" data-zoom="fit" aria-label="Fit to extent">FIT</button>
+      <button class="zoombtn" data-zoom="reset" aria-label="Reset layers">RESET</button>
+    </div>
+    <div class="vstage" id="vstage"></div>
+    <div class="vcaption" id="vcap"></div>
+  </div>`;
+}
+
+function mountViewer(b) {
+  const stage = $("#vstage"); if (!stage) return;
+  const cap = $("#vcap");
+  const inputUrls = (b.provenance && b.provenance.input_files) || [];
+  const raster = inputUrls.find(isRasterName);
+  const geo = b.geojson && (b.geojson.features || []).length ? b.geojson : null;
+  const sf = b.spatial_findings || [];
+  const groundEv = (b.evidence || []).find(e => e.evidence_type === "grounding");
+
+  // collect lon/lat rings + grounded box
+  const rings = [];
+  if (geo) (geo.features || []).forEach(f => {
+    const g = f.geometry || {};
+    if (g.type === "Polygon") (g.coordinates || []).forEach(r => rings.push({ pts: r, kind: "region", label: (f.properties||{}).label || "region" }));
+  });
+  sf.forEach(s => {
+    if (Array.isArray(s.where_lonlat) && s.where_lonlat.length === 4) {
+      const [x0,y0,x1,y1] = s.where_lonlat;
+      const kind = /ground/i.test(s.label || "") ? "ground" : "region";
+      rings.push({ pts: [[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]], kind, label: s.label || kind });
+    }
+  });
+  const gll = groundEv && groundEv.spatial_region && groundEv.spatial_region.bbox_lonlat;
+  if (gll && gll.length === 4) {
+    const [x0,y0,x1,y1] = gll;
+    rings.push({ pts: [[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]], kind: "ground", label: "grounded structure" });
+  }
+
+  const state = { mode: null, raster, rings, geo, b, layers: {}, zoom: 1 };
+  VIEWER_STATE = state;
+
+  if (raster) {
+    state.mode = "raster";
+    stage.innerHTML = `<img id="inv-img" alt="input imagery with findings overlaid" src="${esc(raster)}" /><canvas class="ovl" id="inv-ovl"></canvas>`;
+    const img = $("#inv-img");
+    const draw = () => {
+      const cv = $("#inv-ovl"); if (!cv) return;
+      cv.width = img.clientWidth; cv.height = img.clientHeight;
+      const ctx = cv.getContext("2d");
+      const gp = groundEv && groundEv.spatial_region && (groundEv.spatial_region.bbox_xyxy || groundEv.spatial_region.bbox_pixel);
+      const dims = (groundEv && groundEv.payload && groundEv.payload.image_dims) || [img.naturalWidth, img.naturalHeight];
+      const sx = img.clientWidth / dims[0], sy = img.clientHeight / dims[1];
+      if (state.layers.GROUNDING !== false && gp && gp.length === 4) {
+        ctx.lineWidth = 2; ctx.strokeStyle = "#4f9dff"; ctx.fillStyle = "rgba(79,157,255,.12)";
+        ctx.fillRect(gp[0]*sx, gp[1]*sy, (gp[2]-gp[0])*sx, (gp[3]-gp[1])*sy);
+        ctx.strokeRect(gp[0]*sx, gp[1]*sy, (gp[2]-gp[0])*sx, (gp[3]-gp[1])*sy);
+      }
+    };
+    img.complete ? draw() : (img.onload = draw);
+    window.addEventListener("resize", draw);
+    state._draw = draw;
+    cap.textContent = "Input imagery · overlays from the investigation's spatial findings";
+  } else {
+    state.mode = "geo";
+    renderGeoSVG(state);
+    const unit = state.rings.length && Math.abs(state.rings[0].pts[0][0]) <= 360 ? "EPSG:4326 (lon/lat)" : "pixel space";
+    cap.textContent = `${rings.length} feature(s) · ${unit} · source imagery is GeoTIFF — not shown inline`;
+  }
+
+  $$(".layerbtn").forEach(btn => btn.onclick = () => {
+    const L = btn.dataset.layer, on = btn.getAttribute("aria-pressed") !== "true";
+    btn.setAttribute("aria-pressed", String(on));
+    state.layers[L] = on;
+    state.mode === "geo" ? renderGeoSVG(state) : state._draw && state._draw();
+  });
+  $$(".zoombtn").forEach(btn => btn.onclick = () => {
+    if (btn.dataset.zoom === "reset") {
+      state.layers = {};
+      $$(".layerbtn").forEach(b => b.setAttribute("aria-pressed", "true"));
+    }
+    state.mode === "geo" ? renderGeoSVG(state) : state._draw && state._draw();
+  });
+}
+
+function renderGeoSVG(state) {
+  const stage = $("#vstage"); if (!stage) return;
+  const rings = state.rings.filter(r =>
+    (r.kind === "ground" ? state.layers.GROUNDING !== false : state.layers.REGIONS !== false));
+  const showFoot = state.layers.FOOTPRINT !== false && state.geo;
+  let xs = [], ys = [];
+  state.rings.forEach(r => r.pts.forEach(p => { xs.push(p[0]); ys.push(p[1]); }));
+  if (!xs.length) { stage.innerHTML = `<div class="hint" style="padding:40px">No spatial geometry to plot.</div>`; return; }
+  let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const padX = (maxX - minX || 1e-4) * 0.12, padY = (maxY - minY || 1e-4) * 0.12;
+  minX -= padX; maxX += padX; minY -= padY; maxY += padY;
+  const W = 640, H = 420, m = 34;
+  const sx = v => m + (v - minX) / (maxX - minX) * (W - 2*m);
+  const sy = v => H - m - (v - minY) / (maxY - minY) * (H - 2*m);   // invert Y for north-up
+  const path = pts => "M" + pts.map(p => `${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join("L") + "Z";
+
+  let g = "";
+  if (showFoot) {
+    (state.geo.features || []).forEach(f => {
+      const gg = f.geometry || {};
+      if (gg.type === "Polygon") (gg.coordinates || []).forEach(r =>
+        g += `<path d="${path(r)}" fill="none" stroke="#363f50" stroke-dasharray="4 3" stroke-width="1"/>`);
+    });
+  }
+  rings.forEach(r => {
+    const col = r.kind === "ground" ? "#4f9dff" : "#d9a441";
+    const fill = r.kind === "ground" ? "rgba(79,157,255,.10)" : "rgba(217,164,65,.10)";
+    g += `<path d="${path(r.pts)}" fill="${fill}" stroke="${col}" stroke-width="1.6"><title>${esc(r.label)}</title></path>`;
+  });
+  // axis labels
+  const ax = `
+    <text x="${m}" y="${H-10}" fill="#667085" font-size="10" font-family="monospace">${minX.toFixed(4)}</text>
+    <text x="${W-m}" y="${H-10}" fill="#667085" font-size="10" font-family="monospace" text-anchor="end">${maxX.toFixed(4)}</text>
+    <text x="6" y="${H-m}" fill="#667085" font-size="10" font-family="monospace">${minY.toFixed(4)}</text>
+    <text x="6" y="${m+4}" fill="#667085" font-size="10" font-family="monospace">${maxY.toFixed(4)}</text>
+    <line x1="${m}" y1="${H-m}" x2="${W-m}" y2="${H-m}" stroke="#2a313f"/>
+    <line x1="${m}" y1="${m}" x2="${m}" y2="${H-m}" stroke="#2a313f"/>`;
+  stage.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Plot of ${rings.length} spatial findings in geographic coordinates">${ax}${g}</svg>`;
+}
+
+/* ---- right column panels ---- */
+function findingsPanel(b, status) {
+  const steps = b.steps || [];
+  const s2 = steps.find(s => s.task === "TEMPORAL_CHANGE") || {};
+  const f2 = s2.findings || {};
+
+  if (status === "BLOCKED" || status === "FAILED") {
+    let t1 = f2.t1_shape, t2 = f2.t2_shape;
+    if (!t1 || !t2) {
+      const m = (b.warnings || []).map(w => String(w).match(/(\d+)x(\d+)\s*vs\s*(\d+)x(\d+)/)).find(Boolean);
+      if (m) { t1 = m[1] + "×" + m[2]; t2 = m[3] + "×" + m[4]; }
+    }
+    return `<div class="panel"><h2>Findings</h2>
+      <p style="font-size:13px;color:var(--fg-dim)">No validated finding is available.</p>
+      <div class="ct-h" style="margin-top:8px">Why</div>
+      <div class="hint" style="font-size:12.5px">${esc(b.investigation_status_reason || "The requested analysis did not complete.")}</div>
+      ${t1 && t2 ? `<div class="ct-h" style="margin-top:8px">Technical detail</div>
+        <table class="trace"><tr><td>T1 grid</td><td class="ts">${esc(t1)}</td></tr><tr><td>T2 grid</td><td class="ts">${esc(t2)}</td></tr></table>` : ""}
+    </div>`;
+  }
+
+  const sf = b.spatial_findings || [];
+  const nRegions = (steps.find(s => s.task === "EXTRACT_CHANGED_REGIONS") || {}).findings?.n_regions
+    ?? sf.filter(x => /region/i.test(x.label || "") && !/ground/i.test(x.label || "")).length;
+  const nGround = sf.filter(x => /ground/i.test(x.label || "")).length
+    || ((steps.find(s => s.task === "GROUND_OBJECT") || {}).findings?.grounded ? 1 : 0);
+  const metrics = [];
+  if (f2.changed_fraction != null) metrics.push([`${(f2.changed_fraction * 100).toFixed(1)}%`, "Scene changed"]);
+  if (f2.changed_area_ha != null) metrics.push([`${num(f2.changed_area_ha)} ha`, "Changed area"]);
+  if (nRegions) metrics.push([String(nRegions), "Changed regions"]);
+  if (nGround) metrics.push([String(nGround), "Grounded structures"]);
+
+  return `<div class="panel"><h2>Findings</h2>
+    ${metrics.length ? `<div class="metrics">${metrics.map(([v, k]) => `<div class="metric"><div class="m-v">${esc(v)}</div><div class="m-k">${esc(k)}</div></div>`).join("")}</div>` : ""}
+    <ul class="findlist">${(b.key_findings || []).map(f => `<li>${esc(f)}</li>`).join("") || '<li class="hint">no key findings recorded</li>'}</ul>
+  </div>`;
+}
+
+function trustPanel(conf) {
+  if (!conf || !conf.category) return "";
+  const c = conf.category;
+  const reasons = conf.reasons || [];
+  const insufficient = c === "INSUFFICIENT_EVIDENCE";
+  return `<div class="panel"><h2>Confidence</h2>
+    <div class="trust-cat">
+      <span class="big ${esc(c)}">${esc(c.replace(/_/g, " "))}</span>
+      <span class="hint">evidence-derived category — NOT a probability or a score</span>
+    </div>
+    ${conf.hard_rule ? `<div class="warn-note fail"><span class="g glyph">⚠</span><span>Forced: ${esc(conf.hard_rule)}</span></div>` : ""}
+    ${insufficient ? `<p class="hint">SatQuery could not establish this claim from the available evidence.</p>` : ""}
+    <div class="k" style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--faint);margin:8px 0 3px">Why</div>
+    <ul class="why">${reasons.map(r => {
+      const q = /missing|limited|not performed|only|reduced|withheld|failed/i.test(r);
+      return `<li class="${q ? "q" : ""}"><span class="g glyph">${q ? "•" : "✓"}</span><span>${esc(r)}</span></li>`;
+    }).join("") || '<li class="hint">no reasons recorded</li>'}</ul>
+    <div class="hint">${esc(conf.note || "deterministic rules — not a calibrated probability")}</div>
+  </div>`;
+}
+
+/* Verification is a SEPARATE, secondary concept — a compact line, not a big card.
+   It judges only the evidence that was produced, never "did the investigation succeed". */
+function verificationLine(b) {
+  const v = b.verification || {};
+  const st = v.status || "—";
+  const na = st === "NOT_APPLICABLE" || b.investigation_status === "BLOCKED";
+  const checks = v.checks || [];
+  const meaning = na
+    ? "No analytical conclusion was produced, so there is nothing to verify."
+    : (v.note || "Structural / deterministic checks on the evidence that was produced — not a success signal.");
+  return `<div class="panel"><h2>Verification <span class="hint" style="text-transform:none;letter-spacing:0">(of the evidence, not the outcome)</span></h2>
+    <div style="margin-bottom:6px">${na ? '<span class="badge b-mut">NOT APPLICABLE</span>' : verdictBadge(st)}</div>
+    <div class="hint" style="font-size:12px">${esc(meaning)}</div>
+    ${checks.length ? `<details style="margin-top:6px"><summary>${checks.length} check(s)</summary>
+      <table class="trace">${checks.map(c => `<tr><td><span class="g glyph" style="color:var(${c.passed === true ? "--ok" : c.passed === false ? "--bad" : "--faint"})">${c.passed === true ? "✓" : c.passed === false ? "✕" : "–"}</span> ${esc(c.name)}</td><td class="ts">${esc(c.detail || "")}</td></tr>`).join("")}</table>
+    </details>` : ""}
+  </div>`;
+}
+
+function evidencePanel(evi) {
+  evi = evi || [];
+  if (!evi.length) return `<div class="panel"><h2>Evidence <span class="count">0</span></h2><div class="hint">no evidence items</div></div>`;
+  return `<div class="panel"><h2>Evidence <span class="count">${evi.length}</span></h2>
+    ${evi.map(e => {
+      const claim = e.claim_supported || (e.payload && (e.payload.claim || e.payload.summary)) || "";
+      return `<div class="evi">
+        <div class="et"><span>${esc(e.evidence_type)}</span><span class="src">${esc(e.source_model || "")}</span></div>
+        ${claim ? `<div class="claim">${esc(typeof claim === "string" ? claim : JSON.stringify(claim))}</div>` : ""}
+        <div class="claim"><span class="badge b-ok"><span class="glyph">✓</span>recorded</span></div>
+        <details><summary>payload</summary><pre class="raw">${esc(JSON.stringify({ spatial_region: e.spatial_region, payload: e.payload }, null, 2))}</pre></details>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function warningsPanel(warnings, failures) {
+  warnings = warnings || []; failures = failures || [];
+  if (!warnings.length && !failures.length) return "";
+  const standing = /licen|unverified|experimental|not stated|prototype/i;
+  return `<div class="panel"><h2>Warnings <span class="count">${warnings.length + failures.length}</span></h2>
+    ${failures.map(f => `<div class="warn-note fail"><span class="g glyph">✕</span><span>${esc(f)}</span></div>`).join("")}
+    ${warnings.map(w => `<div class="warn-note${standing.test(w) ? "" : " fail"}"><span class="g glyph">⚠</span><span>${esc(w)}</span></div>`).join("")}
+  </div>`;
+}
+
+/* ---- error / loading helpers ---- */
+function errMsg(b) {
+  return esc(b?.detail?.error?.message || b?.detail?.message || b?.detail || b?.message || (typeof b === "string" ? b : JSON.stringify(b)));
+}
+function errHint(b) {
+  const code = String(b?.detail?.error?.code || b?.detail?.code || "").toLowerCase();
+  const msg = String(b?.detail?.error?.message || b?.detail || "").toLowerCase();
+  if (code.includes("file_count")) return "Attach 1 to 4 image files.";
+  if (code.includes("file_type") || msg.includes("unsupported")) return "Use GeoTIFF, PNG, JPEG or .npy imagery.";
+  if (code.includes("too_large") || msg.includes("413")) return "Each file must be 64 MB or smaller.";
+  if (msg.includes("co-regist") || msg.includes("coregist") || msg.includes("crs") || msg.includes("transform"))
+    return "Provide imagery with a compatible CRS and transform (co-registered onto the same grid).";
+  if (msg.includes("context")) return "The optional context field must be valid JSON.";
+  return "Check the inputs and try again.";
+}
+function errState(host, title, reason, hint) {
+  host.innerHTML = `<div class="state err" role="alert">
+    <h2>${esc(title)}</h2>
+    <p class="k">Reason</p><p>${reason}</p>
+    <p class="k">Resolution</p><p>${esc(hint)}</p></div>`;
+}
+
+/* ---- report export (unchanged endpoint) ---- */
+async function viewReport() {
+  const btn = $("#viewreport");
+  if (!LAST_INVESTIGATION) return;
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "building report…";
+  try {
+    const r = await fetch("/investigate/report", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(LAST_INVESTIGATION),
+    });
+    if (!r.ok) { btn.textContent = "report failed (HTTP " + r.status + ")"; return; }
+    const url = URL.createObjectURL(await r.blob());
+    window.open(url, "_blank"); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    btn.textContent = label;
+  } catch { btn.textContent = "report failed"; }
+  finally { btn.disabled = false; }
+}
+
+/* copy-geojson delegation */
+document.addEventListener("click", e => {
+  if (e.target && e.target.id === "cpgeo") {
+    e.preventDefault();
+    try { navigator.clipboard.writeText(JSON.stringify(LAST_INVESTIGATION.geojson)); e.target.textContent = "copied"; } catch {}
+  }
+});
+
+/* ---------------- boot ---------------- */
+if (!location.hash) location.hash = "#/";
+route();
+checkHealth();
+setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>

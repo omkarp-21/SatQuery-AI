@@ -6,7 +6,7 @@ import pytest
 
 from satquery_core.routing import RoutingRequest, route
 
-CAPS = ["change-detection", "zero-shot-classification", "retrieval", "embedding"]
+CAPS = ["change-detection", "zero-shot-classification", "retrieval", "embedding", "vqa", "grounding"]
 
 
 def _r(**kw):
@@ -38,10 +38,23 @@ def test_single_image_scene_routes_remoteclip():
     assert d.code == "SINGLE_IMAGE_SCENE" and d.specialists == ["remoteclip"]
 
 
-def test_single_image_vqa_has_no_specialist():
+def test_single_image_vqa_routes_to_tinyrs():
     d = _r(query_intent="vqa", image_count=1, modalities=["optical"])
+    assert d.code == "SINGLE_IMAGE_VQA" and d.specialists == ["tinyrs"]
+    assert "grounding is RemoteSAM" in d.reason
+
+
+def test_single_image_grounding_routes_to_remotesam():
+    d = _r(query_intent="where-is", image_count=1, modalities=["optical"])
+    assert d.code == "SINGLE_IMAGE_GROUNDING" and d.specialists == ["remotesam"]
+
+
+def test_vqa_falls_back_to_no_specialist_without_capability():
+    d = route(RoutingRequest(query_intent="vqa", image_count=1, modalities=["optical"],
+                             metadata_valid=True,
+                             available_capabilities=["change-detection", "retrieval"]))
     assert d.code == "NO_VQA_SPECIALIST" and d.specialists == []
-    assert "EXP-002" in d.reason
+    assert "RemoteCLIP or RemoteSAM" in d.reason
 
 
 def test_invalid_metadata_blocks_routing():

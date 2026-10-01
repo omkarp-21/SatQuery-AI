@@ -1,0 +1,812 @@
+{
+  "demo": "Investigation \u2014 what changed, where, and what evidence supports it",
+  "query": "Describe what changed and where, with supporting evidence.",
+  "inputs": [
+    "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+    "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif"
+  ],
+  "status": "OK",
+  "expected_task_code": "TEMPORAL",
+  "expected_model": "ChangeFormer + RemoteCLIP (composed baseline)",
+  "normalized_response": {
+    "query": "Describe what changed and where, with supporting evidence.",
+    "interpreted_task": "semantic-change",
+    "task_code": "TEMPORAL",
+    "execution_plan": [
+      "changeformer"
+    ],
+    "ok": true,
+    "answer": "Detected change over ~0.41 ha (25.3% of the scene) across 6 region(s). Region 1 (~0.04 ha near (114.9489, 28.9120)): resembles 'no notable change'. Region 2 (~0.03 ha near (114.9491, 28.9117)): resembles 'building demolition'. Region 3 (~0.03 ha near (114.9489, 28.9116)): resembles 'building demolition'. Region 4 (~0.03 ha near (114.9497, 28.9117)): resembles 'building demolition'. Region 5 (~0.03 ha near (114.9495, 28.9113)): resembles 'building demolition'. Region 6 (~0.03 ha near (114.9494, 28.9117)): resembles 'new vegetation'.",
+    "model_used": "ChangeFormer",
+    "latency_s": 44.24,
+    "yesno": null,
+    "labels": [],
+    "boxes": [],
+    "regions": [
+      {
+        "region_id": 1,
+        "area_px": 1638,
+        "area_ha": 0.041,
+        "bbox_pixel": [
+          50,
+          36,
+          94,
+          79
+        ],
+        "bbox_lonlat": [
+          114.948768,
+          28.911867,
+          114.94899,
+          28.912074
+        ],
+        "label": "no notable change",
+        "label_margin": 0.0957,
+        "low_margin": false
+      },
+      {
+        "region_id": 2,
+        "area_px": 1294,
+        "area_ha": 0.0323,
+        "bbox_pixel": [
+          123,
+          86,
+          164,
+          129
+        ],
+        "bbox_lonlat": [
+          114.949031,
+          28.911556,
+          114.949252,
+          28.911748
+        ],
+        "label": "building demolition",
+        "label_margin": 0.5678,
+        "low_margin": false
+      },
+      {
+        "region_id": 3,
+        "area_px": 1271,
+        "area_ha": 0.0318,
+        "bbox_pixel": [
+          125,
+          38,
+          164,
+          72
+        ],
+        "bbox_lonlat": [
+          114.948785,
+          28.911552,
+          114.94896,
+          28.911735
+        ],
+        "label": "building demolition",
+        "label_margin": 0.0076,
+        "low_margin": true
+      },
+      {
+        "region_id": 4,
+        "area_px": 1263,
+        "area_ha": 0.0316,
+        "bbox_pixel": [
+          118,
+          192,
+          162,
+          223
+        ],
+        "bbox_lonlat": [
+          114.949574,
+          28.911573,
+          114.949734,
+          28.911778
+        ],
+        "label": "building demolition",
+        "label_margin": 0.1143,
+        "low_margin": false
+      },
+      {
+        "region_id": 5,
+        "area_px": 1244,
+        "area_ha": 0.0311,
+        "bbox_pixel": [
+          210,
+          163,
+          250,
+          200
+        ],
+        "bbox_lonlat": [
+          114.949433,
+          28.911174,
+          114.949624,
+          28.911362
+        ],
+        "label": "building demolition",
+        "label_margin": 0.294,
+        "low_margin": false
+      },
+      {
+        "region_id": 6,
+        "area_px": 1209,
+        "area_ha": 0.0302,
+        "bbox_pixel": [
+          123,
+          140,
+          164,
+          172
+        ],
+        "bbox_lonlat": [
+          114.949307,
+          28.91156,
+          114.949473,
+          28.911752
+        ],
+        "label": "new vegetation",
+        "label_margin": 0.0326,
+        "low_margin": true
+      }
+    ],
+    "mask_url": "/artifact?name=changeformer_mask_1788332966921.png",
+    "image_dimensions": null,
+    "changed_fraction": 0.2525634765625,
+    "area_ha": 0.4138,
+    "centroid_lonlat": null,
+    "representation_dim": null,
+    "score": null,
+    "score_meaning": null,
+    "crs": null,
+    "geospatial_available": true,
+    "geospatial_note": null,
+    "evidence": [
+      {
+        "evidence_id": "ev-change_0f4e956634db",
+        "source_model": "changeformer",
+        "task": "change-detection",
+        "modality": "optical-bitemporal",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_dcjhqbhe\\changeformer_mask_1788332966921.png",
+        "spatial_region": null,
+        "temporal_context": {
+          "t1": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+          "t2": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif",
+          "relation": "T1 before T2"
+        },
+        "claim_supported": "~25.3% of pixels changed between T1 and T2",
+        "evidence_type": "change-mask",
+        "payload": {
+          "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_dcjhqbhe\\changeformer_mask_1788332966921.png",
+          "changed_fraction": 0.2525634765625,
+          "changed_area_ha": 0.4138,
+          "n_regions": 6
+        },
+        "provenance": {
+          "model": "changeformer",
+          "version": "ChangeFormerV6@afd1b7e",
+          "source_repo": "https://github.com/wgcban/ChangeFormer",
+          "license": "MIT",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\changeformer\\CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw_train_test_200_linear_ce_multi_train_True_multi_infer_False_shuffle_AB_False_embed_dim_256",
+          "capabilities": [
+            "change-detection"
+          ],
+          "modalities": [
+            "optical-bitemporal"
+          ],
+          "runtime_s": 2.121,
+          "timestamp": "2026-09-02T07:09:26Z",
+          "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
+          "input_digest": "e7801ae4f9bcf045:1352c66bf9b56de5",
+          "device": "cpu",
+          "bridge": "scripts/research/changeformer_infer.py",
+          "score_meaning": "fraction of pixels flagged changed - NOT a confidence"
+        },
+        "timestamp": "2026-09-02T07:10:04Z",
+        "status": "ok"
+      },
+      {
+        "evidence_id": "ev-region_86cbd4155208",
+        "source_model": "remoteclip",
+        "task": "zero-shot-classification",
+        "modality": "optical-single",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_reg_3lxdtzm2\\r1.png",
+        "spatial_region": {
+          "bbox_lonlat": [
+            114.948768,
+            28.911867,
+            114.94899,
+            28.912074
+          ]
+        },
+        "temporal_context": null,
+        "claim_supported": "changed region 1 most resembles 'no notable change'",
+        "evidence_type": "ranking",
+        "payload": {
+          "top_label": "no notable change",
+          "ranking": [
+            [
+              "no notable change",
+              0.35693
+            ],
+            [
+              "building demolition",
+              0.26128
+            ],
+            [
+              "new road or paved surface",
+              0.11265
+            ]
+          ]
+        },
+        "provenance": {
+          "model": "remoteclip",
+          "version": "RemoteCLIP-ViT-B-32@a6a4787",
+          "source_repo": "https://github.com/ChenDelong1999/RemoteCLIP",
+          "license": "Apache-2.0",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remoteclip\\RemoteCLIP-ViT-B-32.pt",
+          "capabilities": [
+            "zero-shot-classification",
+            "retrieval",
+            "embedding"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 1.713,
+          "timestamp": "2026-09-02T07:09:33Z",
+          "checkpoint_sha256": "2fd276af84f507121e86e79722b373e9c558201f30538a3ea081fc6ba16b26bb",
+          "input_digest": "467134ee7dd7b321",
+          "device": "cpu",
+          "model_name": "ViT-B-32",
+          "bridge": "scripts/research/remoteclip_infer.py",
+          "score_meaning": "softmax over the supplied prompts - a relative score, not calibrated P(correct)"
+        },
+        "timestamp": "2026-09-02T07:09:33Z",
+        "status": "ok"
+      },
+      {
+        "evidence_id": "ev-region_c97c99a6462e",
+        "source_model": "remoteclip",
+        "task": "zero-shot-classification",
+        "modality": "optical-single",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_reg_kj8nrigw\\r2.png",
+        "spatial_region": {
+          "bbox_lonlat": [
+            114.949031,
+            28.911556,
+            114.949252,
+            28.911748
+          ]
+        },
+        "temporal_context": null,
+        "claim_supported": "changed region 2 most resembles 'building demolition'",
+        "evidence_type": "ranking",
+        "payload": {
+          "top_label": "building demolition",
+          "ranking": [
+            [
+              "building demolition",
+              0.68781
+            ],
+            [
+              "construction site",
+              0.12
+            ],
+            [
+              "no notable change",
+              0.08729
+            ]
+          ]
+        },
+        "provenance": {
+          "model": "remoteclip",
+          "version": "RemoteCLIP-ViT-B-32@a6a4787",
+          "source_repo": "https://github.com/ChenDelong1999/RemoteCLIP",
+          "license": "Apache-2.0",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remoteclip\\RemoteCLIP-ViT-B-32.pt",
+          "capabilities": [
+            "zero-shot-classification",
+            "retrieval",
+            "embedding"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 1.748,
+          "timestamp": "2026-09-02T07:09:39Z",
+          "checkpoint_sha256": "2fd276af84f507121e86e79722b373e9c558201f30538a3ea081fc6ba16b26bb",
+          "input_digest": "9616475a27683951",
+          "device": "cpu",
+          "model_name": "ViT-B-32",
+          "bridge": "scripts/research/remoteclip_infer.py",
+          "score_meaning": "softmax over the supplied prompts - a relative score, not calibrated P(correct)"
+        },
+        "timestamp": "2026-09-02T07:09:39Z",
+        "status": "ok"
+      },
+      {
+        "evidence_id": "ev-region_cda713eed71b",
+        "source_model": "remoteclip",
+        "task": "zero-shot-classification",
+        "modality": "optical-single",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_reg_0hrj1tv3\\r3.png",
+        "spatial_region": {
+          "bbox_lonlat": [
+            114.948785,
+            28.911552,
+            114.94896,
+            28.911735
+          ]
+        },
+        "temporal_context": null,
+        "claim_supported": "changed region 3 most resembles 'building demolition'",
+        "evidence_type": "ranking",
+        "payload": {
+          "top_label": "building demolition",
+          "ranking": [
+            [
+              "building demolition",
+              0.35539
+            ],
+            [
+              "no notable change",
+              0.34782
+            ],
+            [
+              "construction site",
+              0.14662
+            ]
+          ]
+        },
+        "provenance": {
+          "model": "remoteclip",
+          "version": "RemoteCLIP-ViT-B-32@a6a4787",
+          "source_repo": "https://github.com/ChenDelong1999/RemoteCLIP",
+          "license": "Apache-2.0",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remoteclip\\RemoteCLIP-ViT-B-32.pt",
+          "capabilities": [
+            "zero-shot-classification",
+            "retrieval",
+            "embedding"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 1.711,
+          "timestamp": "2026-09-02T07:09:45Z",
+          "checkpoint_sha256": "2fd276af84f507121e86e79722b373e9c558201f30538a3ea081fc6ba16b26bb",
+          "input_digest": "e9644f0c606792d8",
+          "device": "cpu",
+          "model_name": "ViT-B-32",
+          "bridge": "scripts/research/remoteclip_infer.py",
+          "score_meaning": "softmax over the supplied prompts - a relative score, not calibrated P(correct)"
+        },
+        "timestamp": "2026-09-02T07:09:45Z",
+        "status": "ok"
+      },
+      {
+        "evidence_id": "ev-region_74111e3f0c6a",
+        "source_model": "remoteclip",
+        "task": "zero-shot-classification",
+        "modality": "optical-single",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_reg_gmzd20zp\\r4.png",
+        "spatial_region": {
+          "bbox_lonlat": [
+            114.949574,
+            28.911573,
+            114.949734,
+            28.911778
+          ]
+        },
+        "temporal_context": null,
+        "claim_supported": "changed region 4 most resembles 'building demolition'",
+        "evidence_type": "ranking",
+        "payload": {
+          "top_label": "building demolition",
+          "ranking": [
+            [
+              "building demolition",
+              0.40189
+            ],
+            [
+              "no notable change",
+              0.28762
+            ],
+            [
+              "new vegetation",
+              0.09006
+            ]
+          ]
+        },
+        "provenance": {
+          "model": "remoteclip",
+          "version": "RemoteCLIP-ViT-B-32@a6a4787",
+          "source_repo": "https://github.com/ChenDelong1999/RemoteCLIP",
+          "license": "Apache-2.0",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remoteclip\\RemoteCLIP-ViT-B-32.pt",
+          "capabilities": [
+            "zero-shot-classification",
+            "retrieval",
+            "embedding"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 1.715,
+          "timestamp": "2026-09-02T07:09:51Z",
+          "checkpoint_sha256": "2fd276af84f507121e86e79722b373e9c558201f30538a3ea081fc6ba16b26bb",
+          "input_digest": "97fb1f04aa9afd20",
+          "device": "cpu",
+          "model_name": "ViT-B-32",
+          "bridge": "scripts/research/remoteclip_infer.py",
+          "score_meaning": "softmax over the supplied prompts - a relative score, not calibrated P(correct)"
+        },
+        "timestamp": "2026-09-02T07:09:51Z",
+        "status": "ok"
+      },
+      {
+        "evidence_id": "ev-region_64e905a448c5",
+        "source_model": "remoteclip",
+        "task": "zero-shot-classification",
+        "modality": "optical-single",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_reg_667b3a_3\\r5.png",
+        "spatial_region": {
+          "bbox_lonlat": [
+            114.949433,
+            28.911174,
+            114.949624,
+            28.911362
+          ]
+        },
+        "temporal_context": null,
+        "claim_supported": "changed region 5 most resembles 'building demolition'",
+        "evidence_type": "ranking",
+        "payload": {
+          "top_label": "building demolition",
+          "ranking": [
+            [
+              "building demolition",
+              0.47966
+            ],
+            [
+              "construction site",
+              0.18566
+            ],
+            [
+              "no notable change",
+              0.14217
+            ]
+          ]
+        },
+        "provenance": {
+          "model": "remoteclip",
+          "version": "RemoteCLIP-ViT-B-32@a6a4787",
+          "source_repo": "https://github.com/ChenDelong1999/RemoteCLIP",
+          "license": "Apache-2.0",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remoteclip\\RemoteCLIP-ViT-B-32.pt",
+          "capabilities": [
+            "zero-shot-classification",
+            "retrieval",
+            "embedding"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 1.795,
+          "timestamp": "2026-09-02T07:09:58Z",
+          "checkpoint_sha256": "2fd276af84f507121e86e79722b373e9c558201f30538a3ea081fc6ba16b26bb",
+          "input_digest": "613d9790e1ee2ae4",
+          "device": "cpu",
+          "model_name": "ViT-B-32",
+          "bridge": "scripts/research/remoteclip_infer.py",
+          "score_meaning": "softmax over the supplied prompts - a relative score, not calibrated P(correct)"
+        },
+        "timestamp": "2026-09-02T07:09:58Z",
+        "status": "ok"
+      },
+      {
+        "evidence_id": "ev-region_05489754f214",
+        "source_model": "remoteclip",
+        "task": "zero-shot-classification",
+        "modality": "optical-single",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satq_reg_cfsgk5gq\\r6.png",
+        "spatial_region": {
+          "bbox_lonlat": [
+            114.949307,
+            28.91156,
+            114.949473,
+            28.911752
+          ]
+        },
+        "temporal_context": null,
+        "claim_supported": "changed region 6 most resembles 'new vegetation'",
+        "evidence_type": "ranking",
+        "payload": {
+          "top_label": "new vegetation",
+          "ranking": [
+            [
+              "new vegetation",
+              0.24666
+            ],
+            [
+              "no notable change",
+              0.21403
+            ],
+            [
+              "building demolition",
+              0.16216
+            ]
+          ]
+        },
+        "provenance": {
+          "model": "remoteclip",
+          "version": "RemoteCLIP-ViT-B-32@a6a4787",
+          "source_repo": "https://github.com/ChenDelong1999/RemoteCLIP",
+          "license": "Apache-2.0",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remoteclip\\RemoteCLIP-ViT-B-32.pt",
+          "capabilities": [
+            "zero-shot-classification",
+            "retrieval",
+            "embedding"
+          ],
+          "modalities": [
+            "optical-single"
+          ],
+          "runtime_s": 1.749,
+          "timestamp": "2026-09-02T07:10:04Z",
+          "checkpoint_sha256": "2fd276af84f507121e86e79722b373e9c558201f30538a3ea081fc6ba16b26bb",
+          "input_digest": "a636a5ad7ba2ba09",
+          "device": "cpu",
+          "model_name": "ViT-B-32",
+          "bridge": "scripts/research/remoteclip_infer.py",
+          "score_meaning": "softmax over the supplied prompts - a relative score, not calibrated P(correct)"
+        },
+        "timestamp": "2026-09-02T07:10:04Z",
+        "status": "ok"
+      }
+    ],
+    "verification": {
+      "status": "SUPPORTED",
+      "checks": [
+        {
+          "name": "inputs_exist",
+          "passed": true,
+          "detail": "2 declared, missing=[]"
+        },
+        {
+          "name": "modality_supported",
+          "passed": true,
+          "detail": "requested 'optical-bitemporal' vs model ['optical-bitemporal']"
+        },
+        {
+          "name": "geospatial_compatibility",
+          "passed": true,
+          "detail": "pair co-registered"
+        },
+        {
+          "name": "mask_artifact[ev-change_0f4e956634db]",
+          "passed": true,
+          "detail": "mask_path=C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_dcjhqbhe\\changeformer_mask_1788332966921.png"
+        },
+        {
+          "name": "changed_fraction_range[ev-change_0f4e956634db]",
+          "passed": true,
+          "detail": "cf=0.2525634765625"
+        },
+        {
+          "name": "ranking_probs[ev-region_86cbd4155208]",
+          "passed": true,
+          "detail": "n=3"
+        },
+        {
+          "name": "ranking_probs[ev-region_c97c99a6462e]",
+          "passed": true,
+          "detail": "n=3"
+        },
+        {
+          "name": "ranking_probs[ev-region_cda713eed71b]",
+          "passed": true,
+          "detail": "n=3"
+        },
+        {
+          "name": "ranking_probs[ev-region_74111e3f0c6a]",
+          "passed": true,
+          "detail": "n=3"
+        },
+        {
+          "name": "ranking_probs[ev-region_64e905a448c5]",
+          "passed": true,
+          "detail": "n=3"
+        },
+        {
+          "name": "ranking_probs[ev-region_05489754f214]",
+          "passed": true,
+          "detail": "n=3"
+        }
+      ],
+      "notes": "structural / deterministic checks only - NOT a semantic correctness judgement"
+    },
+    "resolution": {
+      "qualifier": "RESULT_OK",
+      "answer_surfaced": true,
+      "disputed": false,
+      "reasons": [],
+      "advisories": [
+        "LOW_MARGIN: 2 region tag(s) with rank-1 margin < 0.05 - treat those tags as weak"
+      ],
+      "fallback_used": null,
+      "structural_status": "SUPPORTED",
+      "semantic_status": "COHERENT",
+      "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+    },
+    "provenance": {
+      "layer": "analyze",
+      "interpretation": {
+        "intent": "semantic-change",
+        "notes": [
+          "matched semantic-change keywords"
+        ]
+      },
+      "routing": {
+        "selected_task": "semantic-change",
+        "selected_specialists": [
+          "changeformer"
+        ],
+        "routing_code": "TEMPORAL",
+        "routing_rule": "two images + a change intent -> the bi-temporal change specialist",
+        "required_inputs": [
+          "geotiff-validate",
+          "pair-co-registration-assert"
+        ],
+        "execution_order": [
+          "changeformer"
+        ],
+        "status": "routed"
+      },
+      "pair_co_registered": true,
+      "resolution": {
+        "qualifier": "RESULT_OK",
+        "answer_surfaced": true,
+        "disputed": false,
+        "reasons": [],
+        "advisories": [
+          "LOW_MARGIN: 2 region tag(s) with rank-1 margin < 0.05 - treat those tags as weak"
+        ],
+        "fallback_used": null,
+        "structural_status": "SUPPORTED",
+        "semantic_status": "COHERENT",
+        "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+      },
+      "sub_service_provenance": {
+        "baseline": "COMPOSED_SEMANTIC_CHANGE_BASELINE",
+        "crop_strategy": "tight",
+        "stages": [
+          "run_change_slice",
+          "connected_components",
+          "region_crop[tight]",
+          "remoteclip_tagging",
+          "rule_assemble",
+          "evidence",
+          "verify",
+          "verify_semantic"
+        ],
+        "change_slice_provenance": {
+          "slice": "temporal_vertical_slice",
+          "stages": [
+            "validate_geotiff",
+            "check_pair_compatibility",
+            "changeformer_adapter",
+            "spatial_stats",
+            "evidence",
+            "verify"
+          ],
+          "standardized": {
+            "model": "changeformer",
+            "version": "ChangeFormerV6@afd1b7e",
+            "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\changeformer\\CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw_train_test_200_linear_ce_multi_train_True_multi_infer_False_shuffle_AB_False_embed_dim_256",
+            "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
+            "input_ids": [
+              "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+              "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif"
+            ],
+            "task": "change-detection",
+            "parameters": {},
+            "preprocessing": [
+              "geotiff-validate",
+              "pair-co-registration-assert",
+              "to_tensor+normalize[0.5]"
+            ],
+            "environment": null,
+            "device": "cpu",
+            "execution_time_s": 2.121,
+            "timestamp": "2026-09-02T07:09:26Z",
+            "status": "ok"
+          },
+          "t1": {
+            "path": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+            "crs": "EPSG:32650",
+            "shape": [
+              256,
+              256
+            ]
+          },
+          "t2": {
+            "path": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif",
+            "crs": "EPSG:32650",
+            "shape": [
+              256,
+              256
+            ]
+          },
+          "co_registered": true,
+          "adapter_provenance": {
+            "model": "changeformer",
+            "version": "ChangeFormerV6@afd1b7e",
+            "source_repo": "https://github.com/wgcban/ChangeFormer",
+            "license": "MIT",
+            "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\changeformer\\CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw_train_test_200_linear_ce_multi_train_True_multi_infer_False_shuffle_AB_False_embed_dim_256",
+            "capabilities": [
+              "change-detection"
+            ],
+            "modalities": [
+              "optical-bitemporal"
+            ],
+            "runtime_s": 2.121,
+            "timestamp": "2026-09-02T07:09:26Z",
+            "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
+            "input_digest": "e7801ae4f9bcf045:1352c66bf9b56de5",
+            "device": "cpu",
+            "bridge": "scripts/research/changeformer_infer.py",
+            "score_meaning": "fraction of pixels flagged changed - NOT a confidence"
+          },
+          "orchestration_runtime_s": 6.346,
+          "score_meaning": "stats.changed_fraction is pixel coverage, not a confidence; this slice produces no confidence value"
+        },
+        "remoteclip": {
+          "model": "remoteclip",
+          "version": "RemoteCLIP-ViT-B-32@a6a4787",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\remoteclip\\RemoteCLIP-ViT-B-32.pt",
+          "checkpoint_sha256": "2fd276af84f507121e86e79722b373e9c558201f30538a3ea081fc6ba16b26bb",
+          "input_ids": [],
+          "task": "zero-shot-classification",
+          "parameters": {},
+          "preprocessing": [],
+          "environment": null,
+          "device": "cpu",
+          "execution_time_s": 1.713,
+          "timestamp": "2026-09-02T07:10:04Z",
+          "status": "ok"
+        },
+        "vocabulary": [
+          "new buildings",
+          "building demolition",
+          "new road or paved surface",
+          "vegetation loss",
+          "new vegetation",
+          "new water body",
+          "bare soil or clearing",
+          "construction site",
+          "no notable change"
+        ],
+        "n_components_total": 17,
+        "n_regions_tagged": 6,
+        "orchestration_runtime_s": 44.187,
+        "note": "RemoteCLIP tags are similarity to given phrases, not calibrated labels; no confidence produced"
+      },
+      "orchestration_runtime_s": 44.235,
+      "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced; `resolution` is a deterministic failure-aware qualifier, not a confidence"
+    },
+    "execution_trace": {
+      "steps": [
+        "validate_input",
+        "interpret_query",
+        "route",
+        "specialist:changeformer",
+        "evidence",
+        "verify",
+        "resolve"
+      ],
+      "routing_code": "TEMPORAL",
+      "routing_rule": "two images + a change intent -> the bi-temporal change specialist"
+    },
+    "failures": [],
+    "warnings": [
+      "EXPERIMENTAL SEMANTIC BASELINE (ChangeFormer mask + RemoteCLIP tagging) \u2014 not a learned temporal VLM, not validated semantic reasoning."
+    ]
+  }
+}

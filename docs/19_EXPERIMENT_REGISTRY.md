@@ -1,9 +1,11 @@
 # SatQuery Experiment Registry
 
-> Status: **Active — binding** · Owner: _TBD_ · Last updated: 2026-09-01
-> No experiment has a **benchmark** result yet. EXP-004 Run 1 is a *synthetic
-> sanity check* (labelled as such); ChangeFormer's IoU 0.83 (n=7) is a
-> *reproduction sanity*, not a benchmark. Results are filled only from real runs
+> Status: **Active — binding** · Owner: _TBD_ · Last updated: 2026-09-02 (G12)
+> Real **integrated, sanity-scale** results now exist for EXP-002 (VQA/grounding,
+> G11), EXP-004 Run 2 (DFC2020 optical+SAR probe, G12) and EXP-008 (LoRA
+> adaptation, G12) — each labelled sanity-scale, none a full benchmark. EXP-004
+> Run 1 is a *synthetic sanity check*; ChangeFormer's IoU 0.83 (n=7) is a
+> *reproduction sanity*. Results are filled only from real runs
 > (see [`18_RESEARCH_TO_ACCURACY.md`](18_RESEARCH_TO_ACCURACY.md)). Do not invent numbers.
 > The canonical set of seven experiments is defined in `chatgpt.context.md` §11.
 
@@ -70,19 +72,32 @@ what we measured, what we decided.
 
 ## EXP-002 — Candidate single-image RS-VLM comparison
 
-- Status: **BLOCKED — artifact acquisition (`docs/research/EXP-002.md`).** TinyRS
-  weight download failed **4 times** (G2.5–G4): `ChunkedEncodingError` ×2, DNS
-  failure, `hf_transfer`+resume (8 min → 134 MB, < 1 MB/s). **N=0.** RSCoVLM-3B not
-  attempted (larger file, same HF infra). **→ Remote Linux GPU box now justified**
-  on infrastructure grounds (bandwidth + GPU for the 7B VLMs).
+- Status: **DONE (G11, 2026-09-02) — A + B both MEASURED + INTEGRATED.**
+  `HF_HUB_ENABLE_HF_TRANSFER=1` pulled TinyRS-2B + Qwen2-VL-2B + RemoteSAM weights
+  (previously failed 7×); non-gated HF mirrors found for both eval sets.
+  **A (VQA):** TinyRS-2B **balanced acc 0.8736** on 40 RSVQA-LR yes/no (CPU,
+  p50 4.45 s) → PRIMARY; Qwen2-VL-2B control 0.7033 → FALLBACK. **RSCoVLM-3B does
+  not exist** (only 7B released). **B (grounding):** RemoteSAM **acc@IoU0.5 = 0.84
+  (21/25)** on frozen DIOR-RSVG (CPU, p50 29 s). Both integrated: `TinyRsAdapter`
+  + `RemoteSamAdapter`, `/analyze` `SINGLE_IMAGE_VQA` / `SINGLE_IMAGE_GROUNDING`.
+  `docs/research/EXP-002.md` §G11, `EXP-GROUNDING.md`, ADR-020. Reports:
+  `evaluation/reports/exp002_vqa_*.json`, `exp_grounding_dior_*.json`.
+  Open: larger samples (n=40/25 are sanity-scale) + GPU/4 GB-VRAM verification.
+  _Earlier (G5A): BLOCKED on artifact acquisition, 6 download failures (ADR-013)._
 - Hypothesis: n/a — selection bake-off
 - Question: Among candidate single-image RS-VLMs, which gives the best
   accuracy / latency / integration-cost trade-off for SatQuery's single-image path?
-- Models / methods (G1.6): **TinyRS / TinyRS-R1** (`aybora/Qwen2-VL-TinyRS*`, 2B,
-  Apache-2.0) **vs RSCoVLM-3B** (Qwen2.5-VL-3B, MIT) — both **local**, 4-bit/CPU.
-  Remote arm (only if both fail the threshold): **GeoChat** on a rented GPU ≥16 GB.
-  RemoteCLIP zero-shot as the scene-classification reference. RS-MoE **excluded** —
-  no released weights.
+- Models / methods (**revised by the Lightweight Model Replacement Audit,
+  2026-09-01 — `docs/research/LIGHTWEIGHT_AUDIT.md`, ADR-011**):
+  **PRIMARY = RSCoVLM-3B** (`Qingyun/rscovlm`, Qwen2.5-VL-3B, MIT code / CC-BY-4.0
+  data — RS multi-task VQA + grounding + captioning; 4 GB only at 4-bit).
+  **FALLBACK = TinyRS-2B** (`aybora/Qwen2-VL-TinyRS`, Apache-2.0; surer 4 GB fit;
+  download BLOCKED). **CONTROL = Qwen2-VL-2B-Instruct** (Apache-2.0, generic,
+  native bbox grounding — value-of-RS-adaptation baseline). **CEILING = GeoChat**
+  (+ **EarthDial-4B**, `akshaydudhane/EarthDial_4B_*`, MIT code+weights, +SAR
+  +temporal) on a rented GPU ≥16 GB. **Rejected:** SkyEyeGPT (no inference recipe),
+  ISRO-GeoNLI (wrapper, 36 GB), RS-MoE (no weights). RemoteCLIP zero-shot as the
+  scene-classification reference.
 - Dataset: an **RSVQA-LR** sample for VQA; a **DIOR-RSVG** sample for grounding
   (capability B). Held-out; check overlap with each model's instruction data.
 - Metric: VQA accuracy; grounding acc@IoU0.5; measured p50/p95 latency (4-bit CPU
@@ -114,12 +129,14 @@ what we measured, what we decided.
 
 ## EXP-004 — Optical-only vs optical + SAR  ⭐ (G1.5, ADR-005)
 
-- Status: **Run 1 done (synthetic sanity, NOT a benchmark); Run 2 BLOCKED**
-  (`docs/research/EXP-004.md`). Run 1: 3-arm frozen-feature linear probe on real
-  CROMA + DOFA — SAR-only signal recovered by fusion (1.00) vs chance for
-  optical-only (~0.49); machinery + directional H3 only. **Run 2 blocker (G4):** no
-  acquirable real S1+S2 set from this host — DFC `.pt` **11 GB**, So2Sat **7 GB**,
-  EuroSAT-SAR **922 MB** (SAR-only). Needs a better-connected machine.
+- Status: **DONE (G12, 2026-09-02)** (`docs/research/EXP-004.md`). Run 1 =
+  synthetic sanity. **Run 2 = real DFC2020 probe** — `hf_transfer` +
+  non-gated mirror `125oii/dfc2020` pulled the validation split (s1 947 MB +
+  s2 633 MB + dfc 6 MB) in ~2.5 min. 400 train / 200 eval, seed 20260902, CPU,
+  frozen encoder + `LogisticRegression` probe on dominant-land-cover (8 classes).
+  **CROMA joint macro-F1 0.793 vs CROMA optical 0.726 (+0.067, bootstrap 95% CI
+  includes 0 → positive but NOT significant at n=200, McNemar p=0.45).** DOFA
+  concat-fusion −0.018 (no gain). Reports: `evaluation/reports/exp004_run2_*.json`.
 - Hypothesis: H3
 - Question: For suitable queries (built-up / informal-settlement classification),
   does a **joint optical+SAR** representation improve the result vs optical-only?
@@ -139,58 +156,115 @@ what we measured, what we decided.
 - Result: _not measured_.
 - Notes: also produces the adaptation evidence for requirement E — the probe head
   IS a bounded BigEarthNet adaptation (see EXP-008, shares this pipeline).
-- DECISION: _pending_ — KEEP the better of CROMA/DOFA for the SAR path, or, if the
-  SAR delta ≈ 0, INVESTIGATE preprocessing then re-measure (`EXPERIMENT_DECISION_TREE.md`).
+- DECISION (G12): **KEEP CROMA** for the optical–SAR path (won the bake-off on
+  downstream macro-F1, 0.793 vs 0.708; the only arm where SAR helped). DOFA =
+  challenger/fallback. **H3 = INVESTIGATE → lean KEEP** — SAR helps CROMA
+  (+0.067) but not significantly at n=200; a larger eval split is the honest next
+  step before a strong claim.
+- **G18 ADDENDUM (2026-09-03) — the larger split was run; the SAR benefit did NOT
+  survive.** Full DFC2020 `ROIs0000_validation` (986 patches), independent
+  600/386 split `evaluation/datasets/dfc2020_g17_larger_split.json` (**G12 400/200
+  split untouched**), same frozen-encoder + probe method + bootstrap + McNemar.
+  **CROMA optical-only macro-F1 0.8505 vs joint 0.8247 (Δ −0.0258; 95% CI
+  [−0.0796, +0.0267]; McNemar p = 1.0).** DOFA fused 0.8177 vs optical 0.8374.
+  The point estimate **flipped sign** and was never significant. **H3 verdict →
+  the "SAR improves the downstream task" claim is WITHDRAWN**
+  (`docs/sih/CLAIM_MATRIX.md` §6, `docs/G18_RELEASE_REPORT.md` Part 2). CROMA
+  still ≥ DOFA on the primary metric on both splits → **CROMA stays D primary**;
+  the joint *representation* remains integrated (no textual claim derived from
+  it). Reports: `evaluation/reports/exp004_run2_g18_larger_*` (gitignored).
 
-## EXP-008 — RS adaptation probe on BigEarthNet v2 (requirement E)
+## EXP-008 — RS adaptation probe on DFC2020 (requirement E)
 
-- Status: PLANNED (shares infrastructure with EXP-004)
+- Status: **DONE (G12, 2026-09-02)** (`docs/research/EXP-008.md`). Ran on the
+  EXP-004 Run 2 winner (**CROMA**), the same frozen DFC2020 split (400/200, seed
+  20260902), CPU. 3 arms, one shared torch linear head, 6 epochs each.
 - Hypothesis: n/a — mandatory-capability evidence (PS §Adaptation)
-- Question: Does a bounded adaptation (linear probe → LoRA) of a frozen RS encoder
-  on a BigEarthNet-v2 subset measurably improve multilabel classification, and is a
-  linear/LoRA probe *sufficient* to satisfy the PS adaptation requirement?
-- Models / methods: frozen CROMA (or RemoteCLIP) encoder + (a) linear probe vs
-  (b) LoRA-adapted, same reBEN subset + split as EXP-004.
-- Metric: multilabel micro-F1 / mAP **before → after**, with n, seed, hardware, date.
-- Baseline: frozen encoder + linear probe.
-- Result: _not measured_.
-- Notes: keep it a bounded probe — no full fine-tuning (`.claude/rules/scope.md`).
-  Record exactly which patches.
-- DECISION: _pending_.
+- Question: Does a bounded PEFT adaptation (LoRA) of a frozen RS encoder
+  measurably improve the downstream task vs the frozen encoder, and is it
+  *sufficient* (no full fine-tune)?
+- Method: LoRA r=8 α=16 on CROMA attention Linear layers (42 wrapped, **811 k
+  trainable params = 0.4 % of the backbone; 3.24 MB adapter**) + linear head vs
+  frozen encoder + linear head vs optical-only + linear head.
+- Result: **macro-F1 — optical-only 0.656 · frozen fused 0.643 · LoRA-adapted
+  0.704.** Adapted − frozen = **+0.061** (clears the pre-registered +0.03
+  threshold). Not significance-tested (n_eval 200). Inference cost unchanged.
+- DECISION (G12): **ADOPT LoRA as the E adaptation method** (rule met; no
+  deployment blocker). Production default stays the **frozen** encoder until a
+  larger-split, bootstrapped re-run confirms the gain. Additive opt-in load path,
+  not an architecture change.
+- **G18 ADDENDUM (2026-09-03) — larger-split re-run + adapter persisted + plumbing
+  verified.** Same 986-patch independent 600/386 split, 3 CPU epochs (vs G12's 8,
+  for time budget). **LoRA-adapted joint macro-F1 0.6686 vs frozen fused 0.5422
+  (+0.1264) vs optical-only frozen 0.5772 (+0.0914); frozen fused − optical
+  −0.0350.** 811 k params / 3.24 MB delta / 42 layers / CPU RSS 1.73 GB. The LoRA
+  lift over frozen **replicates G12's direction and is larger here**, BUT: no
+  bootstrap CI / no paired test in this run, and the frozen arms are 3-epoch
+  AdamW linear heads (under-trained — the fully-converged Part-2 probe scored
+  ~0.85 on the same frozen features), so Part-2 and Part-3 absolute numbers are
+  **not comparable**; only the within-Part-3 arm deltas are. Adapter persisted
+  `models/checkpoints/exp008_croma_lora.pt`; `--lora-weights` verified end-to-end
+  through the real `CromaAdapter` (`test_croma_lora_adapter_loads_and_changes_representation`
+  — 42/42 wrapped Linears matched, joint embedding measurably shifted, provenance
+  `encoder_mode` + adapter sha256 recorded). **Decision unchanged: production
+  default stays FROZEN CROMA** (a directional 3-epoch CPU run with no significance
+  test is not grounds to flip a production default; the G18 D finding removes the
+  task-benefit objective anyway). LoRA stays opt-in. Reports:
+  `evaluation/reports/exp008_g18_larger_*` (gitignored).
 
-## EXP-005 — Unverified answer vs verified answer
+## EXP-005 — Structural verifier detection
 
-- Status: PLANNED
+- Status: **RUN — structural part done (2026-09-01, G6). `docs/research/EXP-005.md`.**
 - Hypothesis: H4
-- Question: Does the verification layer detect unsupported or contradictory model
-  outputs better than chance (and better than a confidence threshold)?
-- Models / methods: verifier design TBD (consistency checks, independent-method
-  cross-check, optical↔SAR agreement) in `packages/evidence` (verification stage).
-- Dataset: a curated set of query+image cases with **known** correct/incorrect
-  model answers (hand-labelled), in `evaluation/cases/`.
-- Metric: detection precision / recall of "answer is wrong or unsupported";
-  false-flag rate on correct answers.
-- Baseline: no verifier (accept all) and a naive confidence-threshold rule.
-- Result: _not measured_.
-- DECISION: _pending_.
+- Question: Does `verify()` detect structural defects, and what does it miss?
+- Method: 24-case curated corpus (CLEAN 6 / STRUCTURAL 8 / SEMANTIC 6 /
+  INSUFFICIENT 4) exercising every rule in `verifier.py`.
+  `evaluation/scripts/exp005_verifier_detection.py` + 3 lock tests.
+- Result: **structural-defect detection precision / recall / F1 = 1.00**
+  (TP 8, FP 0, TN 12, FN 0; 4 INSUFFICIENT correct). **Semantic-defect miss rate
+  = 1.00** (0/6 structurally-clean-but-wrong cases flagged) — by design.
+- **EXP-005b (G7): model-independent semantic verifier built + measured.**
+  `verify_semantic()` — 6 checks (claim↔number, claim↔label, temporal direction,
+  region geometry, whole-scene region, area arithmetic). Curated n=34 corpus →
+  **P/R/F1 = 1.00** for internal-incoherence detection (TP 10/FP 0/TN 14/FN 0);
+  **BEYOND_SCOPE residual miss rate 1.00** (label-correctness needs a second
+  model). INTEGRATED into `COMPOSED_SEMANTIC_CHANGE_BASELINE`.
+  `evaluation/scripts/exp005b_semantic_verifier.py` + 9 lock tests.
+- DECISION: structural verifier = **VALIDATED (structural)**; semantic verifier =
+  **MEASURED + INTEGRATED (experimental, model-independent subset)**. Remaining:
+  `independent_model_agreement` + `optical_sar_agreement` (EXP-002 / EXP-C2).
+  Confidence: EXP-C1/C2 specified in `CONFIDENCE_PLAN.md`, blocked on a scored model.
+- Caveat: both corpora are n≈30, author-curated → prove the checks fire on their
+  target defect classes, **not** a real-world coverage rate. Grow with real
+  `/analyze` failures before quoting outside `EXP-005.md`.
 
 ## EXP-006 — LLM-only routing vs constrained deterministic/agentic routing
 
-- Status: PLANNED
+- Status: **RUN (G14, 2026-09-02)** — `docs/research/EXP-006_AGENTIC_PLANNER.md`.
+  The agentic geospatial investigator: PLANNER (LlmPlanner local Qwen2-VL-2B
+  text-only / RuleBasedPlanner default) → typed `AgentPlan` → 12-check POLICY
+  layer → bounded executor (≤ 8 specialist calls; observe / verify / conditionally
+  replan) → evidence-first synthesis. The deterministic router is **not**
+  replaced — it stays the execution guard; `run_analyze` is the fallback.
 - Hypothesis: H2
-- Question: Does structured (rule-over-registry) routing improve correct tool
-  selection and reduce invalid execution vs letting an LLM freely choose tools?
-- Models / methods: `packages/agents` routing stage in two modes — (a) LLM proposes
-  the whole plan with no schema constraint; (b) LLM only disambiguates intent, then
-  rules over `model_registry.yaml` capabilities build the plan (the design in the
-  `agent-orchestration` skill).
-- Dataset: a labelled set of queries + input bundles with a **known correct**
-  task / modality / specialist selection, in `evaluation/cases/`.
-- Metric: routing accuracy (correct specialist + task); rate of invalid executions
-  (unsupported task/modality reaching a model); plan reproducibility across repeats.
-- Baseline: mode (a), LLM-only.
-- Result: _not measured_.
-- DECISION: _pending_.
+- Question: Does a constrained planner + deterministic policy guard produce
+  correct multi-step specialist plans without replacing the router, and add
+  functional value over single-shot `/analyze` on multi-step missions?
+- Method: `packages/agents/src/satquery_agents/agent/` (schemas, registry, policy,
+  planner, prompts, memory, verifier) + `apps/backend/app/services/agent_runner.py`
+  + `POST /investigate`. Task ontology (12 closed tasks), tool registry (12 closed
+  tools with metadata). `evaluation/agent/` — 30 frozen missions (6 categories),
+  `run_agent_eval.py` (plan phase all 30 + exec phase bounded sample + agent-vs-
+  baseline).
+- Result (plan phase, 30 missions, rule planner, CPU): **plan validity 0.967,
+  tool-selection accuracy 1.00, task-order correctness 1.00**, avg 2.4 specialist
+  steps/plan, failed-plan rate 0.033 (adv-5 misregistered pair correctly
+  rejected). Exec phase + baseline comparison: see `EXP-006_AGENTIC_PLANNER.md` /
+  `evaluation/agent/reports/latest.json`.
+- DECISION (G14): **KEEP** — the agent produces valid multi-step plans, never
+  runs a forbidden tool, preserves evidence/verification/provenance, and on
+  multi-step missions runs multiple required specialists where the deterministic
+  baseline routes to one. SatQuery's differentiating feature.
 
 ## EXP-007 — Geospatial validation ON vs OFF
 
@@ -216,13 +290,13 @@ what we measured, what we decided.
 | ID | Focus | Hypothesis | Status | Decision |
 |----|-------|-----------|--------|----------|
 | EXP-001 | generic vs RS-adapted VLM | H1 | PLANNED (blocked on GPU box) | — |
-| EXP-002 | single-image VLM bake-off — TinyRS vs RSCoVLM-3B (local) | selection | **BLOCKED** — weights unfetchable (4 dl attempts); remote GPU justified | — |
-| EXP-003 | temporal — ChangeFormer + caption pipeline vs remote VLMs | selection (→H2) | PLANNED | — |
-| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | Run 1 (synthetic sanity) done; **Run 2 BLOCKED** — no acquirable S1+S2 set | — |
-| EXP-005 | unverified vs verified | H4 | PLANNED | — |
-| EXP-006 | LLM vs constrained routing | H2 | PLANNED (needs ≥2 adapters) | — |
+| EXP-002 | single-image VLM A/B gate — VQA + grounding | selection | **DONE (G11)** — TinyRS-2B VQA bal-acc 0.87 (PRIMARY) / Qwen2-VL-2B 0.70 (fallback); RemoteSAM grounding acc@IoU0.5 0.84; RSCoVLM-3B does not exist. ADR-020 | KEEP TinyRS-2B + RemoteSAM |
+| EXP-003 | temporal-language — composed baseline vs remote VLMs (a); crop strategy (b) | selection (→H2) | **EXP-003b RUN** (crop strategy: agreement 4/6, `expanded` provisional); EXP-003a BLOCKED (remote) | `EXP-003.md` |
+| **EXP-004** | **optical vs optical+SAR — CROMA vs DOFA** | **H3** | **DONE (G12 + G18)** — G12 n=200: CROMA joint 0.793 vs optical 0.726 (+0.067, n.s.). **G18 n=386 larger split: joint 0.8247 vs optical 0.8505 (Δ −0.026, n.s.) — SAR benefit did NOT survive** | **KEEP CROMA** (D primary; CROMA ≥ DOFA both splits); **H3 → "SAR improves the task" claim WITHDRAWN** |
+| EXP-005 | verifier detection — structural (a) + model-independent semantic (b) | H4 | **RUN** — 005a structural P/R/F1 = 1.00 (n=24); 005b semantic P/R/F1 = 1.00 (n=34), INTEGRATED; label-correctness gap remains | `EXP-005.md` |
+| EXP-006 | agentic planner + policy guard vs single-shot routing | H2 | **DONE (G14)** — plan validity 0.967, tool-selection 1.00, task-order 1.00 (30 frozen missions); agent runs multiple required specialists on multi-step missions where the baseline routes to one | **KEEP** — the differentiating feature |
 | EXP-007 | geospatial safeguard stress test | H5 | **RUN — 15/15 pass** (`EXP-007.md`) | KEEP the gate |
-| EXP-008 | RS adaptation probe (req. E) | n/a | **BLOCKED** on EXP-004 Run 2 | — |
+| EXP-008 | RS adaptation probe (req. E) | n/a | **DONE (G12 + G18)** — G12 8ep: 0.643→0.704 (+0.061). G18 larger split, 3 CPU ep: LoRA 0.6686 vs frozen fused 0.5422 (+0.126) vs optical 0.5772 (+0.091); direction replicates, no significance test | **LoRA is the E method**; prod default stays **frozen CROMA**; `--lora-weights` opt-in, adapter persisted + verified through `CromaAdapter` |
 
 Hypothesis coverage: H1→EXP-001, H2→EXP-006 (informed by EXP-003), H3→EXP-004,
 H4→EXP-005, H5→EXP-007. Mandatory-capability coverage without a hypothesis:

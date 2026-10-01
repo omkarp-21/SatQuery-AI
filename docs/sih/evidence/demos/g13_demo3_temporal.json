@@ -1,0 +1,277 @@
+{
+  "demo": "Temporal \u2014 what changed",
+  "query": "What changed between these two images?",
+  "inputs": [
+    "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+    "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif"
+  ],
+  "status": "OK",
+  "expected_task_code": "TEMPORAL",
+  "expected_model": "ChangeFormer",
+  "normalized_response": {
+    "query": "What changed between these two images?",
+    "interpreted_task": "change",
+    "task_code": "TEMPORAL",
+    "execution_plan": [
+      "changeformer"
+    ],
+    "ok": true,
+    "answer": "~25.3% of the scene changed between the two dates.",
+    "model_used": "ChangeFormer",
+    "latency_s": 8.06,
+    "yesno": null,
+    "labels": [],
+    "boxes": [
+      {
+        "xyxy_pixel": [
+          300000.0,
+          3199873.0,
+          300124.5,
+          3200000.0
+        ],
+        "bbox_lonlat": [
+          114.948598,
+          28.911148,
+          114.949852,
+          28.912313
+        ],
+        "label": "changed area",
+        "score": null
+      }
+    ],
+    "regions": [],
+    "mask_url": "/artifact?name=changeformer_mask_1788332842822.png",
+    "image_dimensions": null,
+    "changed_fraction": 0.2525634765625,
+    "area_ha": 0.4138,
+    "centroid_lonlat": [
+      114.949225,
+      28.91173
+    ],
+    "representation_dim": null,
+    "score": null,
+    "score_meaning": null,
+    "crs": "EPSG:32650",
+    "geospatial_available": true,
+    "geospatial_note": null,
+    "evidence": [
+      {
+        "evidence_id": "ev-change_c53c39a46747",
+        "source_model": "changeformer",
+        "task": "change-detection",
+        "modality": "optical-bitemporal",
+        "source_artifact": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_5q8iyizi\\changeformer_mask_1788332842822.png",
+        "spatial_region": {
+          "bbox_lonlat": [
+            114.948598,
+            28.911148,
+            114.949852,
+            28.912313
+          ]
+        },
+        "temporal_context": {
+          "t1": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+          "t2": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif",
+          "relation": "T1 before T2"
+        },
+        "claim_supported": "~25.3% of pixels changed between T1 and T2",
+        "evidence_type": "change-mask",
+        "payload": {
+          "mask_path": "C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_5q8iyizi\\changeformer_mask_1788332842822.png",
+          "changed_fraction": 0.2525634765625,
+          "changed_area_ha": 0.4138
+        },
+        "provenance": {
+          "model": "changeformer",
+          "version": "ChangeFormerV6@afd1b7e",
+          "source_repo": "https://github.com/wgcban/ChangeFormer",
+          "license": "MIT",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\changeformer\\CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw_train_test_200_linear_ce_multi_train_True_multi_infer_False_shuffle_AB_False_embed_dim_256",
+          "capabilities": [
+            "change-detection"
+          ],
+          "modalities": [
+            "optical-bitemporal"
+          ],
+          "runtime_s": 2.327,
+          "timestamp": "2026-09-02T07:07:22Z",
+          "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
+          "input_digest": "e7801ae4f9bcf045:1352c66bf9b56de5",
+          "device": "cpu",
+          "bridge": "scripts/research/changeformer_infer.py",
+          "score_meaning": "fraction of pixels flagged changed - NOT a confidence"
+        },
+        "timestamp": "2026-09-02T07:07:22Z",
+        "status": "ok"
+      }
+    ],
+    "verification": {
+      "status": "SUPPORTED",
+      "checks": [
+        {
+          "name": "inputs_exist",
+          "passed": true,
+          "detail": "2 declared, missing=[]"
+        },
+        {
+          "name": "modality_supported",
+          "passed": true,
+          "detail": "requested 'optical-bitemporal' vs model ['optical-bitemporal']"
+        },
+        {
+          "name": "geospatial_compatibility",
+          "passed": true,
+          "detail": "pair co-registered"
+        },
+        {
+          "name": "mask_artifact[ev-change_c53c39a46747]",
+          "passed": true,
+          "detail": "mask_path=C:\\Users\\Dikshita\\AppData\\Local\\Temp\\satquery_cf_5q8iyizi\\changeformer_mask_1788332842822.png"
+        },
+        {
+          "name": "changed_fraction_range[ev-change_c53c39a46747]",
+          "passed": true,
+          "detail": "cf=0.2525634765625"
+        }
+      ],
+      "notes": "structural / deterministic checks only - NOT a semantic correctness judgement"
+    },
+    "resolution": {
+      "qualifier": "RESULT_OK",
+      "answer_surfaced": true,
+      "disputed": false,
+      "reasons": [],
+      "advisories": [],
+      "fallback_used": null,
+      "structural_status": "SUPPORTED",
+      "semantic_status": null,
+      "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+    },
+    "provenance": {
+      "layer": "analyze",
+      "interpretation": {
+        "intent": "change",
+        "notes": [
+          "matched change keywords"
+        ]
+      },
+      "routing": {
+        "selected_task": "change",
+        "selected_specialists": [
+          "changeformer"
+        ],
+        "routing_code": "TEMPORAL",
+        "routing_rule": "two images + a change intent -> the bi-temporal change specialist",
+        "required_inputs": [
+          "geotiff-validate",
+          "pair-co-registration-assert"
+        ],
+        "execution_order": [
+          "changeformer"
+        ],
+        "status": "routed"
+      },
+      "pair_co_registered": true,
+      "resolution": {
+        "qualifier": "RESULT_OK",
+        "answer_surfaced": true,
+        "disputed": false,
+        "reasons": [],
+        "advisories": [],
+        "fallback_used": null,
+        "structural_status": "SUPPORTED",
+        "semantic_status": null,
+        "note": "deterministic post-execution qualifier - a function of verify() + verify_semantic() + sub-service status; NOT a confidence value"
+      },
+      "sub_service_provenance": {
+        "slice": "temporal_vertical_slice",
+        "stages": [
+          "validate_geotiff",
+          "check_pair_compatibility",
+          "changeformer_adapter",
+          "spatial_stats",
+          "evidence",
+          "verify"
+        ],
+        "standardized": {
+          "model": "changeformer",
+          "version": "ChangeFormerV6@afd1b7e",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\changeformer\\CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw_train_test_200_linear_ce_multi_train_True_multi_infer_False_shuffle_AB_False_embed_dim_256",
+          "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
+          "input_ids": [
+            "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+            "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif"
+          ],
+          "task": "change-detection",
+          "parameters": {},
+          "preprocessing": [
+            "geotiff-validate",
+            "pair-co-registration-assert",
+            "to_tensor+normalize[0.5]"
+          ],
+          "environment": null,
+          "device": "cpu",
+          "execution_time_s": 2.327,
+          "timestamp": "2026-09-02T07:07:22Z",
+          "status": "ok"
+        },
+        "t1": {
+          "path": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t1.tif",
+          "crs": "EPSG:32650",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "t2": {
+          "path": "C:\\Users\\Dikshita\\Desktop\\satquery\\data\\demo\\temporal\\t2.tif",
+          "crs": "EPSG:32650",
+          "shape": [
+            256,
+            256
+          ]
+        },
+        "co_registered": true,
+        "adapter_provenance": {
+          "model": "changeformer",
+          "version": "ChangeFormerV6@afd1b7e",
+          "source_repo": "https://github.com/wgcban/ChangeFormer",
+          "license": "MIT",
+          "checkpoint": "C:\\Users\\Dikshita\\Desktop\\satquery\\models\\cache\\changeformer\\CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw_train_test_200_linear_ce_multi_train_True_multi_infer_False_shuffle_AB_False_embed_dim_256",
+          "capabilities": [
+            "change-detection"
+          ],
+          "modalities": [
+            "optical-bitemporal"
+          ],
+          "runtime_s": 2.327,
+          "timestamp": "2026-09-02T07:07:22Z",
+          "checkpoint_sha256": "04c7ef989f13b218b17fdac7f8cd2fd2f549ed4c0a6be2e4ef96c4d583549acb",
+          "input_digest": "e7801ae4f9bcf045:1352c66bf9b56de5",
+          "device": "cpu",
+          "bridge": "scripts/research/changeformer_infer.py",
+          "score_meaning": "fraction of pixels flagged changed - NOT a confidence"
+        },
+        "orchestration_runtime_s": 7.841,
+        "score_meaning": "stats.changed_fraction is pixel coverage, not a confidence; this slice produces no confidence value"
+      },
+      "orchestration_runtime_s": 8.059,
+      "note": "multimodal path is representation-level only; VQA has no specialist; no confidence value is produced; `resolution` is a deterministic failure-aware qualifier, not a confidence"
+    },
+    "execution_trace": {
+      "steps": [
+        "validate_input",
+        "interpret_query",
+        "route",
+        "specialist:changeformer",
+        "evidence",
+        "verify",
+        "resolve"
+      ],
+      "routing_code": "TEMPORAL",
+      "routing_rule": "two images + a change intent -> the bi-temporal change specialist"
+    },
+    "failures": [],
+    "warnings": []
+  }
+}

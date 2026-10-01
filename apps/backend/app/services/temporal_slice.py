@@ -214,3 +214,96 @@ def run_change_slice(
         verification=vr,
         provenance=provenance,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Failure-aware fallback (G8 Phase 10) - the registry-declared trivial baseline
+# for change-detection: "image-difference + threshold ... if the adapter env is
+# unavailable". Deterministic, no model. Keeps the SAME geospatial safeguards.
+# --------------------------------------------------------------------------- #
+_FALLBACK_DIFF_THRESHOLD = 0.15  # abs mean-RGB difference, normalised to [0, 1]
+
+
+def run_change_fallback(
+    t1_path: str | Path,
+    t2_path: str | Path,
+    *,
+    artifact_dir: str | Path | None = None,
+    threshold: float = _FALLBACK_DIFF_THRESHOLD,
+) -> ChangeSliceResult:
+    """Image-difference change baseline. Same validation + co-registration gate as
+    `run_change_slice`; used only when the ChangeFormer adapter cannot run."""
+    errors: list[str] = []
+    started = time.time()
+
+    v1 = validate_geotiff(t1_path)
+    v2 = validate_geotiff(t2_path)
+    m1, m2 = v1.meta, v2.meta
+    if m1 is None or m2 is None:
+        return ChangeSliceResult(ok=False, errors=["fallback: unreadable raster"],
+                                 t1_meta=m1, t2_meta=m2)
+    pair = check_pair_compatibility(m1, m2)
+    if not pair.co_registered:
+        return ChangeSliceResult(
+            ok=False, errors=[f"fallback: T1/T2 not co-registered: {pair.mismatches}"],
+            t1_meta=m1, t2_meta=m2, t1_valid=v1.ok, t2_valid=v2.ok, pair=pair,
+        )
+
+    with rasterio.open(t1_path) as d1, rasterio.open(t2_path) as d2:
+        n = min(d1.count, d2.count, 3)
+        a = d1.read(list(range(1, n + 1))).astype("float32")
+        b = d2.read(list(range(1, n + 1))).astype("float32")
+    scale = 255.0 if max(a.max(), b.max()) > 1.5 else 1.0
+    diff = np.abs(a / scale - b / scale).mean(axis=0)  # (H, W) in [0, 1]
+    mask = diff > float(threshold)
+    changed_px = int(mask.sum())
+    total_px = int(mask.size)
+    stats = ChangeStats(
+        changed_pixels=changed_px, total_pixels=total_px,
+        changed_fraction=round(changed_px / total_px, 6) if total_px else 0.0,
+    )
+    if m1.is_projected and (m1.linear_units or "").lower().startswith(("met", "m")):
+        px_area = m1.res[0] * m1.res[1]
+        stats.changed_area_m2 = round(changed_px * px_area, 2)
+        stats.changed_area_ha = round(stats.changed_area_m2 / 10_000.0, 4)
+
+    mask_path = None
+    out_dir = Path(artifact_dir) if artifact_dir else Path(str(t1_path)).parent
+    try:
+        import imageio.v2 as imageio  # optional; falls back to no PNG if absent
+
+        mask_path = str(out_dir / f"imgdiff_mask_{int(started)}.png")
+        imageio.imwrite(mask_path, (mask.astype("uint8") * 255))
+    except Exception:  # noqa: BLE001 - PNG is a convenience, not required
+        mask_path = None
+
+    ev = EvidenceItem(
+        evidence_id=new_evidence_id("ev-imgdiff"),
+        source_model="image_difference_fallback", task="change-detection",
+        modality="optical-bitemporal", source_artifact=mask_path,
+        temporal_context={"t1": str(t1_path), "t2": str(t2_path), "relation": "T1 before T2"},
+        claim_supported=f"~{stats.changed_fraction:.1%} of pixels differ by > {threshold} (mean RGB)",
+        evidence_type="change-mask",
+        payload={"mask_path": mask_path, "changed_fraction": stats.changed_fraction,
+                 "method": "image-difference + fixed threshold", "threshold": threshold},
+    )
+    vr = verify({"changed_fraction": stats.changed_fraction}, [ev], {
+        "input_paths": [str(t1_path), str(t2_path)],
+        "inputs_exist": {str(t1_path): True, str(t2_path): True},
+        "pair_co_registered": pair.co_registered,
+    })
+    provenance = {
+        "model": "image_difference_fallback",
+        "stages": ["validate_geotiff", "check_pair_compatibility", "abs_rgb_difference",
+                   "threshold", "evidence", "verify"],
+        "threshold": threshold,
+        "is_fallback": True,
+        "orchestration_runtime_s": round(time.time() - started, 3),
+        "score_meaning": "changed_fraction = fraction of pixels over a fixed difference "
+                         "threshold; NOT a confidence, NOT ChangeFormer quality",
+    }
+    return ChangeSliceResult(
+        ok=True, errors=errors, t1_meta=m1, t2_meta=m2, t1_valid=v1.ok, t2_valid=v2.ok,
+        pair=pair, stats=stats, mask_path=mask_path, evidence=[ev], verification=vr,
+        provenance=provenance,
+    )

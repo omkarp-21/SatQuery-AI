@@ -23,14 +23,22 @@ from __future__ import annotations
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import rasterio
 from pydantic import BaseModel
 from scipy import ndimage
 
-from satquery_evidence import EvidenceItem, Provenance, VerificationResult, new_evidence_id, verify
+from satquery_evidence import (
+    EvidenceItem,
+    Provenance,
+    SemanticVerificationResult,
+    VerificationResult,
+    new_evidence_id,
+    verify,
+    verify_semantic,
+)
 from satquery_model_adapters import AdapterRequest, RemoteClipAdapter
 
 from app.services.temporal_slice import run_change_slice
@@ -46,6 +54,16 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 _RC_CKPT = _REPO_ROOT / "models/cache/remoteclip/RemoteCLIP-ViT-B-32.pt"
 _MIN_REGION_PX = 64  # ignore specks
 
+# EXP-007b / G6 Phase 7 - how the T2 crop is taken for RemoteCLIP tagging.
+#   tight       : exact changed-region bbox (original behaviour)
+#   expanded    : bbox padded by _CONTEXT_PAD_FRAC on every side for surrounding context
+#   mask_aware  : expanded crop, but pixels OUTSIDE the changed mask are dimmed so the
+#                 tagger still sees context while the changed area dominates
+CropStrategy = Literal["tight", "expanded", "mask_aware"]
+_CONTEXT_PAD_FRAC = 0.75          # pad each side by 75% of the bbox extent
+_MASK_AWARE_DIM = 0.35           # multiply non-changed pixels by this in mask_aware mode
+_LOW_MARGIN = 0.05              # rank-1 minus rank-2 similarity below this -> low_margin advisory
+
 
 class ChangeRegion(BaseModel):
     region_id: int
@@ -55,6 +73,8 @@ class ChangeRegion(BaseModel):
     bbox_lonlat: tuple[float, float, float, float] | None = None
     top_tag: str | None = None
     tag_ranking: list[list[Any]] = []
+    tag_margin: float | None = None   # rank-1 minus rank-2 similarity
+    low_margin: bool = False          # tag_margin < _LOW_MARGIN (advisory, not a confidence)
 
 
 class ComposedSemanticChangeResult(BaseModel):
@@ -73,6 +93,7 @@ class ComposedSemanticChangeResult(BaseModel):
     description: str | None = None
     evidence: list[EvidenceItem] = []
     verification: VerificationResult | None = None
+    semantic_verification: SemanticVerificationResult | None = None
     provenance: dict[str, Any] = {}
 
 
@@ -84,13 +105,17 @@ def run_composed_semantic_change(
     remoteclip_checkpoint: str | Path | None = None,
     vocabulary: list[str] | None = None,
     max_regions: int = 6,
+    crop_strategy: CropStrategy = "tight",
+    artifact_dir: str | Path | None = None,
 ) -> ComposedSemanticChangeResult:
     started = time.time()
     vocab = vocabulary or _DEFAULT_VOCAB
     failures: list[str] = []
 
     # --- 1. ChangeFormer mask (reuses geospatial validation + co-reg gate) ---
-    change = run_change_slice(t1_path, t2_path, checkpoint_dir=checkpoint_dir, strict=True)
+    change = run_change_slice(
+        t1_path, t2_path, checkpoint_dir=checkpoint_dir, strict=True, artifact_dir=artifact_dir
+    )
     if not change.ok or change.stats is None or not change.mask_path:
         return ComposedSemanticChangeResult(
             ok=False, errors=change.errors or ["change slice produced no mask"],
@@ -119,6 +144,7 @@ def run_composed_semantic_change(
     region_evidence: list[EvidenceItem] = []
     px_area = (m1.res[0] * m1.res[1]) if (m1 and m1.is_projected) else None
 
+    h_full, w_full = labelled.shape
     with rasterio.open(t2_path) as t2ds:
         for (area_px, _lab, rmin, cmin, rmax, cmax) in comps[:max_regions]:
             reg = ChangeRegion(
@@ -138,13 +164,28 @@ def run_composed_semantic_change(
                                    round(max(lo0, lo1), 6), round(max(la0, la1), 6))
 
             try:
-                win = rasterio.windows.Window(cmin, rmin, max(cmax - cmin + 1, 8), max(rmax - rmin + 1, 8))
+                # window bounds depend on the crop strategy
+                if crop_strategy == "tight":
+                    wr0, wc0, wr1, wc1 = rmin, cmin, rmax, cmax
+                else:  # expanded | mask_aware share the padded window
+                    pr = max(4, int(round((rmax - rmin + 1) * _CONTEXT_PAD_FRAC)))
+                    pc = max(4, int(round((cmax - cmin + 1) * _CONTEXT_PAD_FRAC)))
+                    wr0, wc0 = max(0, rmin - pr), max(0, cmin - pc)
+                    wr1, wc1 = min(h_full - 1, rmax + pr), min(w_full - 1, cmax + pc)
+                win = rasterio.windows.Window(wc0, wr0, max(wc1 - wc0 + 1, 8), max(wr1 - wr0 + 1, 8))
                 crop = t2ds.read(indexes=[1, 2, 3], window=win, boundless=True, fill_value=0)
                 crop = np.transpose(crop, (1, 2, 0)).astype("uint8")
                 if crop.shape[0] < 8 or crop.shape[1] < 8:
                     failures.append(f"region {reg.region_id}: crop too small to tag")
                     regions.append(reg)
                     continue
+                if crop_strategy == "mask_aware":
+                    # dim everything outside THIS changed component, keep context faintly visible
+                    sub = labelled[wr0:wr0 + crop.shape[0], wc0:wc0 + crop.shape[1]]
+                    keep = (sub == _lab)
+                    if keep.shape == crop.shape[:2] and keep.any():
+                        dimmed = (crop.astype("float32") * _MASK_AWARE_DIM).astype("uint8")
+                        crop = np.where(keep[..., None], crop, dimmed)
                 tmp = Path(tempfile.mkdtemp(prefix="satq_reg_")) / f"r{reg.region_id}.png"
                 from PIL import Image
                 Image.fromarray(crop).save(tmp)
@@ -152,6 +193,11 @@ def run_composed_semantic_change(
                                             context={"task": "zero-shot-classification"}))
                 reg.top_tag = res.answer["top_label"]
                 reg.tag_ranking = res.answer["ranking"][:3]
+                if len(reg.tag_ranking) >= 2:
+                    reg.tag_margin = round(
+                        float(reg.tag_ranking[0][1]) - float(reg.tag_ranking[1][1]), 4
+                    )
+                    reg.low_margin = reg.tag_margin < _LOW_MARGIN
                 region_evidence.append(EvidenceItem(
                     evidence_id=new_evidence_id("ev-region"),
                     source_model="remoteclip", task="zero-shot-classification",
@@ -203,11 +249,23 @@ def run_composed_semantic_change(
         "model_modalities": ["optical-bitemporal"],
         "pair_co_registered": change.pair.co_registered if change.pair else None,
     })
+    # EXP-005b - model-independent semantic-coherence checks over the assembled
+    # description + evidence (claim<->number/label, region geometry, area sums).
+    # Not a real-world correctness judgement; see verify_semantic() docstring.
+    scene_px = int(m1.width * m1.height) if (m1 and m1.width and m1.height) else None
+    sem_vr = verify_semantic(
+        {"description": description, "regions": [r.model_dump() for r in regions],
+         "changed_area_ha": st.changed_area_ha},
+        all_ev,
+        {"image_shape": ((m1.height, m1.width) if (m1 and m1.height and m1.width) else None),
+         "scene_pixels": scene_px, "changed_area_ha": st.changed_area_ha},
+    )
 
     prov = {
         "baseline": BASELINE_NAME,
-        "stages": ["run_change_slice", "connected_components", "region_crop",
-                   "remoteclip_tagging", "rule_assemble", "evidence", "verify"],
+        "crop_strategy": crop_strategy,
+        "stages": ["run_change_slice", "connected_components", f"region_crop[{crop_strategy}]",
+                   "remoteclip_tagging", "rule_assemble", "evidence", "verify", "verify_semantic"],
         "change_slice_provenance": change.provenance,
         "remoteclip": Provenance.from_adapter(
             (region_evidence[0].provenance if region_evidence else {"model": "remoteclip"}),
@@ -224,5 +282,5 @@ def run_composed_semantic_change(
         mask_path=change.mask_path,
         changed_fraction=st.changed_fraction, changed_area_ha=st.changed_area_ha,
         regions=regions, description=description,
-        evidence=all_ev, verification=vr, provenance=prov,
+        evidence=all_ev, verification=vr, semantic_verification=sem_vr, provenance=prov,
     )

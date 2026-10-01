@@ -34,6 +34,8 @@ data/raw/**
 !data/raw/.gitkeep
 data/processed/**
 !data/processed/.gitkeep
+data/uploads/**
+!data/uploads/.gitkeep
 *.pt
 *.pth
 *.onnx
@@ -64,3 +66,7 @@ logs/
 
 # --- local model validation venvs ---
 .venvs/
+
+# G14 agent eval — keep only latest.json in git
+evaluation/agent/reports/*.json
+!evaluation/agent/reports/latest.json

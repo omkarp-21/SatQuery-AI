@@ -1,0 +1,61 @@
+{
+  "name": "DIOR-RSVG A/B gate sample (EXP-002)",
+  "frozen": "2026-09-01",
+  "purpose": "Fixed, deterministic text-guided grounding sample for the G5A A/B reproduction gate. Used identically across RSCoVLM-3B, TinyRS-2B, Qwen2-VL-2B.",
+  "source_dataset": {
+    "id": "DIOR-RSVG",
+    "paper": "Zhan et al., 'RSVG: Exploring Data and Models for Visual Grounding on Remote Sensing Data', IEEE TGRS 2023",
+    "images": "DIOR optical images, 800x800, 20 object classes",
+    "files_expected": [
+      "Annotations/<id>.xml  (each: <filename>, <size>, one <object> with <name>, <bndbox>, <description> referring expression)",
+      "JPEGImages/<filename>.jpg",
+      "train.txt / val.txt / test.txt  (expression-id splits)"
+    ],
+    "acquisition": "https://github.com/ZhanYang-nwpu/RSVG-pytorch  (Google Drive). NOT downloaded from this host - DIOR images ~20 GB, see EXP-002 blocker log."
+  },
+  "selection_policy": {
+    "deterministic": true,
+    "split": "test",
+    "ordering": "ascending expression id as listed in test.txt",
+    "one_expression_per_image": true,
+    "one_expression_per_image_rule": "when multiple test expressions share an image, keep the first by expression id; skip the rest until 25 distinct images are collected",
+    "take": 25,
+    "bbox_format_reference": "Pascal-VOC [x_min, y_min, x_max, y_max] in original pixel coords; model outputs are rescaled to this frame before IoU",
+    "malformed_reference_handling": "missing/empty bndbox or description -> discard and log MALFORMED_REFERENCE"
+  },
+  "resolved_ids": [
+    "41#909",
+    "57#156",
+    "82#291",
+    "121#987",
+    "152#220",
+    "173#699",
+    "177#484",
+    "202#792",
+    "217#17",
+    "237#1107",
+    "254#1065",
+    "312#781",
+    "325#1032",
+    "390#857",
+    "399#377",
+    "405#951",
+    "418#1062",
+    "428#1399",
+    "451#320",
+    "468#479",
+    "471#905",
+    "498#21",
+    "502#1339",
+    "533#24",
+    "548#965"
+  ],
+  "resolved_note": "resolved 2026-09-02 from pzhang1990/DIOR-RSVG test-00000-of-00005.parquet (non-gated); id=<image_id>#<question_id>",
+  "metric": {
+    "primary": "acc@IoU0.5",
+    "definition": "fraction of expressions where IoU(pred_box, gt_box) >= 0.5; a query with no parseable box from the model counts as a miss (IoU 0) and also increments failure_rate",
+    "threshold": 0.3,
+    "threshold_kind": "INTERNAL USABILITY THRESHOLD - not an official SIH scoring criterion",
+    "latency_budget_s_per_query": 45
+  }
+}

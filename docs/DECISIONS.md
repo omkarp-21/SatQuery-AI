@@ -5,6 +5,665 @@ Format inspired by ADRs (lightweight).
 
 ---
 
+## ADR-021 — G12: D + E closed on real DFC2020 — CROMA wins the optical–SAR path, LoRA adaptation adopted; **MODEL STACK FROZEN**
+
+- **Date:** 2026-09-02
+- **Status:** Accepted
+- **Context:** G12 = close capability **D** (optical–SAR) and **E** (RS
+  adaptation) scientifically so the model stack can freeze. The G11 download
+  recipe (`HF_HUB_ENABLE_HF_TRANSFER=1` + non-gated HF mirror) was applied to the
+  dataset wall that had blocked EXP-004 Run 2 for four gates.
+- **Dataset unblocked:** `125oii/dfc2020` (non-gated mirror of IEEE GRSS DFC2020)
+  → `ROIs0000_validation` split as separate zips (S1 947 MB + S2 633 MB + DFC
+  labels 6 MB) fetched in **~2.5 min**. **No synthetic substitution.** Frozen
+  split: 400 train / 200 eval, seed 20260902, patch ids in
+  `evaluation/datasets/dfc2020_exp004_split.json`. Task: dominant DFC land-cover
+  class (8 classes). Harness: `evaluation/scripts/exp004_run2_{extract,features,probe}.py`.
+- **EXP-004 Run 2 (D) — `evaluation/reports/exp004_run2_20260902T111643.json`:**
+  frozen encoder → `LogisticRegression` probe, 2000× bootstrap CIs + paired McNemar.
+
+  | arm | macro-F1 | accuracy |
+  |-----|:--------:|:--------:|
+  | CROMA optical-only | 0.726 | 0.865 |
+  | **CROMA joint (SAR+opt)** | **0.793** | 0.885 |
+  | DOFA optical-only | 0.725 | 0.890 |
+  | DOFA fused (S2⊕S1 concat) | 0.708 | 0.875 |
+
+  - **Does SAR help?** CROMA joint − optical = **+0.067 macro-F1**, bootstrap 95%
+    CI **[−0.024, +0.153] (includes 0)**, McNemar p=0.45 → **positive but NOT
+    significant at n=200**. P(SAR helps) ≈ 0.89. SAR lifts Barren F1 0.00→0.40,
+    Forest 0.83→0.87. DOFA's late concat-fusion: −0.018 (no gain).
+  - **CROMA vs DOFA** (pre-declared rule: PRIMARY = downstream macro-F1):
+    **CROMA wins** 0.793 vs 0.708 (Δ 0.085, P(CROMA>DOFA) 0.95, not a practical
+    tie) — and it's the only arm where SAR helped. **DOFA = challenger/fallback**
+    (lighter: 1.20 vs 1.47 GB RSS, faster: 0.26 vs 0.38 s/patch — consulted only
+    on a tie, which this is not). Both MIT (code + weights).
+  - **H3 verdict: INVESTIGATE → lean KEEP** — real SAR signal via CROMA's joint
+    attention, under-powered at n=200. A larger eval split is the honest next
+    step before any strong "SAR improves accuracy" claim.
+- **EXP-008 (E) — `evaluation/reports/exp008_20260902T120050.json`:** LoRA r=8
+  α=16 on CROMA's attention Linear layers (`to_qkv`/`to_q`/`to_k`/`to_v`; **42
+  layers, 811,008 trainable params = 0.4 % of the 194 M backbone, 3.24 MB fp32
+  adapter**), same frozen DFC2020 split, one shared torch linear head, 6 epochs,
+  CPU.
+
+  | arm | macro-F1 | accuracy |
+  |-----|:--------:|:--------:|
+  | optical-only (frozen) | 0.656 | 0.82 |
+  | fused (frozen) | 0.643 | 0.85 |
+  | **fused (LoRA-adapted)** | **0.704** | 0.835 |
+
+  - **adapted − frozen fused = +0.061 macro-F1** → clears the pre-registered
+    **+0.03** adoption threshold; 0.8 M trainable params, no latency penalty
+    (0.378 vs 0.385 s/patch), no deployment blocker.
+  - **DECISION: ADOPT LoRA as the E adaptation method.** Not a full fine-tune.
+    Caveats: not significance-tested (n=200); train loss fell to 0.15 (capacity
+    to overfit 400 patches); the frozen-fused torch-head baseline here (0.643) is
+    weaker than EXP-004's `LogisticRegression` probe (0.793) — the two absolute
+    frozen numbers are not comparable across experiments, only the *within-EXP-008*
+    adapted−frozen delta is. Production keeps the **frozen** encoder as default
+    until a larger-split, bootstrapped re-run confirms the gain; the LoRA adapter
+    from this run was **not persisted** (`--save-adapter` added to the harness
+    afterwards). Flipping the default is additive (opt-in `--lora-weights`), not
+    an architecture change.
+- **Registry:** `croma` → `evidence_level: measured`, `deployment_tier:
+  LOCAL_PREFERRED`, optical-SAR PRIMARY + capability-E base, `adaptation:` field
+  added. `dofa` → `measured`, `LOCAL_FALLBACK`, challenger. `routing.optical_sar_representation`
+  comment updated (CROMA won).
+- **MODEL FREEZE GATE — all criteria met:**
+
+  | criterion | status |
+  |-----------|--------|
+  | A measured | ✅ TinyRS-2B VQA bal-acc 0.87 (G11), INTEGRATED |
+  | B measured | ✅ RemoteSAM grounding acc@IoU0.5 0.84 (G11), INTEGRATED |
+  | D measured | ✅ EXP-004 Run 2 — CROMA joint 0.793 vs optical 0.726, INTEGRATED (repr path) |
+  | E measured | ✅ EXP-008 — LoRA +0.061 over frozen; method ADOPTED; frozen encoder INTEGRATED |
+  | routing passes | ✅ deterministic router + failure-aware resolution; tests green |
+  | geospatial validation passes | ✅ EXP-007 15/15; + 986 real DFC2020 GeoTIFFs, 0 failures |
+  | evidence/provenance passes | ✅ verify + verify_semantic P/R/F1 = 1.00, INTEGRATED |
+  | no unresolved architecture blocker | ✅ none — outstanding items are additive/confirmatory |
+
+  → **MODEL STACK FROZEN.** The freeze is on *model selection*: every A–H slot is
+  now decided by a real integrated measurement, not a paper number. Sanity-scale
+  deltas (D, E at n=200, not significance-tested) are flagged for a larger-split
+  re-run that would refine *confidence in the deltas*, not *which model is
+  chosen* (CROMA already won; LoRA already adopted). Confidence values (EXP-C1/C2)
+  and the LLM planner (EXP-006) are additive layers, out of scope of the freeze.
+
+- **Frozen stack:**
+
+  | Capability | Model / component | Evidence |
+  |-----------|-------------------|----------|
+  | A — single-image VQA | **TinyRS-2B** primary · Qwen2-VL-2B fallback | bal-acc 0.87 / 0.70, RSVQA-LR n=40 |
+  | B — text-guided grounding | **RemoteSAM** | acc@IoU0.5 0.84, DIOR-RSVG n=25 (licence NOT STATED) |
+  | C — bi-temporal change mask | **ChangeFormer** | IoU 0.83 / F1 0.91, LEVIR n=7 |
+  | C — semantic-change language | **composed baseline** (ChangeFormer + RemoteCLIP tagging) | experimental, disclaimed; learned VLM = NONE |
+  | D — optical–SAR | **CROMA** primary · DOFA fallback | joint macro-F1 0.793 vs optical 0.726, DFC2020 n=200 |
+  | E — RS adaptation | **LoRA on frozen CROMA** | +0.061 macro-F1 over frozen, DFC2020 |
+  | scene / retrieval | **RemoteCLIP** | zero-shot ranking, INTEGRATED |
+  | F — agentic routing | deterministic router + failure-aware `resolution` | INTEGRATED, tested |
+  | G — geospatial validation | `packages/geospatial` | EXP-007 15/15 |
+  | H — evidence / verification | `packages/evidence` | verify + verify_semantic P/R/F1 = 1.00 |
+
+- **Consequence:** new `evaluation/scripts/exp004_run2_{extract,features,probe}.py`
+  + `exp008_adapt.py` + `evaluation/datasets/dfc2020_exp004_split.json`; updated
+  `EXP-004.md`, `EXP-008.md`, `19_EXPERIMENT_REGISTRY.md`, `CAPABILITY_GAP_MATRIX.md`,
+  `EVIDENCE_LEDGER.md`, `model_registry.yaml`, `multimodal_slice.py` (docstring),
+  `PROJECT_STATUS.md`. **No product-code behaviour change; 141 fast tests green.**
+  DFC2020 data lives in `models/cache/dfc2020/` (gitignored). Post-freeze work:
+  larger-split D/E re-run + bootstrap; persist + opt-in-load the LoRA adapter;
+  GPU-VRAM verification for TinyRS / RemoteSAM / CROMA; EXP-C1/C2 (confidence);
+  EXP-006 (LLM planner).
+
+## ADR-020 — G11: `hf_transfer` clears the download wall — A (TinyRS-2B) + B (RemoteSAM) both MEASURED + INTEGRATED; RSCoVLM-3B does not exist; RemoteSAM licence confirmed NOT STATED
+
+- **Date:** 2026-09-02
+- **Status:** Accepted
+- **Context:** G11 = VQA closure + RemoteSAM benchmark. `HF_HUB_ENABLE_HF_TRANSFER=1`
+  pulled every multi-GB artifact that had failed 7× before (TinyRS-2B 4.43 GB,
+  Qwen2-VL-2B 4.43 GB, RemoteSAM `RemoteSAMv1.pth` 2.57 GB earlier). Non-gated HF
+  **mirrors** were found for both eval sets (`pzhang1990/DIOR-RSVG`,
+  `dmarsili/RSVQA-LR-2k`). **The "artifact acquisition BLOCKED" premise of
+  ADR-013 is retired.**
+- **Track A — RemoteSAM on DIOR-RSVG (n=25 frozen, CPU):** **acc@IoU0.5 = 0.84**
+  (21/25), 0 no_box, mean IoU 0.762, CPU RSS peak 6.08 GB, p50 latency 29 s.
+  Passes the 0.30 gate. Ran through the same `scripts/research/remotesam_infer.py`
+  bridge the adapter uses → **capability B: REPRODUCED + INTEGRATED + MEASURED.**
+- **Track B — RemoteSAM licence:** **NOT STATED**, confirmed exhaustively —
+  GitHub API `license: null`, no LICENSE file (all variants 404), HF checkpoint
+  has no model card / no licence tag, arXiv 2505.18022v3 says "publicly
+  available" but states no terms. `docs/research/REMOTESAM_LICENSE.md`. Recorded
+  verbatim; not inferred. Open action: ask the authors.
+- **Track C — VQA:** **RSCoVLM has no 3B checkpoint** (`Qingyun/rscovlm` ships
+  only 7B) — the audit's "RSCoVLM-3B primary" is void. Measured on 40 RSVQA-LR
+  yes/no (non-gated mirror), CPU:
+
+  | model | balanced acc | fail | p50 | RSS peak |
+  |-------|:------------:|:----:|:---:|:--------:|
+  | **TinyRS-2B** | **0.8736** | 0.0 | 4.45 s | 9.1 GB |
+  | Qwen2-VL-2B (control) | 0.7033 | 0.0 | 4.41 s | 9.5 GB |
+
+  Both pass the 0.60 gate. **PRODUCTION PRIMARY (A) = TinyRS-2B** (+0.17 over the
+  generic control = the measured value of RS instruction-tuning; Apache-2.0 code;
+  equal runtime). **FALLBACK = Qwen2-VL-2B.** Selected on measured quality, not
+  size (both 2 B). → **capability A: REPRODUCED + MEASURED + INTEGRATED.**
+- **Track D — integration:**
+  - `TinyRsAdapter` — standard contract, subprocess to `.venvs/tinyrs` via
+    `scripts/research/qwen2vl_vqa_infer.py`, no research-repo import, rejects
+    non-VQA tasks. `models: tinyrs` (`deployment_tier: LOCAL_PREFERRED`,
+    `capabilities: [vqa]`, `evidence_level: measured`).
+  - Router — `SINGLE_IMAGE_VQA → ["tinyrs"]`; `SINGLE_IMAGE_GROUNDING →
+    ["remotesam"]` (G10). VQA without a `vqa` capability still → `NO_VQA_SPECIALIST`
+    ("never RemoteCLIP or RemoteSAM"). Grounding never → tinyrs; VQA never →
+    remotesam.
+  - `/analyze` — `vqa` intent → `run_vqa` (`vqa_slice.py`) → `VqaResult` + a
+    **vqa** `EvidenceItem` + structural `verify()` + provenance + failure-aware
+    `resolution`. No confidence value. `"vqa"` added to `EvidenceType`.
+  - **Two-specialist A/B design is now real and measured:** a VQA specialist
+    (TinyRS) *and* a grounding specialist (RemoteSAM), not one VLM doing both.
+- **Track F — RemoteSAM input resolution:** `docs/research/REMOTE_SAM_RESOLUTION.md`.
+  10 in-domain DIOR cases downscaled to 256 px, fed 3 ways (native / 2× upscale /
+  pad-to-canvas), CPU. **native256 = acc@IoU0.5 0.90, 0 no_box** (the G10 `no_box`
+  did **not** reproduce); 2× upscale = 0.90 (no gain); pad-canvas = 0.70 (worse).
+  Pre-registered rule ("keep unchanged unless B/C beats A by ≥ +0.15 or drops
+  no_box") → **production preprocessing unchanged**, no resolution branch added
+  (`.claude/rules/scope.md`). The G10 LEVIR `no_box` is reclassified as a
+  **domain** limit of RemoteSAM (object-centric RS imagery ≠ CD tiles), recorded
+  as a known boundary of capability B.
+- **Model stack still NOT frozen** — D (real optical-SAR task) and E (adaptation)
+  are still unmeasured (EXP-004 Run 2 / EXP-008 need the S1+S2 datasets, which
+  are the next `hf_transfer`/mirror target). Freeze after those.
+- **Consequence (146 → ~150 tests; new TinyRsAdapter + vqa_slice + qwen2vl bridge
+  + 15 tests; router/analyze/evidence extended additively; no contract break; no
+  confidence value; no new repos):** new `tinyrs.py`, `vqa_slice.py`,
+  `scripts/research/qwen2vl_vqa_infer.py`, `evaluation/scripts/{exp002_vqa_rsvqa,
+  exp_grounding_dior,exp_remotesam_resolution}.py`, `test_vqa.py`,
+  `docs/research/{REMOTESAM_LICENSE,REMOTE_SAM_RESOLUTION}.md`; updated
+  `router.py`, `analyze.py`, evidence `models.py`, `model_registry.yaml`,
+  adapters `__init__.py`, `test_routing.py`, `test_analyze_api.py`,
+  `test_grounding.py`, `EXP-002.md`, `EXP-GROUNDING.md`, `MODEL_TOURNAMENT.md`,
+  `CAPABILITY_GAP_MATRIX.md`, `EVIDENCE_LEDGER.md`, `PROJECT_STATUS.md`,
+  `API_CONTRACT.md`, `external/research/README.md`.
+
+## ADR-019 — G10: RemoteSAM REPRODUCED + INTEGRATED as the local grounding specialist; capability B moves DOCUMENTED → REPRODUCED (not MEASURED); licence NOT STATED
+
+- **Date:** 2026-09-02
+- **Status:** Accepted
+- **Context:** ADR-018 named RemoteSAM the lead capability-B candidate and assumed
+  it was BLOCKED on `mmcv-full==1.7.1`. G10 verified the *current* repo and ran it.
+- **Findings that corrected the audit:**
+  - RemoteSAM's **grounding inference path uses no compiled mmcv/mmdet/mmseg ops** —
+    pure PyTorch + `timm` layers + `transformers.BertModel`. The only mmcv touch is
+    a checkpoint-loader shim importing pure-Python `mmcv.fileio/parallel/runner`,
+    satisfied by **`mmcv` (lite) 1.7.1** (`pip install mmcv==1.7.1
+    --no-build-isolation`). `mmdet`/`mmsegmentation`/`pycocotools` are training-only.
+  - Checkpoint `RemoteSAMv1.pth` (**2.57 GB**) downloaded (hf_transfer retry).
+    `bert-base-uncased` (440 MB) cached locally for offline load.
+  - **Licence: NOT STATED.** No LICENSE file in the repo; HF checkpoint has no
+    model card. Recorded verbatim as `NOT STATED` in the registry.
+- **Reproduced (CPU, `.venvs/remotesam`, 2026-09-02):** 5-phrase smoke —
+  **3/5 grounded** with an in-bounds box + mask and foreground prob ≈ 0.97–1.0;
+  2/5 `no_box` (one a 256 px LEVIR tile, out of distribution for DIOR-scale
+  training). Spatial correspondence **verified** (mask dims match image, box
+  well-formed and inside bounds, box derived from mask). Load ~22 s, **peak RSS
+  ~8 GB**, ~16–22 s/query steady-state (first call ~96 s).
+- **Integrated:**
+  - `RemoteSamAdapter` (`packages/model_adapters/.../remotesam.py`) — standard
+    `validate/execute/normalize_output/provenance/run`; subprocess to
+    `.venvs/remotesam` via `scripts/research/remotesam_infer.py`; **no research-repo
+    import in product code**; rejects VQA/captioning with `UnsupportedTaskError`.
+  - `model_registry.yaml` `models:` `remotesam` — `deployment_tier:
+    LOCAL_PREFERRED`, `capabilities: [grounding, referring-segmentation]`,
+    `evidence_level: reproduced`, `license: "NOT STATED …"`,
+    `status: KEEP (local grounding specialist) — pending DIOR-RSVG measurement +
+    GPU-VRAM check + licence`.
+  - Router: `GROUNDING_INTENTS`, rule 4b, code `SINGLE_IMAGE_GROUNDING →
+    ["remotesam"]`. **VQA still → `NO_VQA_SPECIALIST`** with the reason explicitly
+    forbidding routing RemoteCLIP *or RemoteSAM* as a VQA model.
+  - `/analyze`: `grounding` intent → `run_grounding` (`grounding_slice.py`) →
+    `GroundingResult` + a **grounding** `EvidenceItem` + structural `verify()`
+    (`grounding_box_valid` + `grounding_mask_artifact` added to the verifier) +
+    provenance; flows through the failure-aware `resolution`.
+  - `"grounding"` added to `EvidenceType`.
+  - RemoteSAM cloned to `external/research/RemoteSAM` (gitignored, pinned
+    `ebb7bc2`).
+- **Decision — capability B: DOCUMENTED → REPRODUCED + INTEGRATED. NOT MEASURED.**
+  DIOR-RSVG acc@IoU0.5 is blocked (Google-Drive-only dataset, no HF mirror,
+  multi-GB DIOR images). GPU/4 GB-VRAM fit is **unverified** (no CUDA torch here) —
+  classified `CPU-FALLBACK`, not `LOCAL-FITS-4GB`, until measured on a GPU.
+  **The A/B design is now a real two-specialist split on the B side.** SatQuery
+  does **not** depend on a large VLM for grounding.
+- **Consequence (131/131 tests, was 121; +25 grounding/adapter tests; new adapter
+  + service + bridge + 2 docs; router/verifier/evidence extended additively; no
+  contract break; no confidence value):** new
+  `remotesam.py`, `grounding_slice.py`, `scripts/research/remotesam_infer.py`,
+  `docs/research/EXP-GROUNDING.md`, `docs/architecture/GROUNDING_PIPELINE.md`,
+  `test_remotesam_adapter.py`, `test_grounding.py`; updated `router.py`,
+  `verifier.py`, evidence `models.py`, `analyze.py`, `model_registry.yaml`,
+  `__init__.py` (adapters), `LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`,
+  `MODEL_TOURNAMENT.md`, `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`,
+  `EVIDENCE_LEDGER.md`, `PROJECT_STATUS.md`, `API_CONTRACT.md`.
+
+## ADR-018 — Local Lightweight Model Tournament: RemoteSAM becomes the lead capability-B (grounding) candidate; RS-MoE + DynamicVis rejected; product confirmed to need no 7B/16 GB model
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** The product must run end-to-end on the ASUS RTX 3050 Ti 4 GB
+  + CPU fallback (SIH / non-commercial prototype). Audit of 3 new lightweight
+  candidates from their current official GitHub/HF READMEs — capability read from
+  the released implementation, not the paper title. No repos cloned, no
+  checkpoints downloaded. `docs/research/LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`.
+- **Findings:**
+  - **RemoteSAM** (`1e12Leon/RemoteSAM`, ACM MM 2025) — **GROUNDING / SEGMENTATION
+    specialist**, *not* a VLM. Swin-Base + BERT ≈ **200 M** ("billions → millions").
+    Released: HF checkpoint + RemoteSAM-270K dataset + inference examples. Tasks:
+    **referring segmentation (text → mask)**, **visual grounding (text → box)**,
+    detection, classification, captioning, counting. Env: Python 3.8 / torch
+    1.13 / CUDA 11.6 / **`mmcv-full==1.7.1`**. Licence **not stated**. Class:
+    **`LOCAL-FITS-4GB`** on size; **repro BLOCKED** on the `mmcv` build (same class
+    that blocked Change-Agent on Windows) + licence. **→ TEST FURTHER — the lead
+    capability-B candidate**: a dedicated lightweight grounding specialist that
+    emits mask + box is strictly better for B than making a 3 B VQA model ground.
+  - **DynamicVis** (`KyanChen/DynamicVis`) — **PERCEPTION / ENCODER** (Mamba
+    SSM), Apache-2.0, ~800 MB / 2048² image. README: **no VQA / captioning /
+    grounding** in the released code. **Windows + CPU incompatible** (Mamba is
+    CUDA-only) → **disqualified for the product target**. C is already covered by
+    CPU-capable ChangeFormer. **→ REJECT for product; research watch-item.**
+  - **RS-MoE** (`CongcongWen1208/RS-MoE`) — README: **training-only**, *"MoE
+    architecture is not yet implemented"*, base **Vicuna-13B**, no released
+    weights, no licence, 6 commits. "RS-MoE-1B" is a paper claim with no artifact.
+    **→ REJECT (no artifact)** — same outcome as the original RS-MoE repo (G1.6).
+- **Decision:**
+  - **Capability B lead = RemoteSAM** (dedicated grounding specialist), fallback
+    = RSCoVLM-3B grounding head, reference = GeoGround (remote). `model_registry.yaml`
+    `single_image_grounding` routing note + `excluded:` block updated
+    (`remotesam` TEST FURTHER, `dynamicvis` REJECT(product), `rs_moe` REJECT).
+  - **Capabilities A / C / D / E and the model hierarchy are UNCHANGED** — no new
+    VQA candidate emerged (RS-MoE-1B is vapour); ChangeFormer, CROMA, DOFA,
+    RemoteCLIP stay; DynamicVis does not displace ChangeFormer.
+  - **The product architecture is confirmed to have NO mandatory 7B/16 GB
+    dependency.** EarthDial-4B, GeoChat-7B, GeoGround-7B remain **research-only
+    references**. The 4 GB + CPU-fallback target is met for C + D + retrieval
+    today (proven); A + B are plausibly 4 GB-feasible (RSCoVLM-3B @ 4-bit;
+    RemoteSAM ≈ sub-GB) but **unreproduced** — blocked on artifact/env
+    acquisition, not on capability or compute.
+  - **Next experiment:** on an `mmcv`-capable machine (Linux, or a matching
+    Windows wheel), **reproduce RemoteSAM** — load the HF checkpoint, run its
+    referring-segmentation + visual-grounding examples, confirm mask + box, record
+    VRAM / latency / licence — then MEASURE grounding acc@IoU0.5 on the frozen
+    25-expression DIOR-RSVG sample. This resolves B **independently** of the
+    download-blocked VQA models and is more likely to succeed (weights ≈ sub-GB).
+- **Consequence (doc-only; no code, no new deps, no repos cloned, tests unchanged
+  at 121):** new `docs/research/LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md`; updated
+  `model_registry.yaml` (excluded block + grounding routing note),
+  `MODEL_TOURNAMENT.md`, `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`
+  (B row + header), `EVIDENCE_LEDGER.md`, `PROJECT_STATUS.md`.
+
+## ADR-017 — G9: `LOW_MARGIN` advisory added to failure-aware routing; remote batches (A/B/D/E) still blocked on human provisioning; stack NOT frozen — the loop stops here until a machine exists
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G9 repeated the G5A–G8 request: provision a remote GPU, run the
+  blocked batches, freeze the stack. **Provisioning a cloud GPU machine is not an
+  action this session can perform** — it needs a cloud account, billing, and SSH
+  keys held by the user. This has been the identical blocker for five gates. All
+  local, unblocked work is done (G6 EXP-005 + crop strategy; G7 EXP-005b semantic
+  verifier + evidence pack; G8 failure-aware routing). G9's only remaining
+  unblocked item was `LOW_MARGIN` (Phase 9), which needs no second model.
+- **Built (real, local):** `ChangeRegion.tag_margin` / `.low_margin` (RemoteCLIP
+  rank-1 minus rank-2 similarity < 0.05) on the composed semantic-change baseline;
+  `derive_resolution(..., low_margin_regions=N)` emits a non-blocking
+  `resolution.advisories` entry (`LOW_MARGIN: N region tag(s) ...`). The answer is
+  still surfaced — weak tags are flagged, not dropped. 3 new tests
+  (`test_failure_aware.py`, `test_semantic_change_baseline.py`). `API_CONTRACT.md`
+  + `FAILURE_AWARE_ROUTING.md` updated (step 3 DONE).
+- **Still blocked — provisioning only:** EXP-002 (A/B), EXP-004 Run 2 (D),
+  EXP-008 (E), EXP-C1/C2 (confidence), the `independent_model` / `optical_sar`
+  disagreement qualifiers, and the model freeze (Phase 11 precondition unmet).
+- **Decision — stop re-running the remote-execution loop in-session.** Producing
+  another "still blocked" gate report adds no evidence. The next move is the
+  user's: provision one Linux GPU box per `docs/deployment/REMOTE_GPU_SETUP.md`
+  and run the three committed batch scripts. Everything downstream (selection,
+  adapter integration, freeze, EXP-C1) is then a single focused session.
+- **Consequence (118 → 121 tests; two additive `ChangeRegion` fields + one
+  `ResolutionInfo` field, no contract break, no new deps/repos, no confidence
+  value):** `semantic_change_baseline.py`, `failure_aware.py`, `analyze.py`;
+  `test_failure_aware.py` (+3), `test_semantic_change_baseline.py` (+1);
+  `API_CONTRACT.md`, `FAILURE_AWARE_ROUTING.md`, `PROJECT_STATUS.md`,
+  `EVIDENCE_LEDGER.md`.
+
+## ADR-016 — G8: failure-aware routing IMPLEMENTED (post-execution qualifier + single-step image-difference fallback); remote experiments still unrunnable in-session; stack NOT frozen
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G8 = provision the remote GPU lab and run the blocked batches
+  (A/B, optical-SAR, adaptation), then freeze. Provisioning is a human
+  infrastructure action (cloud account + billing + SSH) not performable in this
+  session — the same block as G5A/G6/G7. G8 executed the one substantial
+  **local, unblocked** phase: **Phase 10 — failure-aware routing.**
+- **Built (real, local — the design from ADR-015 / `FAILURE_AWARE_ROUTING.md`):**
+  - **`derive_resolution()`** (`apps/backend/app/services/failure_aware.py`) — a
+    **pure, deterministic** function of `verify().status` +
+    `verify_semantic().status` + the sub-service `ok`/fallback flags. Emits one
+    of six qualifiers — `RESULT_OK`, `RESULT_STRUCTURAL_FAIL` (answer withheld),
+    `RESULT_SEMANTIC_INCOHERENT` (answer disputed), `RESULT_UNVERIFIED`,
+    `SPECIALIST_DEGRADED`, `SPECIALIST_FAILED` — plus `answer_surfaced`. No LLM,
+    no loop, no recursion. **Not a confidence value.**
+  - Wired into `/analyze` as an **additive** `resolution` field on `AnalyzeResult`
+    (also mirrored in `provenance.resolution`). `/analyze`'s top-level `ok` is
+    **deliberately unchanged** — callers gate on `resolution.answer_surfaced`;
+    flipping `ok` on a failed verifier is a documented follow-up.
+  - **`run_change_fallback()`** (`temporal_slice.py`) — the registry-declared
+    trivial baseline for change-detection: abs mean-RGB difference + fixed
+    threshold (0.15), **same** `validate_geotiff` + `check_pair_compatibility`
+    gate, emits an `EvidenceItem` + `verify()` + provenance
+    (`model: "image_difference_fallback"`, `is_fallback: true`,
+    `score_meaning: "... NOT ChangeFormer quality"`). `/analyze`'s `TEMPORAL`
+    branch calls it **once** if `run_change_slice` fails (the pair is already
+    co-registered by that point), yielding `SPECIALIST_DEGRADED`.
+  - Tests: `apps/backend/tests/test_failure_aware.py` (10) — one per qualifier,
+    determinism, "not a confidence", fallback rejects a misregistered pair,
+    fallback produces a real mask + verification on the demo pair; plus a
+    `resolution` assertion added to `test_analyze_change_path_aggregates_evidence`.
+  - `docs/API_CONTRACT.md` documents the `resolution` field + the fallback;
+    `FAILURE_AWARE_ROUTING.md` marks steps 1/2/4/5 DONE, step 3 (`LOW_MARGIN`) and
+    the `independent_model`/`optical_sar` disagreement qualifiers TODO/BLOCKED.
+- **Still blocked (Phases 2–7, 9, 11 — provisioning only):** EXP-002 (A/B),
+  EXP-004 Run 2 (D), EXP-008 (E), EXP-C1/C2 (confidence). Harnesses committed and
+  dry-run-clean; runbook `docs/deployment/REMOTE_GPU_SETUP.md`.
+- **Decision — the model stack is NOT frozen** (Phase 11 precondition "A/B/D/E
+  measured" is unmet). G8 exit criteria: **F now fully met** ("deterministic
+  routing integrated **and** failure-aware routing integrated"); C, G, H unchanged
+  from G7; A, B, D, E blocked.
+- **Consequence (108 → 118 tests; one additive `/analyze` field, no contract
+  break, no `ok`-semantics change, no new deps, no new repos, no confidence
+  value):** new `apps/backend/app/services/failure_aware.py`,
+  `apps/backend/tests/test_failure_aware.py`; `run_change_fallback` appended to
+  `temporal_slice.py`; `resolution` field wired through `analyze.py`; updated
+  `API_CONTRACT.md`, `FAILURE_AWARE_ROUTING.md`, `PROJECT_STATUS.md`,
+  `EVIDENCE_LEDGER.md`, `CAPABILITY_GAP_MATRIX.md`, `MODEL_TOURNAMENT.md`,
+  `model_inventory.md`, `19_EXPERIMENT_REGISTRY.md`, `docs/sih/evidence/README.md`.
+
+## ADR-015 — G7: model-independent semantic verifier built + measured; SIH evidence pack + failure-aware-routing design; model stack NOT frozen (A/B/D/E still unmeasured)
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G7 = provision the remote GPU lab, run the blocked experiments,
+  select + integrate winners, **freeze the model stack**. The provisioning step is
+  a human infrastructure action (cloud account + billing + SSH) that this session
+  cannot perform; the runbook (`docs/deployment/REMOTE_GPU_SETUP.md`) is ready.
+  So G7 executed the phases that are **local and unblocked**.
+- **Built + measured (real, local):**
+  - **EXP-005b — model-independent semantic verifier.** New
+    `verify_semantic(result, evidence, context)`
+    (`packages/evidence/src/satquery_evidence/semantic_verifier.py`): deterministic,
+    no model call. Six checks — claim↔evidence number, claim↔evidence label,
+    temporal-direction on swapped pairs, region-in-bounds / valid lon-lat,
+    whole-scene region, region-areas-vs-total. Declares the checks it **cannot**
+    do (`independent_model_agreement`, `optical_sar_agreement`,
+    `grounding_roundtrip`) in `coverage_unavailable`.
+    Curated 34-case corpus (COHERENT 8 / INCOHERENT 10 / BEYOND_SCOPE 6 /
+    NOT_ENOUGH 4): **precision / recall / F1 = 1.00** for model-independent
+    incoherence detection (TP 10, FP 0, TN 14, FN 0); **BEYOND_SCOPE miss rate
+    1.00** (label-correctness errors — need an independent model, as expected).
+    `evaluation/scripts/exp005b_semantic_verifier.py` + 9 lock tests.
+    Same caveat as EXP-005: curated, proves the checks fire on their target
+    classes, **not** a real-world coverage rate.
+  - **Integrated** into `COMPOSED_SEMANTIC_CHANGE_BASELINE` as an **additive**
+    `semantic_verification` field (`ComposedSemanticChangeResult`) — no `/analyze`
+    contract change beyond the optional field. On the demo pair its own output is
+    `COHERENT`.
+- **Designed / collected (no code):**
+  - `docs/research/FAILURE_AWARE_ROUTING.md` — post-execution routing qualifiers
+    (`RESULT_STRUCTURAL_FAIL`, `RESULT_SEMANTIC_INCOHERENT`, `RESULT_UNVERIFIED`,
+    `SPECIALIST_DEGRADED`, `LOW_MARGIN`) as pure functions of `verify()` +
+    `verify_semantic()` + `AdapterResult.status`; single-step registry-driven
+    fallback ladder. Implementation deferred to after the model freeze.
+  - `docs/sih/evidence/` — SIH evidence pack: 13-topic traceability index, every
+    claim tagged TRACEABLE / PARTIAL / BLOCKED, three-numbers rule enforced.
+    `docs/sih/evidence/demos/` — **real** captured outputs for DEMO 2 (`/change`),
+    DEMO 4 (misregistered pair rejected), DEMO 5 (evidence + structural + semantic
+    verification); DEMO 1 (VQA) and DEMO 3 (optical-SAR) written as explicit
+    BLOCKED placeholders — **no fabricated demo output**.
+  - `model_registry.yaml` — the 4 integrated models gained `paper`,
+    `quantization`, `memory`, and a split `benchmark` (authors') vs
+    `our_measured_result` (ours) per Phase 11.
+- **Decision — the model stack is NOT frozen.** Phase 10's freeze precondition is
+  "A/B/D/E have measurements". They do not (EXP-002 / EXP-004 Run 2 / EXP-008 all
+  blocked on the remote box). Freezing now would freeze an unmeasured stack. The
+  freeze happens in the session that runs the remote experiments.
+- **G7 exit criteria: 4/8 met (C, F, G, H) — unchanged from G6 count, but H
+  strengthened:** structural verifier VALIDATED (EXP-005) **plus** a
+  model-independent semantic verifier MEASURED + INTEGRATED (EXP-005b). A, B, D, E
+  remain blocked solely on provisioning.
+- **Consequence (108/108 tests, was 97; one additive service field, no contract
+  break, no new deps, no new repos, no confidence value):** new
+  `packages/evidence/src/satquery_evidence/semantic_verifier.py` (+ `__init__`
+  exports), `evaluation/scripts/{exp005b_semantic_verifier,capture_demo_evidence}.py`,
+  `packages/evidence/tests/test_semantic_verifier.py` (9),
+  `docs/research/FAILURE_AWARE_ROUTING.md`, `docs/sih/evidence/**`;
+  `semantic_verification` field + 2 tests on `semantic_change_baseline.py`;
+  updated `EXP-002.md` (Phase 3 table), `EXP-005.md` (EXP-005b),
+  `CONFIDENCE_PLAN.md`, `model_registry.yaml`, `EVIDENCE_LEDGER.md`,
+  `CAPABILITY_GAP_MATRIX.md`, `MODEL_TOURNAMENT.md`, `model_inventory.md`,
+  `PROJECT_STATUS.md`, `19_EXPERIMENT_REGISTRY.md`, `REMOTE_GPU_SETUP.md`.
+
+## ADR-014 — G6 capability closure: 4/8 exit criteria met locally; A/B/D/E blocked solely on remote-GPU provisioning; EXP-005 + crop-strategy experiment RAN
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G6 = "stop searching for models, acquire evidence, measure, select,
+  integrate, then build the agentic experience." Executed against commit 275cd09.
+  No new repos, no architecture change, no frontend, no fabricated metrics, no
+  confidence number.
+- **What ran locally (real):**
+  - **Phase 8 / EXP-005 — structural verifier detection.** Curated 24-case corpus
+    (CLEAN 6 / STRUCTURAL 8 / SEMANTIC 6 / INSUFFICIENT 4). `verify()` on it:
+    **precision 1.00, recall 1.00, F1 1.00** for structural-defect detection
+    (TP 8, FP 0, TN 12, FN 0); **semantic-defect miss rate 1.00** — the
+    structural verifier catches none of the structurally-clean-but-wrong cases,
+    by design. Semantic-verifier extension points documented (not built).
+    `docs/research/EXP-005.md`; `evaluation/scripts/exp005_verifier_detection.py`;
+    3 lock tests. Structural verification → **VALIDATED (structural)**, now with a
+    number.
+  - **Phase 7 / EXP-003b — semantic-change crop strategy.** Added
+    `run_composed_semantic_change(..., crop_strategy=)` with `tight` (default,
+    unchanged) / `expanded` (75% context pad) / `mask_aware` (context pad +
+    non-changed pixels dimmed 0.35×). 3-way run on the demo LEVIR pair (6 regions,
+    CPU, ~45 s/strategy): **cross-strategy agreement 4/6 regions**; `expanded` and
+    `mask_aware` rescued a `tight` miss on the largest region; `mask_aware`
+    collapses toward one label (monoculture risk — logged as a failure mode).
+    Provisional default = `expanded`, **not changed in code** (one demo pair is
+    insufficient). `docs/research/EXP-003.md`; harness
+    `evaluation/scripts/exp003b_semantic_change_crops.py`; 2 tests (1 fast, 1 slow).
+  - **Phase 9 / Confidence** — `CONFIDENCE_PLAN.md`: EXP-C1 (temperature/isotonic
+    calibration, ECE ≤ 0.05 gate) and EXP-C2 (optical↔SAR disagreement as an
+    error detector) fully specified. **No confidence number emitted.**
+  - **Phase 5 / EXP-004 Run 2 dataset decision** — smallest valid real S1+S2 set
+    chosen: **DFC2020 `ROIs0000_validation` raw GeoTIFF (≈1.5–2 GB), subsample
+    400 train / 200 eval by patch id** — official split, per-file, bounded
+    acquisition. `EXP-004.md`.
+  - **Phase 6 / EXP-008 method lock** — linear probe / LoRA / MLP-head fallback
+    defined exactly; a linear probe is never called fine-tuning. `EXP-008.md`.
+  - **Phase 1** — `docs/deployment/REMOTE_GPU_SETUP.md`: turnkey runbook (sizing,
+    one-time setup, artifact acquisition, experiment commands, a `record` block).
+    Box values `<PENDING>` — provisioning needs a cloud account and is not a code
+    task.
+- **Decision — G6 exit criteria: 4/8 met (C, F, G, H); 4 blocked (A, B, D, E),
+  every one solely on artifact/dataset acquisition** (the 6-times-failed multi-GB
+  download from this Windows host, now across 2 HF namespaces). No criterion is
+  blocked by a capability gap, a design flaw, or a measured model failure.
+  `docs/research/G6_CAPABILITY_CLOSURE.md` is the scorecard.
+  - **No production A/B model selected, no adapter written, `/analyze` routing
+    unchanged** (`NO_VQA_SPECIALIST`) — unchanged from ADR-013, for the same
+    reason (no measurement).
+  - **The remote GPU box is now the one blocking action** for capability closure.
+    Order once it exists: EXP-002 (+ EarthDial/GeoChat references) → integrate the
+    winner → EXP-004 Run 2 → EXP-008 → EXP-C1 → then EXP-006 (agentic planning).
+- **Consequence (doc + local eval + one additive service param; 97/97 tests, was
+  92):** new `evaluation/scripts/{exp005_verifier_detection,exp003b_semantic_change_crops}.py`,
+  `docs/deployment/REMOTE_GPU_SETUP.md`, `docs/research/{EXP-003,EXP-005,G6_CAPABILITY_CLOSURE}.md`,
+  `packages/evidence/tests/test_exp005_verifier_detection.py`; `crop_strategy`
+  param + 2 tests on `semantic_change_baseline.py` (default preserves behaviour);
+  updated `EXP-002.md`, `EXP-004.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`,
+  `MODEL_TOURNAMENT.md`, `EVIDENCE_LEDGER.md`, `CAPABILITY_GAP_MATRIX.md`,
+  `PROJECT_STATUS.md`, `19_EXPERIMENT_REGISTRY.md`. No new deps, no new repos, no
+  confidence value.
+
+## ADR-013 — G5A A/B reproduction gate: local reproduction BLOCKED (6th artifact-acquisition failure) → remote reference gate OPEN; no production A/B model selected
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** G5A froze the model hierarchy and ran the final A/B reproduction
+  gate — resolve capability **A** (single-image VQA) and **B** (text-guided
+  grounding) by *actually reproducing and measuring* RSCoVLM-3B / TinyRS-2B /
+  Qwen2-VL-2B on the RTX 3050 Ti, against fixed RSVQA-LR + DIOR-RSVG samples and
+  internal usability thresholds (VQA balanced-acc ≥ 0.60; grounding acc@IoU0.5 ≥
+  0.30; ≤ 45 s/query). No new repos, no architecture change.
+- **What ran:** one bounded weight-download attempt for **Qwen2-VL-2B-Instruct**
+  (`Qwen/…` — a *different* HF namespace from the earlier TinyRS attempts),
+  `snapshot_download`, `max_workers=2`, 8-minute bound.
+- **Result — BLOCKED at three layers:**
+  1. **Model weights (6th documented failure).** Config + `merges.txt` landed
+     instantly; **both `model-0000?-of-00002.safetensors` shards stuck at 0 bytes**
+     (`.incomplete` 0 B) for the entire window. Identical signature to the five
+     prior TinyRS attempts (G2.5×2 `ChunkedEncodingError`, G3 DNS, G4 134 MB/4.4 GB,
+     Audit 11/12 files) — on a different model from a different org → the blocker
+     is this Windows host's network path to the HF CDN, not any one repo. RSCoVLM-3B
+     (~6 GB, same infra) not attempted per the bounded-time rule (`docs/21`).
+  2. **Evaluation datasets.** RSVQA-LR (Zenodo 3945396) and DIOR-RSVG (DIOR images
+     ≈ 20 GB) are the same multi-GB download problem — not on disk.
+  3. **Remote GPU.** Not available this session → the reference arm (EarthDial-4B,
+     GeoChat-7B on the same frozen samples) could not run.
+- **The three numbers stay separate (`docs/18`):** PAPER RESULT is recorded per
+  model (attributed); **OUR REPRODUCTION / OUR MEASUREMENT / OUR INTEGRATED RESULT
+  are all empty — because no artifact could be acquired, not because a model was
+  measured and failed.** `EVIDENCE_LEDGER.md` shows A/B still at **DOCUMENTED**.
+- **Decision:**
+  - **Remote reference gate is OPEN.** On a Linux box with working bandwidth +
+    GPU ≥ 16 GB: run the committed harness `evaluation/scripts/exp002_ab_gate.py`
+    for RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B **and** the reference arm
+    EarthDial-4B / GeoChat-7B on the identical frozen samples; record absolute +
+    relative deltas; select the production A/B model on the 7 G5A criteria; write
+    one adapter.
+  - **No production A/B model is selected** and **no adapter is written** — doing
+    either without a real run would be fabrication (`.claude/rules/ai-models.md`).
+  - **`/analyze` routing is unchanged** — VQA/grounding still returns
+    `NO_VQA_SPECIALIST` (never RemoteCLIP). It is wired to the winner only after
+    G5A-remote produces one.
+  - **Model discovery stops** (per the G5A brief) — the hierarchy is frozen.
+- **Consequence (doc + eval-scaffold only; no product code, 92/92 tests
+  unchanged):** new `evaluation/datasets/rsvqa_lr_sample.json`,
+  `evaluation/datasets/dior_rsvg_sample.json` (frozen deterministic selection
+  specs), `evaluation/scripts/exp002_ab_gate.py` (full measurement harness —
+  compiles, `--resolve` reports `DATASET_MISSING` cleanly). Updated `EXP-002.md`
+  (G5A section + three-numbers table + attempt log), `MODEL_TOURNAMENT.md`,
+  `model_inventory.md`, `CAPABILITY_GAP_MATRIX.md`, `EVIDENCE_LEDGER.md`,
+  `PROJECT_STATUS.md`, `19_EXPERIMENT_REGISTRY.md`.
+
+## ADR-012 — Model hierarchy: role labels replace "ceiling"; EarthDial = primary high-capability reference (REFERENCE CANDIDATE), GeoChat demoted to secondary/historical
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** After ADR-011 the single-image candidate set was revised but the
+  docs still carried the conceptual label **"GeoChat = ceiling"**. "Ceiling"
+  implies a *measured* upper bound; nothing here is reproduced, so the label
+  overclaims. This ADR replaces the ad-hoc labels with an explicit **role
+  hierarchy** and swaps the primary high-capability reference. **No new
+  repositories. No core-architecture change.**
+- **Decision — the model hierarchy (authoritative copy in
+  `docs/research/MODEL_TOURNAMENT.md`):**
+
+  | Role | Model | Repo | State |
+  |------|-------|------|-------|
+  | **LOCAL A/B PRIMARY** | **RSCoVLM-3B** | `VisionXLab/RSCoVLM` | DOCUMENTED — EXP-002 primary, run local @ 4-bit |
+  | **LOCAL A/B FALLBACK** | **TinyRS-2B** | `aybora/TinyRS` | DOCUMENTED — weight download BLOCKED from this host |
+  | **GENERIC CONTROL** | **Qwen2-VL-2B** | `QwenLM/Qwen2-VL` | runnable — value-of-RS-adaptation baseline |
+  | **TEMPORAL** | **ChangeFormer** | `wgcban/ChangeFormer` | INTEGRATED (mask) — MEASURED IoU 0.83 / n=7 |
+  | **OPTICAL-SAR PRIMARY** | **CROMA** | `antofuller/CROMA` | REPRODUCED — decide vs DOFA in EXP-004 Run 2 |
+  | **OPTICAL-SAR CHALLENGER** | **DOFA** | `zhu-xlab/DOFA` | REPRODUCED |
+  | **GROUNDING REFERENCE** | **GeoGround** | `VisionXLab/GeoGround` | DOCUMENTED — ~7B, remote |
+  | **AUXILIARY** | **RemoteCLIP** | `ChenDelong1999/RemoteCLIP` | INTEGRATED — retrieval / zero-shot / embedding, **not VQA** |
+  | **PRIMARY HIGH-CAPABILITY REFERENCE** | **EarthDial** | `hiyamdebary/EarthDial` | **REFERENCE CANDIDATE** — not reproduced |
+  | **SECONDARY / HISTORICAL RS-VLM REFERENCE** | **GeoChat** | `mbzuai-oryx/GeoChat` | **secondary reference** — not on the critical path; local-run inability is **not** a project blocker |
+  | **RESEARCH REFERENCE** | **SARLANG-1M** | `jimmyxichen/sarlang-1m` | dataset/benchmark — SAR-language eval + fine-tune data |
+
+- **"Ceiling" retired.** Neither EarthDial nor GeoChat is a "ceiling" until it is
+  **reproduced and measured** under our evaluation. Until then both are
+  *references*.
+- **EarthDial verification (no large artifacts downloaded):**
+  - *Checkpoints:* **verified to exist** — HF `akshaydudhane/EarthDial_4B_{RGB,MS,Methane_UHI}`,
+    Safetensors, BF16, `internvl_chat` arch, "4B params". HF pages show **"No model
+    card"** (sparse).
+  - *License:* repo footer = **MIT**; the HF checkpoint pages **assert no license**
+    → code MIT, **weights licence unconfirmed** (treat as unconfirmed until stated).
+  - *Hardware:* README = trained on "8 A100 GPUs with 80GB"; **inference VRAM not
+    documented**. 4B BF16 ≈ 8–9 GB → does **not** fit the 4 GB laptop at bf16;
+    4-bit ≈ 3–3.5 GB (undocumented, unverified).
+  - *Environment:* Python 3.9, InternVL2 + Phi-3-Mini stack, `flash-attn==2.3.6`
+    (training). torch / CUDA / `transformers` versions **not pinned** in the README.
+  - *Inference path:* README points to a "demo section"; **exact entrypoint not
+    quoted / not run**. `snapshot_download` example given for weights.
+  - *Repo health:* 45 commits, 140 stars, CVPR 2025.
+  - **Classification: REFERENCE CANDIDATE** until reproduced.
+- **GeoChat:** retained as the **secondary / historical** RS-VLM reference. It is
+  **not required** for the main SatQuery architecture, and its inability to run on
+  the Windows 4 GB host is **explicitly not a project blocker** — the local A/B
+  path (RSCoVLM-3B / TinyRS-2B) and EarthDial (remote, when a box exists) cover the
+  capability.
+- **Consequence:** doc-only. Updated `docs/research/MODEL_TOURNAMENT.md`,
+  `docs/research/model_inventory.md`, `docs/research/CAPABILITY_GAP_MATRIX.md`,
+  `docs/PROJECT_STATUS.md`, this file. `model_registry.yaml` already carries
+  `earthdial_4b` / `geochat` in `excluded:` with statuses — role wording aligned.
+  No code, no new deps, no new repos, no confidence value, no fabricated numbers.
+
+## ADR-011 — Lightweight Model Replacement Audit: RSCoVLM-3B is the primary single-image arm; EarthDial-4B replaces TEOChat as the remote SAR/temporal VLM
+
+- **Date:** 2026-09-01
+- **Status:** Accepted
+- **Context:** Audit — can the heavyweight critical-path RS-VLMs (GeoChat 7B,
+  TEOChat 7B) be replaced by lighter, more reproducible models without losing
+  mandatory SIH capability (single-image VQA / grounding / captioning, RS
+  adaptation, 4 GB feasibility)? Scope-guarded: no architecture change, no new
+  repos cloned, only five named candidates inspected (RSCoVLM, SkyEyeGPT,
+  EarthDial, Qwen2-VL, ISRO-GeoNLI), compared vs TinyRS + GeoChat. Capabilities
+  taken from released artifacts / model cards only — **not** paper titles. No
+  bulk checkpoint downloads. Full write-up: `docs/research/LIGHTWEIGHT_AUDIT.md`.
+- **Findings (all still #1 DOCUMENTED — no #2 reproduction produced):**
+  - **RSCoVLM** (`Qingyun/rscovlm`, VisionXLab) — RS multi-task VLM (VQA +
+    grounding + captioning), **MIT** code / CC-BY-4.0 data, released **3B** + 7B
+    (card: "3B outperforms 7B"), active repo (~35 commits, arXiv 2511.21272).
+    Fits 4 GB **only at 4-bit** (quantisation undocumented). → **primary** arm.
+  - **EarthDial** (`akshaydudhane/EarthDial_4B_*`) — InternVL2 + Phi-3-Mini
+    **4B**, **MIT code + weights**, natively adds **SAR + bi/multi-temporal +
+    grounding + captioning**. Too heavy for 4 GB fp16. → replaces **TEOChat** as
+    the first VLM to run on a remote box for the C/D-language arms (also lifts
+    TEOChat's non-commercial-licence problem).
+  - **Qwen2-VL-2B-Instruct** — Apache-2.0, native bbox grounding, runs anywhere
+    at 4-bit. → the **generic control** (value-of-RS-adaptation baseline), not an
+    RS answer.
+  - **SkyEyeGPT** — ~7B, released weights but **no inference recipe** (README
+    "coming soon"), licence unstated. → **BLOCKED**.
+  - **ISRO-GeoNLI** — a FastAPI **wrapper** over Qwen3-VL + SAM3, 36 GB+ VRAM, no
+    own checkpoint. → **REJECT** (reference architecture only; ≈ what `/analyze`
+    already is).
+  - **TinyRS-2B** — stays the **fallback** (smaller, surer 4 GB fit); weight
+    download **BLOCKED** from this host (5th attempt in the audit: 11/12 files,
+    the 4.4 GB shard again did not complete).
+- **Decision:** revise the **EXP-002** candidate set — primary **RSCoVLM-3B**,
+  fallback **TinyRS-2B**, control **Qwen2-VL-2B**, ceiling **GeoChat** (+
+  **EarthDial-4B** on the remote box). Attempt the local **4-bit** RSCoVLM-3B /
+  TinyRS-2B path *first* (one bounded download each) before renting a GPU — the
+  blocker is download reliability, not compute. Nothing enters
+  `model_registry.yaml` `models:` until a #2 reproduction clears the EXP-002
+  threshold (VQA bal-acc ≥ 0.60, grounding acc@0.5 ≥ 0.30, CPU ≤ 45 s/query).
+- **Consequence:** `docs/research/LIGHTWEIGHT_AUDIT.md` (new); `EXP-002.md`
+  candidate set + attempt log updated; `model_registry.yaml` `excluded:` block
+  rewritten with measured statuses (`rscovlm`, `earthdial_4b`, `qwen2_vl_2b`,
+  `skyeyegpt`, `isro_geonli`; `rscovlm_3b` key renamed `rscovlm`). No code, no
+  architecture change, no new repositories, no confidence value, no fabricated
+  numbers.
+
 ## ADR-010 — G4: unified `POST /analyze`, composed semantic-change baseline; measurement backlog now needs a remote box
 
 - **Date:** 2026-09-01

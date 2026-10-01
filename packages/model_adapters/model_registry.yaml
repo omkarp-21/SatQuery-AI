@@ -14,6 +14,7 @@ models:
   remoteclip:
     adapter: satquery_model_adapters.remoteclip:RemoteClipAdapter
     source_repo: https://github.com/ChenDelong1999/RemoteCLIP
+    paper: "RemoteCLIP: A Vision Language Foundation Model for Remote Sensing (IEEE TGRS 2024)"
     commit: a6a4787507e441f444c20404c90dd18520a8960d
     license: Apache-2.0
     capabilities: [zero-shot-classification, retrieval, embedding]
@@ -23,9 +24,13 @@ models:
     environment: ".venvs/remoteclip (open-clip-torch 3.3.0, torch 2.13 cpu)"
     checkpoint: "models/cache/remoteclip/RemoteCLIP-ViT-B-32.pt (605,208,421 B)"
     hardware: "CPU ok; ~0.6 GB weights; fits 4 GB GPU trivially"
+    quantization: "not needed (fp32 CPU fits)"
     latency: "~150 ms/query (CPU, warm, 1 img + ~4 prompts)"
+    memory: "~1.6 GB RSS (CPU)"
     params: "151.3 M"
-    evidence_level: reproduced   # official example correct (airport 97.8%); no benchmark
+    benchmark: "authors: RSITMD/RSICD retrieval SOTA-class (2024) — NOT reproduced by us"
+    our_measured_result: "official example correct (airport 97.8% top-1, n=1); latency ~150 ms — reproduction, not a benchmark"
+    evidence_level: integrated   # runs via RemoteClipAdapter + /scene, with provenance
     status: KEEP
     fallback: "none (auxiliary; not on the mandatory-capability critical path)"
     note: "NOT a VQA model. Retrieval / zero-shot / embedding index only."
@@ -33,6 +38,7 @@ models:
   changeformer:
     adapter: satquery_model_adapters.changeformer:ChangeFormerAdapter
     source_repo: https://github.com/wgcban/ChangeFormer
+    paper: "A Transformer-Based Siamese Network for Change Detection (IGARSS 2022)"
     commit: afd1b7ed640aa265a2c730de958416ae7356a2f9
     license: MIT
     capabilities: [change-detection]
@@ -42,10 +48,13 @@ models:
     environment: ".venvs/changeformer (torch 2.5.1 cpu, numpy 1.23.5, opencv/tifffile) — no source edits"
     checkpoint: "models/cache/changeformer/CD_ChangeFormerV6_LEVIR_.../best_ckpt.pt (492 MB)"
     hardware: "CPU ok; ~1 GB RAM; <0.6 GB VRAM on GPU"
+    quantization: "not needed (41 M params, fp32 CPU)"
     latency: "~790 ms / 256^2 pair (CPU)"
+    memory: "~1.0 GB RSS (CPU)"
     params: "41.0 M"
+    benchmark: "authors (checkpoint log.txt): overall acc 0.9495 on LEVIR-CD test — their number, NOT ours"
+    our_measured_result: "change-IoU 0.832 / F1 0.908 on 7 bundled LEVIR-CD samples (n=7, CPU, 2026-09-01) — reproduction, NOT a benchmark; integrated: /change changed_fraction 0.2526 on the demo pair"
     evidence_level: integrated   # runs in the temporal slice via subprocess adapter, with provenance
-    measured: "change-IoU 0.832 / F1 0.908 on 7 bundled LEVIR-CD samples (n=7, reproduction — NOT a benchmark)"
     status: KEEP
     fallback: "image-difference + threshold (trivial baseline) if the adapter env is unavailable"
     note: "Mask only — no semantic classes, no language, no SAR. score = coverage, NOT a confidence."
@@ -53,6 +62,7 @@ models:
   croma:
     adapter: satquery_model_adapters.croma:CromaAdapter
     source_repo: https://github.com/antofuller/CROMA
+    paper: "CROMA: Remote Sensing Representations with Contrastive Radar-Optical Masked Autoencoders (NeurIPS 2023)"
     commit: 59505a6bcadbf36ba20767270154bf9f3067c5e7
     license: MIT
     capabilities: [embedding, representation]
@@ -62,16 +72,23 @@ models:
     environment: ".venvs/croma (torch 2.13 cpu, einops)"
     checkpoint: "models/cache/croma/CROMA_base.pt (777,563,846 B)"
     hardware: "CPU ok; ~1.1-1.8 GB RSS; fits 4 GB GPU"
+    quantization: "not needed (194 M, fp32 CPU)"
     latency: "~340 ms/sample (joint forward, CPU)"
+    memory: "~1.1-1.8 GB RSS (CPU)"
     params: "194.4 M"
-    evidence_level: reproduced   # official example; probe machinery validated on synthetic control (EXP-004 Run 1)
-    status: KEEP FOR TOURNAMENT   # primary optical-SAR candidate; adopt pending EXP-004 Run 2
-    fallback: "dofa (the other optical-SAR encoder) - decide in EXP-004 Run 2"
-    note: "Representations only — needs a downstream head. Native joint radar-optical encoder."
+    benchmark: "authors: SOTA-class linear-probe on BigEarthNet / DFC2020 (2023) — NOT reproduced by us"
+    our_measured_result: "G12 (n=200 frozen split): frozen joint_GAP -> LogReg probe on DFC2020 dominant-land-cover = macro-F1 0.793 vs optical-only 0.726 (+0.067; 95% CI [-0.024,+0.153] includes 0 -> POSITIVE, NOT significant; McNemar p=0.45). ||| G18 (n=386, LARGER INDEPENDENT split dfc2020_g17_larger_split.json; G12 split NOT overwritten): CROMA optical-only 0.8505 vs joint 0.8247 (delta -0.0258; 95% CI [-0.0796,+0.0267]; McNemar p=1.0) -> **the SAR task-benefit did NOT survive; the G12 delta was within noise and the sign flipped. The 'SAR improves the downstream task' claim is WITHDRAWN** (docs/sih/CLAIM_MATRIX.md section 6). The joint *representation* is still integrated + used in the flagship; there is no measured *task* benefit. CROMA still >= DOFA on the primary metric -> CROMA stays PRIMARY. EXP-008 (adaptation, G12 n=200, 8 epochs): LoRA r=8 (811k params, 3.24 MB) lifts held-out macro-F1 0.643 -> 0.704 (+0.061). G18 larger-split LoRA re-run (n=386, 3 epochs, CPU, exp008_g18_larger_20260903T221800): LoRA-adapted joint macro-F1 0.6686 vs frozen-fused 0.5422 (+0.1264) vs optical-only-frozen 0.5772 (+0.0914); frozen-fused - optical -0.0350. 811,008 params, 3.24 MB fp32 delta, 42 layers, CPU RSS 1733 MB. NO bootstrap CI / NO paired test in this run; frozen arms are 3-epoch AdamW linear heads (under-trained vs the Part-2 converged sklearn probe) -> only the within-run arm deltas are comparable. Direction (LoRA > frozen) replicates G12; magnitude NOT significance-established. Production default stays FROZEN."
+    evidence_level: measured   # EXP-004 Run 2 (G12 + G18 larger) + EXP-008, real DFC2020, sanity-scale
+    deployment_tier: LOCAL_PREFERRED
+    status: KEEP (optical-SAR PRIMARY base, MEASURED) - CROMA >= DOFA on the primary metric on both splits. Production default = FROZEN encoder. The 'SAR improves the task' claim is WITHDRAWN after the G18 larger-split re-run. Do NOT flip to LoRA-adapted as default without a larger-split result that clears the +0.03 bar.
+    adaptation: "EXP-008 LoRA (r=8, alpha=16) on attention Linear layers. G18: --lora-weights load path PLUMBED + TESTED through CromaAdapter + croma_infer.py (merged-delta apply, fails loudly if 0 layers match; provenance encoder_mode). Adapter PERSISTED: models/checkpoints/exp008_croma_lora.pt (3271915 bytes; {lora_r, lora_alpha, targets, state_dict}). Verified end-to-end through CromaAdapter (test_croma_lora_adapter_loads_and_changes_representation): 42/42 wrapped Linears matched, joint embedding measurably shifted, provenance encoder_mode='lora_adapted' + lora_weights_sha256 recorded. Production default = frozen; opt-in only."
+    fallback: "dofa (challenger; concat-fusion showed no SAR gain at sanity scale)"
+    note: "Representations only — needs a downstream head. Native joint radar-optical cross-encoder; the joint attention is what recovered the SAR signal that DOFA's late concat did not."
 
   dofa:
     adapter: satquery_model_adapters.dofa:DofaAdapter
     source_repo: https://github.com/zhu-xlab/DOFA
+    paper: "Neural Plasticity-Inspired Multimodal Foundation Model for Earth Observation (DOFA, 2024)"
     commit: 0cfb7e1099f4d4c4022946ff7862c7cd7b8411b9
     license: MIT
     capabilities: [embedding, representation]
@@ -81,21 +98,85 @@ models:
     environment: ".venvs/dofa (torch 2.13 cpu, timm==0.9.2)"
     checkpoint: "models/cache/dofa/DOFA_ViT_base_e100.pth (447,669,164 B)"
     hardware: "CPU ok; ~1.3 GB RSS; fits 4 GB GPU"
+    quantization: "not needed (111 M, fp32 CPU)"
     latency: "~120 ms/sample (CPU)"
+    memory: "~1.3 GB RSS (CPU)"
     params: "111.3 M"
-    evidence_level: reproduced
-    status: KEEP FOR TOURNAMENT   # CROMA challenger; decide in EXP-004 Run 2
+    benchmark: "authors: competitive with sensor-specific FMs on GEO-Bench (2024) — NOT reproduced by us"
+    our_measured_result: "MEASURED (G12, EXP-004 Run 2, CPU, 2026-09-02): frozen S2 (+) S1 concat -> linear probe on DFC2020 dominant-land-cover (same split) = macro-F1 0.708 vs DOFA-optical 0.725 (-0.018; NOT significant). Late concat-fusion did NOT recover a SAR benefit here. Lost the bake-off to CROMA (0.793). EXP-004 Run 1 synthetic: S2+S1 fused recovers SAR signal 1.00 vs optical-only 0.50."
+    evidence_level: measured
+    deployment_tier: LOCAL_FALLBACK
+    status: CHALLENGER / FALLBACK (MEASURED) - lighter + faster than CROMA (1.20 vs 1.47 GB RSS, 0.26 vs 0.38 s/patch) but concat-fusion showed no downstream SAR gain; CROMA is the optical-SAR primary.
     fallback: "croma"
-    note: "One wavelength-conditioned encoder for any sensor; fusion is a downstream choice."
+    note: "One wavelength-conditioned encoder for any sensor; fusion is a downstream choice — and at sanity scale the downstream concat choice did not beat optical-only."
+
+  tinyrs:
+    adapter: satquery_model_adapters.tinyrs:TinyRsAdapter
+    source_repo: https://github.com/aybora/TinyRS
+    paper: "TinyRS-R1: Compact Multimodal Language Model for Remote Sensing (IEEE GRSL 2025, arXiv 2505.12099)"
+    hf: aybora/Qwen2-VL-TinyRS
+    license: "Apache-2.0 (code); weights inherit Qwen2-VL-2B terms"
+    capabilities: [vqa]
+    modalities: [optical-single]
+    deployment_tier: LOCAL_PREFERRED   # the VQA specialist; runs on the 4 GB target (CPU verified)
+    input: "1 RGB image + a question (context['question'] or request.query)"
+    output: "answer text + a yes/no parse; score = None (greedy-decoded, no calibrated probability)"
+    environment: ".venvs/tinyrs (py3.11, torch 2.13 cpu, transformers 4.49); base model Qwen2-VL-2B-Instruct"
+    checkpoint: "models/cache/tinyrs/Qwen2-VL-TinyRS (model.safetensors 4.4 GB; 2 B params)"
+    hardware: "CPU verified: ~9.1 GB peak RSS (fp32), p50 ~4.5 s/query. GPU / 4 GB VRAM: 4-bit ~1.8 GB (plausible, NOT verified here - torch is a CPU build)."
+    quantization: "not attempted (fp32 CPU); 4-bit bitsandbytes is the GPU path"
+    latency: "~4.5 s/query (CPU, warm); first call slower incl. lazy init"
+    memory: "~9.1 GB peak CPU RSS (2 B fp32)"
+    params: "2 B (Qwen2-VL-2B base)"
+    benchmark: "authors: base TinyRS ~83.5% RS-VQA acc (their number, NOT ours)"
+    our_measured_result: "MEASURED (CPU, 2026-09-02): balanced accuracy 0.8736 on 40 RSVQA-LR yes/no questions (dmarsili/RSVQA-LR-2k mirror), fail_rate 0.0, p50 4.45 s. Sanity-scale n=40, not a full benchmark. docs/research/EXP-002.md"
+    evidence_level: measured
+    status: KEEP (local VQA specialist, MEASURED) - pending GPU-VRAM check + a larger RSVQA sample
+    fallback: "none integrated (Qwen2-VL-2B is the generic control; RSCoVLM-7B is remote-only)"
+    note: "VQA only. Grounding is RemoteSAM (UnsupportedTaskError on non-VQA tasks). No confidence value. Subprocess to .venvs/tinyrs; product code never imports the weights."
+
+  remotesam:
+    adapter: satquery_model_adapters.remotesam:RemoteSamAdapter
+    source_repo: https://github.com/1e12Leon/RemoteSAM
+    paper: "RemoteSAM: Towards Segment Anything for Earth Observation (ACM MM 2025, oral)"
+    commit: ebb7bc278c7343c29c8c16b035289f78f40f0f72
+    license: "NOT STATED — no LICENSE file in the repo; HF checkpoint has no model card; the ACM MM 2025 paper does not state a weights licence. Re-checked G17 (2026-09-03): still unresolved. An upstream issue asking for clarification is the next step; until answered, RemoteSAM stays documented with this caveat and is used only in the prototype. MUST be clarified before non-prototype use."
+    capabilities: [grounding, referring-segmentation]
+    modalities: [optical-single]
+    deployment_tier: LOCAL_PREFERRED   # the grounding specialist; runs on the 4 GB target (CPU verified, GPU pending)
+    input: "1 RGB image + a referring phrase (context['query'] or request.query)"
+    output: "bbox_xyxy [xmin,ymin,xmax,ymax] (image pixels) + binary mask PNG; score = foreground softmax prob (raw, NOT calibrated)"
+    environment: ".venvs/remotesam (py3.11, torch 2.2.2 cpu, mmcv 1.7.1 LITE via --no-build-isolation, transformers 4.30.2, timm 0.6.13, opencv-headless 4.11); bert-base-uncased cached at models/cache/hf_home"
+    checkpoint: "models/cache/remotesam/RemoteSAM/RemoteSAMv1.pth (2,566,704,235 B; state_dict 854 backbone / 197 text_encoder / 56 decoder)"
+    hardware: "CPU verified: load ~22 s, ~8 GB peak RSS, ~16-22 s/query steady-state (896^2). GPU/4 GB VRAM: plausible, NOT verified (no CUDA torch on this host)."
+    quantization: "not attempted"
+    latency: "~17-22 s/query (CPU, warm, 896^2); first call ~96 s incl. lazy init"
+    memory: "~8 GB peak CPU RSS (896^2 Swin-B forward, fp32 CPU)"
+    params: "~200 M (Swin-Base + BERT-base)"
+    benchmark: "authors: oIoU 76.21 / mIoU 64.79 on referring-seg (their number, NOT ours; different task+metric+n)"
+    our_measured_result: "MEASURED (CPU, via the integrated bridge, 2026-09-02): acc@IoU0.5 = 0.84 (21/25) on a frozen DIOR-RSVG sample (pzhang1990 non-gated mirror), 0 no_box, mean IoU 0.762, p50 latency 29 s. Sanity-scale n=25, not a full benchmark. docs/research/EXP-GROUNDING.md"
+    evidence_level: measured
+    status: KEEP (local grounding specialist, MEASURED) — pending GPU-VRAM check + licence
+    fallback: "none integrated (RSCoVLM-3B grounding head is the documented fallback — EXP-002, blocked)"
+    note: "text -> box + mask. NOT a VQA/captioning model (UnsupportedTaskError). Score is a raw probability, not a confidence. Runs via subprocess to .venvs/remotesam; product code never imports the research repo."
 
 # --- not in the registry: no runnable adapter (blocked / rejected) ---
+# Statuses + measured facts only. NO capability is claimed here for an unrun model.
+# Single-image candidate set revised by the Lightweight Model Replacement Audit
+# (2026-09-01) — see docs/research/LIGHTWEIGHT_AUDIT.md + EXP-002.md.
 excluded:
-  geochat:      { status: TEST FURTHER, reason: "7B > 4 GB VRAM; deepspeed/bnb unbuildable on Windows; needs remote GPU >=16 GB" }
+  geochat:      { status: TEST FURTHER, reason: "reference ceiling — 7B > 4 GB VRAM; deepspeed/bnb unbuildable on Windows; needs remote GPU >=16 GB" }
   change_agent: { status: TEST FURTHER, reason: "mmcv==1.3.1 unbuildable; Linux+conda only" }
   changechat:   { status: REJECT, reason: "no released weights; README now cites >=48 GB VRAM to train" }
-  rs_moe:       { status: REJECT, reason: "no released checkpoints, no inference script, no license" }
-  tinyrs:       { status: TEST FURTHER, reason: "EXP-002 — 2B, Apache-2.0, HF weights; local run pending (flaky download)" }
-  rscovlm_3b:   { status: TEST FURTHER, reason: "EXP-002 challenger — Qwen2.5-VL-3B, MIT" }
+  rs_moe:       { status: REJECT, reason: "no released checkpoints, no inference script, no license (2 repos inspected: original + CongcongWen1208/RS-MoE — the latter README says MoE 'not yet implemented', base Vicuna-13B, 'RS-MoE-1B' is a paper claim). LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md" }
+  dynamicvis:   { status: REJECT (product), reason: "PERCEPTION/ENCODER (Mamba SSM), NOT a VLM — no VQA/grounding/captioning per README. Apache-2.0, HF KyanChen/DynamicVis, ~800 MB/2048px. Windows + CPU INCOMPATIBLE (Mamba/CUDA-only) -> disqualified for the 4 GB ASUS + CPU-fallback target; C already covered by CPU-capable ChangeFormer. Research watch-item." }
+  remotesam:    { status: TEST FURTHER, reason: "GROUNDING/SEGMENTATION specialist (NOT a VLM) — referring segmentation + visual grounding, mask + box output. Swin-B + BERT ~200 M, HF 1e12Leon/RemoteSAM, ACM MM 2025. LOCAL-FITS-4GB on size; repro BLOCKED on mmcv-full==1.7.1 env (Windows build risk, same class as change_agent) + licence unstated. Best capability-B candidate — a dedicated grounding specialist, not a VLM side-task. LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md" }
+  tinyrs:       { status: TEST FURTHER, reason: "EXP-002 fallback arm — 2B, Apache-2.0, HF aybora/Qwen2-VL-TinyRS; weight download BLOCKED from this host (5 attempts, <1 MB/s)" }
+  rscovlm:      { status: TEST FURTHER, reason: "EXP-002 PRIMARY arm — Qwen2.5-VL-3B, MIT code / CC-BY-4.0 data, HF Qingyun/rscovlm; RS multi-task VQA+grounding+caption; 4 GB only at 4-bit (undocumented); DOCUMENTED, repro pending" }
+  earthdial_4b: { status: TEST FURTHER (remote), reason: "InternVL2+Phi-3-Mini 4B, MIT code+weights, HF akshaydudhane/EarthDial_4B_*; adds SAR + temporal + grounding + captioning; too heavy for 4 GB fp16 -> remote box; DOCUMENTED only" }
+  qwen2_vl_2b:  { status: CONTROL, reason: "generic-VLM baseline for EXP-001/002 — Qwen/Qwen2-VL-2B-Instruct, Apache-2.0, native bbox grounding; NOT an RS specialist" }
+  skyeyegpt:    { status: BLOCKED, reason: "~7B MiniGPT-v2/LLaMA-2; released weights but NO inference recipe (README 'coming soon'); license not stated" }
+  isro_geonli:  { status: REJECT, reason: "not a model — FastAPI wrapper over Qwen3-VL + SAM3; README recommends 36 GB+ VRAM; no own checkpoint" }
 
 routing:
   # rule-over-registry: modality + task -> allowed adapters. No LLM here.
@@ -103,9 +184,9 @@ routing:
   # Called by POST /analyze (G4).
   bitemporal_change_mask: [changeformer]
   single_image_scene_or_retrieval: [remoteclip]
-  optical_sar_representation: [croma, dofa]   # bake-off BLOCKED (EXP-004 Run 2 - no dataset)
-  single_image_vqa: []             # unresolved - EXP-002 BLOCKED (weights unfetchable); -> NO_VQA_SPECIALIST
-  single_image_grounding: []       # unresolved - EXP-002
+  optical_sar_representation: [croma, dofa]   # G12: CROMA won EXP-004 Run 2 (macro-F1 0.793 vs 0.708); DOFA = fallback
+  single_image_vqa: [tinyrs]   # TinyRS-2B VQA specialist (REPRODUCED + MEASURED: bal acc 0.87 on RSVQA-LR n=40). Qwen2-VL-2B = fallback/control (bal acc 0.70). EXP-002.md
+  single_image_grounding: [remotesam]   # RemoteSAM grounding specialist (REPRODUCED; not benchmarked). See LOCAL_LIGHTWEIGHT_MODEL_TOURNAMENT.md + EXP-GROUNDING.md
   bitemporal_semantic_change:      # composed baseline only (NOT learned / NOT validated)
     composed_baseline: [changeformer, remoteclip]   # COMPOSED_SEMANTIC_CHANGE_BASELINE
     learned_model: []              # unresolved - EXP-003 (needs a remote box)

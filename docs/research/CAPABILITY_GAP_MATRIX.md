@@ -4,9 +4,13 @@
 > its evidence status, what is still missing, a candidate solution, a validation
 > plan, and the risk. Plus candidate scouting for the three biggest gaps, the
 > minimum infrastructure decision, and the single highest-value next experiment.
-> Date: **2026-09-01** (refreshed after **G4** — unified `/analyze`, composed
-> semantic-change baseline, EXP-007 15/15; EXP-002/004-Run2/008 **BLOCKED** on
-> data acquisition → **remote GPU box justified**). Experiment write-ups:
+> Date: **2026-09-02** (refreshed after **G14** — agentic investigator `/investigate` (F now INTEGRATED + AGENTIC, EXP-006); G13 product MVP; refreshed after **G12** — EXP-004 Run 2 + EXP-008 on
+> real DFC2020: **D MEASURED + INTEGRATED** (CROMA joint macro-F1 0.793 vs
+> optical 0.726 on DFC2020; SAR help positive but not significant at n=200),
+> **E** — see EXP-008. **G11:** A MEASURED + INTEGRATED (TinyRS-2B, bal acc
+> 0.87), B MEASURED + INTEGRATED (RemoteSAM, acc@IoU0.5 0.84), RSCoVLM-3B
+> non-existent. Earlier: G10 RemoteSAM; G7 semantic verifier; G8/G9 failure-aware
+> routing). Experiment write-ups:
 > `EXP-002.md`, `EXP-004.md`, `EXP-007.md`, `EXP-008.md`, `CONFIDENCE_PLAN.md`.
 > Companions: `runtime_validation.md`, `model_inventory.md`,
 > `docs/19_EXPERIMENT_REGISTRY.md`, `chatgpt.context.md` §4.
@@ -35,12 +39,12 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 | | |
 |---|---|
-| **Current model/tool** | GeoChat (VQA head). |
-| **Evidence status** | **DOCUMENTED only.** GeoChat is GPU-blocked (G1: 7B > 4 GB VRAM, `deepspeed`/`bitsandbytes` unbuildable on Windows). 0 reproduced. |
-| **Missing capability** | Any VQA model that actually runs on available hardware. |
-| **Candidate solution** | **TinyRS** (Qwen2-VL-2B, Apache-2.0, HF checkpoints) — 2B fits the 4 GB GPU at 4-bit or runs CPU (slow); **or** GeoChat on a cloud GPU ≥16 GB. |
-| **Validation plan** | Stand up `.venvs/tinyrs` (transformers + `qwen-vl-utils`; **no** deepspeed/flash-attn for inference). Run its VQA example on a small RSVQA-LR sample → REPRODUCED. Then MEASURE accuracy on a held-out RSVQA subset. Compare vs GeoChat in **EXP-001** once a GPU box exists. |
-| **Risk** | TinyRS quality figures are the authors' (#1). Qwen2-VL CPU inference is slow (~seconds/answer); 4-bit on 4 GB is tight. RSVQA overlap with TinyRS pretraining must be checked (leakage). |
+| **Current model/tool** | *(role labels — ADR-011/012)* **LOCAL A/B PRIMARY = RSCoVLM-3B**; **FALLBACK = TinyRS-2B**; **GENERIC CONTROL = Qwen2-VL-2B**. High-capability references: **EarthDial** (primary, REFERENCE CANDIDATE) + **GeoChat** (secondary / historical). |
+| **Evidence status** | **DOCUMENTED only.** **G5A ran the A/B gate → N=0, artifact acquisition BLOCKED** (6th weight-download failure — 0-byte safetensors on a fresh `Qwen/` repo; RSVQA-LR + DIOR-RSVG also unfetchable). Frozen sample specs + `exp002_ab_gate.py` harness committed. GeoChat GPU-blocked — **not a project blocker**. EarthDial = REFERENCE CANDIDATE. **Remote reference gate OPEN (ADR-013).** |
+| **Missing capability** | A VQA model **reproduced** on available hardware and MEASURED against the EXP-002 threshold. |
+| **Candidate solution** | **RSCoVLM-3B** (`VisionXLab/RSCoVLM`, code MIT / data CC-BY-4.0, HF `Qingyun/rscovlm`, RS multi-task) at 4-bit on the RTX 3050 Ti; **TinyRS-2B** (`aybora/TinyRS`, Apache-2.0) as fallback; **Qwen2-VL-2B** (`Qwen/Qwen2-VL-2B-Instruct`, Apache-2.0) as the generic control. **EarthDial** (`akshaydudhane/EarthDial_4B_*`, InternVL2+Phi-3, code MIT) + **GeoChat** reproduced on a cloud GPU ≥16 GB for the reference comparison. |
+| **Validation plan** | `.venvs/rscovlm` (transformers matching Qwen2.5-VL + `qwen-vl-utils`; **no** deepspeed/flash-attn for inference). Run RSCoVLM-3B on a small RSVQA-LR + DIOR-RSVG sample → REPRODUCED → MEASURE balanced acc / acc@IoU0.5 / latency vs the EXP-002 threshold. Repeat for TinyRS-2B + Qwen2-VL-2B. Compare vs EarthDial + GeoChat on a remote box afterwards. |
+| **Risk** | All quality figures are the authors' (#1). RSCoVLM-3B / TinyRS-2B 4-bit on 4 GB is tight; CPU inference is slow (~seconds/answer). EarthDial weights licence **unconfirmed**; EarthDial inference path not verified. RSVQA / DIOR-RSVG overlap with each model's instruction data must be checked (leakage). |
 
 ### B. Additional single-image task — captioning OR text-guided grounding  *(mandatory: at least one)*
 
@@ -49,8 +53,8 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 | **Current model/tool** | RemoteCLIP (zero-shot scene tagging / retrieval) — **REPRODUCED**. GeoChat (region grounding) — DOCUMENTED, blocked. |
 | **Evidence status** | **PARTIAL.** Scene-level description via RemoteCLIP retrieval works today; true **text-guided region grounding** and **generative captioning** are DOCUMENTED only. RemoteCLIP retrieval is arguably not "captioning/grounding" as the PS defines them. |
 | **Missing capability** | A running model that does grounding (box from a phrase) or generative captioning. |
-| **Candidate solution** | **TinyRS** (grounding + open-ended QA); GeoGround (grounding-specialised, if licence/size fit); a small captioner (RS-CapRet / BLIP-2-RS) as fallback. Interim stopgap: RemoteCLIP retrieval + a templated description (explicitly labelled non-generative). |
-| **Validation plan** | With TinyRS running (see A), test grounding on a DIOR-RSVG sample → MEASURE acc@IoU0.5 (reproduction). Pick captioning-vs-grounding based on which scores better and integrates cheaper. |
+| **Candidate solution** | **RSCoVLM-3B** (grounding is a first-class task + a detection-only checkpoint) as LOCAL A/B PRIMARY; **TinyRS-2B** fallback; **Qwen2-VL-2B** native `<\|box\|>` grounding as the GENERIC CONTROL. **GeoGround** (`VisionXLab/GeoGround`, ~7B) = **GROUNDING REFERENCE** (remote). **EarthDial** grounding = high-capability reference. Interim stopgap: RemoteCLIP retrieval + a templated description (explicitly labelled non-generative). |
+| **Validation plan** | With RSCoVLM-3B running (see A), test grounding on a DIOR-RSVG sample → MEASURE acc@IoU0.5 (reproduction), same sample for TinyRS-2B + Qwen2-VL-2B. Pick captioning-vs-grounding based on which scores better and integrates cheaper. GeoGround / EarthDial on a remote box as the reference. |
 | **Risk** | Box coordinate/format conventions differ per model; small-model grounding accuracy may be weak; a templated stopgap must never be presented as model captioning. |
 
 ### C. Bi-temporal semantic change — change understanding + description and/or change-VQA (optional: change map)  *(mandatory)*
@@ -68,23 +72,23 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 | | |
 |---|---|
-| **Current model/tool** | **CROMA** + **DOFA** — both **REPRODUCED** on CPU (G1.6, `runtime_validation.md`). RemoteCLIP / ChangeFormer / GeoChat remain optical-only. |
-| **Evidence status** | **REPRODUCED** (was NONE at G1.5). CROMA produces joint SAR+optical embeddings; DOFA encodes S1 (2ch) and S2 (12ch) via one wavelength-conditioned encoder. **Not yet MEASURED** on a task. |
-| **Missing capability** | A **measured** SAR-vs-no-SAR delta on a real task; a downstream head. |
-| **Candidate solution** | **CROMA** (native joint radar-optical cross-encoder, MIT, 194 M, `antofuller/CROMA`) — **primary**. **DOFA** (one wavelength-conditioned encoder, MIT, 111 M, `XShadow/DOFA`) — **challenger** (fuse S1⊕S2 downstream). MaRS = watch-item (VHR ≠ Sentinel scale; release unverified). |
-| **Validation plan** | **EXP-004 (still the recommended next — see below):** 3 arms — optical-only probe / CROMA `joint_GAP` probe / DOFA S1⊕S2 probe — on a **small** fixed reBEN (BigEarthNet v2) subset, held-out split, same head/budget. Metric: built-up F1 (+ 2–3 classes); report abs + rel SAR delta, where SAR helps, where it hurts. **Local.** |
-| **Risk** | Sentinel-1/2 preprocessing (12-band S2, 2-band S1 in dB, channel norm, 120-px tiling for CROMA); probe capacity; SAR handled as backscatter, never RGB. Do **not** claim "SAR improves accuracy" before EXP-004 produces the number. |
+| **Current model/tool** | **CROMA** (optical–SAR **PRIMARY**, MIT) + **DOFA** (challenger/fallback, MIT) — both **REPRODUCED + INTEGRATED** (`MULTIMODAL_REPR` route). |
+| **Evidence status** | **MEASURED + INTEGRATED (G12, EXP-004 Run 2).** Real DFC2020 dominant-land-cover probe, frozen features + `LogisticRegression`, 400/200, seed 20260902, CPU: **CROMA joint macro-F1 0.793 vs CROMA optical 0.726 (+0.067)** — bootstrap 95 % CI **[−0.024, +0.153] includes 0**, McNemar p=0.45 → **positive but not significant at n=200**. DOFA S2⊕S1 concat −0.018 (no gain). |
+| **Missing capability** | A **significant** SAR delta — needs a larger eval split (full 986 / DFC2020 test ROIs). A task-level `/fusion` endpoint (deferred until significant). |
+| **Candidate solution** | **CROMA** — **won the EXP-004 Run 2 bake-off** on downstream macro-F1 (0.793 vs 0.708) and is the only arm where SAR helped; native joint radar-optical cross-encoder. DOFA = challenger/fallback (lighter + faster but its late concat-fusion showed no SAR benefit at this scale). |
+| **Validation plan** | **DONE (EXP-004 Run 2).** Next: re-run on the full 986-patch validation + 5128-patch test ROIs with bootstrapped deltas for significance; then decide on a `/fusion` task endpoint. |
+| **Risk** | The SAR delta is real but under-powered — **do not claim "SAR improves accuracy" as significant** until the larger-split run. SAR handled as backscatter (dB), never RGB — preserved. |
 
 ### E. Remote-sensing adaptation — ≥1 visual/VL component fine-tuned/adapted on BigEarthNet or another open source  *(mandatory)*
 
 | | |
 |---|---|
-| **Current model/tool** | NONE integrated — but the **encoders are now reproduced** (CROMA, DOFA), so the probe is directly executable. |
-| **Evidence status** | **NONE** (plan ready and unblocked). |
-| **Missing capability** | A documented adaptation with a before→after measurement. |
-| **Candidate solution** | Linear-probe → LoRA on a **frozen** CROMA (or DOFA) encoder over a **reBEN / BigEarthNet v2** subset (S1+S2, 19-class multilabel, 549 k patches, Zenodo `10891137`; use ~10–50 k). Both encoders reproduced → feasible on the 4 GB laptop. Shares EXP-004's data + split. Method labels kept distinct: linear probe ≠ LoRA ≠ full fine-tune ≠ instruction tuning. |
-| **Validation plan** | **EXP-E (new):** frozen encoder + linear probe vs LoRA-adapted, on a fixed reBEN subset split. Report multilabel mAP / micro-F1 **before → after** (SatQuery number #3), with seed / split / hardware / date. |
-| **Risk** | Scope creep into full fine-tuning — must stay a bounded linear/LoRA probe (`.claude/rules/scope.md`). reBEN full download is large — **subset only**; record exactly which patches. |
+| **Current model/tool** | **LoRA adaptation of frozen CROMA** (EXP-008) — **adopted as the E method**. Frozen CROMA encoder integrated in `MULTIMODAL_REPR`. |
+| **Evidence status** | **MEASURED + INTEGRATED (G12, EXP-008).** LoRA r=8 (811 k trainable params = 0.4 % of CROMA, 3.24 MB adapter) on the frozen DFC2020 split: held-out macro-F1 **0.643 (frozen) → 0.704 (adapted), +0.061** — clears the pre-registered +0.03 bar. CPU; no VRAM figure. **Not significance-tested (n=200).** |
+| **Missing capability** | A larger-split, bootstrapped confirmation; a persisted adapter (harness now has `--save-adapter`); flipping the production default from frozen → adapted. |
+| **Candidate solution** | **Done** — LoRA on frozen CROMA. Method labels kept distinct: linear probe ≠ LoRA ≠ full fine-tune ≠ instruction tuning. No full fine-tune. |
+| **Validation plan** | **DONE (EXP-008).** Next: re-run on the full validation + test ROIs with bootstrapped before→after deltas, persist the adapter, then integrate the opt-in `--lora-weights` load path in the CROMA adapter. |
+| **Risk** | LoRA overfit 400 patches (train loss 0.15) — the held-out gain must be re-confirmed at larger scale before the production default flips. Stayed a bounded PEFT probe (`.claude/rules/scope.md`) — no full fine-tune. |
 
 ### F. Agentic routing — interpret, inspect, select tools, configure params, execute, combine, confidence, evidence, audit summary  *(mandatory)*
 
@@ -125,20 +129,41 @@ MEASURED (IoU 0.83 / n=7); everything else = DOCUMENTED or DESIGNED-only.
 
 | Gap | Status (post-G2) | Blocking? | Cheapest path to next evidence |
 |-----|--------|-----------|--------------------------------|
-| **D. Optical–SAR** | **REPRODUCED** + probe machinery validated (EXP-004 Run 1, synthetic); joint-repr contract in `/analyze` | mandatory + differentiation | **EXP-004 Run 2 BLOCKED** — no acquirable real S1+S2 set (DFC 11 GB / So2Sat 7 GB). Needs a remote box. |
-| **E. RS adaptation** | NONE — harness ready | mandatory | **EXP-008 BLOCKED** on EXP-004 Run 2. Needs a remote box. |
-| **A. Single-image VQA** | DOCUMENTED | mandatory | **EXP-002 BLOCKED** — TinyRS weights unfetchable (4 attempts, < 1 MB/s). **Remote GPU now justified.** |
-| **B. Extra single-image task** | PARTIAL — RemoteCLIP retrieval **integrated as `/scene`** (explicitly *not* captioning/grounding per PS) | mandatory | grounding via TinyRS/RSCoVLM (EXP-002) — **local**; GeoGround = remote backup |
-| **C. Semantic change (language)** | mask **INTEGRATED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE` built & wired into `/analyze`** (mask→components→crop-tag→rule description) — experimental, disclaimed, tags noisy on tiny crops; **learned** semantic change NONE | mandatory | improve the baseline (better crops / a captioner) + EXP-003 with a real VLM on a remote box |
-| **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) needs EXP-004 Run 2 data |
-| **H. Evidence/confidence/audit** | `EvidenceItem` + standardized `Provenance` + **deterministic `verify()` implemented & wired into both APIs**; **semantic** verification + confidence method still NONE (by design) | mandatory | add semantic checks + a documented/calibrated confidence source (EXP-005) — **local** |
-| **F. Agentic routing** | **deterministic router implemented + called by `POST /analyze`** (spec + 8 tests, observable routing info in every response); LLM planner not built | mandatory | add the LLM intent-parsing step (EXP-006), schema-validated against the registry — **local** |
+| **D. Optical–SAR** | **MEASURED + INTEGRATED (G12)** — EXP-004 Run 2 on **real DFC2020** (`125oii/dfc2020` mirror, `hf_transfer`): frozen **CROMA** `joint_GAP` → linear probe on dominant-land-cover (400/200, seed 20260902, CPU) = **macro-F1 0.793 vs optical-only 0.726 (+0.067)**; bootstrap 95% CI includes 0 → **positive, not significant at n=200**. DOFA concat-fusion −0.018 (no gain). **KEEP CROMA** (D primary); DOFA challenger. `MULTIMODAL_REPR` route in `/analyze`. | mandatory + differentiation | larger eval split (full 986 / DFC2020 test ROIs) for a significant SAR delta; a `/fusion` task endpoint |
+| **E. RS adaptation** | **MEASURED + INTEGRATED (G12)** — EXP-008: LoRA (r=8, 811 k trainable params = 0.4 % of CROMA, 3.24 MB adapter) on the frozen DFC2020 split lifts held-out macro-F1 **0.643 (frozen) → 0.704 (adapted), +0.061** — clears the pre-registered +0.03 adoption bar. Frozen CROMA encoder is integrated (`MULTIMODAL_REPR`); LoRA **adopted as the E method**; prod default stays frozen pending a larger-split bootstrap. CPU; no VRAM figure. **Not significance-tested (n=200).** | mandatory | larger-split re-run with bootstrapped deltas + persist the adapter (`--save-adapter`); then flip the prod default |
+| **A. Single-image VQA** | **REPRODUCED + MEASURED + INTEGRATED (G11)** — **TinyRS-2B** (PRIMARY, RS-instruction-tuned Qwen2-VL-2B): **balanced acc 0.8736** on 40 RSVQA-LR yes/no (non-gated mirror), CPU, p50 4.45 s. **Qwen2-VL-2B** (FALLBACK/control): 0.7033. `TinyRsAdapter` + `/analyze` `SINGLE_IMAGE_VQA` route + `vqa` `EvidenceItem`. **RSCoVLM-3B does not exist** (only 7B released). n=40 sanity-scale; GPU/4 GB unverified. | mandatory | larger RSVQA-LR sample; GPU/4-bit VRAM check. `EXP-002.md`. |
+| **B. Extra single-image task** | **REPRODUCED + MEASURED + INTEGRATED (G10→G11)** — **RemoteSAM** (~200 M grounding/referring-seg specialist, text→box+mask): **acc@IoU0.5 = 0.84 (21/25)** on a frozen DIOR-RSVG sample (non-gated mirror), CPU, via the integrated bridge; 0 no_box, mean IoU 0.762, p50 29 s. `RemoteSamAdapter` + `/analyze` `SINGLE_IMAGE_GROUNDING`. **Licence: NOT STATED** (`REMOTESAM_LICENSE.md`). GPU/4 GB fit **unverified** (`CPU-FALLBACK`, ~6 GB RSS). | mandatory | larger DIOR-RSVG sample; peak-VRAM on a CUDA build; upstream licence. `EXP-GROUNDING.md`. |
+| **C. Semantic change (language)** | mask **INTEGRATED + MEASURED**; **`COMPOSED_SEMANTIC_CHANGE_BASELINE`** wired into `/analyze` — experimental, disclaimed. **G6 EXP-003b: crop strategy measured** (tight/expanded/mask_aware; agreement 4/6 on the demo pair; `expanded` provisional default). **Learned** semantic change NONE. | mandatory | EXP-003a with a real VLM (**EarthDial**, native temporal+change) on the remote box; then set the crop default with a labelled caption metric |
+| **G. Geospatial validation** | **VALIDATED at the structural level (EXP-007: 15/15)** — live in `/analyze`, `/change`, `/scene`; every invalid-pair class rejected before any model runs. Also exercised on real DFC2020 GeoTIFFs in EXP-004 Run 2 (CRS/band/NoData handling, 986 patches, 0 failures). | mandatory + prerequisite | task-level H5 (does the gate cut downstream error?) — a targeted experiment |
+| **H. Evidence/confidence/audit** | `EvidenceItem` + `Provenance` + `verify()` in all 3 APIs. **EXP-005 (G6):** structural detection **P/R/F1 = 1.00** (n=24). **EXP-005b (G7):** model-independent `verify_semantic()` — **P/R/F1 = 1.00** (n=34), **INTEGRATED** into the composed baseline; residual label-correctness gap (BEYOND_SCOPE miss 1.00) needs a second model. Confidence = NONE (EXP-C1/C2 specified, blocked). | mandatory | `independent_model_agreement` + `optical_sar_agreement` semantic checks (need EXP-002 / EXP-C2, remote box); then EXP-C1 calibration |
+| **F. Agentic routing** | **INTEGRATED + AGENTIC (G14 + G15, EXP-006).** Deterministic router + failure-aware `resolution` **+ `POST /investigate`**: typed `AgentPlan` → 12-check deterministic POLICY layer → bounded executor that **observes each result and replans with a closed 6-reason enum** (`NEW_EVIDENCE / TOOL_FAILURE / MISSING_INPUT / INSUFFICIENT_EVIDENCE / VERIFICATION_CONTRADICTION / TASK_COMPLETE`) + explicit **early termination** + a **visible deterministic fallback** (`PLANNER_UNAVAILABLE`/`SPECIALIST_DEGRADED`). Planner = `RuleBasedPlanner` default / `LlmPlanner` (local Qwen2-VL-2B text-only, opt-in). Router NOT replaced — execution guard. **G15 eval (50 frozen missions, 13 metrics each with N):** plan validity **1.00** (44 supported) · adversarial-correctly-handled **1.00** (6) · tool-selection **1.00** (49) · task-order **1.00** · dependency-validity **1.00**; exec (real models): mission-completion / evidence / verification preservation / factual-consistency high, **unsupported-action & unnecessary-tool-call rate 0.00**; agent runs ~2.5× the baseline's specialists on multi-step. ~57 agent tests. | mandatory | scale the mission set further; wire the LLM planner into the eval's 2nd arm; labelled ground-truth plans; non-demo imagery |
 
 ---
 
 ## New candidate scouting
 
 Full record per candidate. **None is adopted** — all are for evaluation only.
+Role labels: ADR-011/012. Authoritative hierarchy: `MODEL_TOURNAMENT.md`.
+
+### 0. EarthDial  — PRIMARY HIGH-CAPABILITY REFERENCE (gaps A, B, C, D) — **REFERENCE CANDIDATE, not cloned**
+
+| Field | Value (verified 2026-09-01 — README + HF; **no artifacts downloaded**) |
+|-------|-------|
+| Repo | github.com/hiyamdebary/EarthDial (CVPR 2025). 45 commits, 140 ★. **Not cloned into `external/research/`** (no new repos this pass). |
+| Role | **PRIMARY HIGH-CAPABILITY REFERENCE** — replaces the retired "GeoChat = ceiling" framing. **Not** a "ceiling" until reproduced + measured. **Not required by the core SatQuery architecture.** |
+| Architecture / params | `internvl_chat` — InternVL2 vision encoder + **Phi-3-Mini** LLM. HF: **"4B params"**, BF16. |
+| Licence | Repo footer **MIT**; HF checkpoint pages state **no licence** → **code MIT, weights UNCONFIRMED.** |
+| Checkpoints | **Verified to exist** — HF `akshaydudhane/EarthDial_4B_RGB`, `_MS`, `_Methane_UHI` (Safetensors). Not downloaded. |
+| Input | RGB / **SAR** / NIR / multispectral; **single or multi-temporal**; + text query. |
+| Output | Natural-language text **interleaved with object locations** (grounding coords). |
+| Capabilities (README, DOCUMENTED only) | classification / detection / **captioning** / QA / reasoning / **grounding** / **change detection**. **Not verified by us — not inferred as fact.** |
+| Environment | Python 3.9; InternVL2 stack; `flash-attn==2.3.6` (training). torch / CUDA / `transformers` **not pinned** in the README. |
+| Hardware | Trained on **8× A100-80GB**. **Inference VRAM not documented.** 4B BF16 ≈ **8–9 GB** → no 4 GB fit; 4-bit ≈ 3–3.5 GB (**unverified**). → remote box. |
+| Inference path | README points to a "demo section"; **exact entrypoint not confirmed, not run.** |
+| Quantisation | **Not mentioned.** |
+| Integration cost | **MEDIUM–HIGH** — InternVL runtime; 4B forces a 4-bit path we would have to validate; broadest modality coverage of any candidate (only one that natively claims SAR + temporal + grounding + captioning together). |
+| Benchmark evidence | Paper: 44-dataset evaluation; README says "outperforms generic and domain-specific models" — **no numbers in the README** → **#1 DOCUMENTED**, unverified. |
+| Verdict | **REFERENCE CANDIDATE** — reproduce on a remote GPU ≥ 16 GB after the local EXP-002 arms are measured; then compare local-vs-reference for A/B and use natively for the C/D-language arms. |
 
 ### 1. TinyRS / TinyRS-R1  — lightweight RS-VLM (gaps A, B)
 
@@ -239,13 +264,20 @@ Full record per candidate. **None is adopted** — all are for evaluation only.
 
 | Purpose | Minimum infra | Notes |
 |---------|---------------|-------|
-| **GeoChat reproduction** (unblocks EXP-001, gap A) | **1× Linux GPU, ≥ 16 GB VRAM** (24 GB ideal — A10G / L4 / RTX 4090 / A100-40). ~40 GB disk for weights + env. CUDA 11.8. | Cloud spot instance for a few hours is enough for reproduction + a batch eval. Also covers **TEOChat** (gap C) on the same box. |
+| **High-capability reference reproduction** — **EarthDial** (primary, 4B) + **GeoChat** (secondary, 7B), gaps A/B/C (+D-language) | **1× Linux GPU, ≥ 16 GB VRAM** (24 GB ideal — A10G / L4 / RTX 4090 / A100-40). ~40 GB disk for weights + env. CUDA 11.8. | Cloud spot instance for a few hours is enough for reproduction + a batch eval. Same box also covers **GeoGround** (GROUNDING REFERENCE) and **TEOChat**. **Not on the A/B critical path** — the local RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B arms come first. |
 | **Change-Agent reproduction** (*optional*, gap C) | Linux + **conda** + CUDA 11.8 toolkit + GPU ≥ 8 GB + a from-source `mmcv==1.3.1` build (or a port to modern mmcv/mmseg). | Higher effort, lower priority. Defer until after EXP-004 / EXP-003 with cheaper options. |
 | **Multimodal candidate validation** (CROMA, DOFA — gap D) | **None new.** Runs on the existing RTX 3050 Ti 4 GB or CPU. | Only needs venvs + a small paired Sentinel-1/2 sample (a few hundred–few thousand reBEN patches, **not** the full 549 k). |
 | **RS adaptation probe** (gap E) | **None new** — same 4 GB laptop. | Linear/LoRA head on a reBEN subset (~10–50 k patches). |
 | **MaRS validation** | Unknown until release is confirmed; VHR FM → likely a **large GPU** + VHR paired data we do not currently have. | Watch-item, not scheduled. |
 
-**Decision:** provision **one cloud Linux GPU box (≥16 GB, prefer 24 GB)** — it unblocks GeoChat *and* TEOChat *and* (with conda) Change-Agent. Everything else in G1.5's plan runs on the existing laptop. Do **not** buy/keep the GPU box until EXP-004 + EXP-E (local, free) have produced their evidence.
+**Decision:** provision **one cloud Linux GPU box (≥16 GB, prefer 24 GB)** — it
+reproduces the **high-capability references** (EarthDial 4B, GeoChat 7B, GeoGround,
+TEOChat) and, with conda, Change-Agent, and gives reliable bandwidth for the
+multi-GB weights/datasets that fail from this Windows host. Everything on the A/B
+*critical path* (RSCoVLM-3B / TinyRS-2B / Qwen2-VL-2B @ 4-bit) plus CROMA/DOFA/
+ChangeFormer runs on the existing laptop. Do **not** buy/keep the GPU box until the
+local EXP-002 arms + EXP-004 + EXP-E have produced their evidence. **GeoChat's
+inability to run locally is not a project blocker.**
 
 ---
 

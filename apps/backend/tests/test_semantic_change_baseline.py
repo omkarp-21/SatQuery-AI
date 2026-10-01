@@ -11,6 +11,7 @@ from app.services.semantic_change_baseline import (
     ComposedSemanticChangeResult,
     run_composed_semantic_change,
 )
+from app.services import semantic_change_baseline as _scb
 
 _REPO = Path(__file__).resolve().parents[3]
 _CF = _REPO / ("models/cache/changeformer/CD_ChangeFormerV6_LEVIR_b16_lr0.0001_adamw"
@@ -49,6 +50,56 @@ def test_composed_baseline_happy_path():
     assert "not calibrated" in r.provenance["note"] or "not calibrated labels" in r.provenance["note"]
     # no confidence field anywhere
     assert "confidence" not in r.model_dump()
+
+
+def test_crop_strategy_default_is_tight_and_signature_accepts_it():
+    import inspect
+
+    sig = inspect.signature(run_composed_semantic_change)
+    assert sig.parameters["crop_strategy"].default == "tight"
+    # the literal type advertises exactly the three strategies
+    assert set(_scb.CropStrategy.__args__) == {"tight", "expanded", "mask_aware"}
+
+
+def test_result_model_exposes_semantic_verification_field():
+    # additive field (EXP-005b) - present, optional, defaults to None
+    assert "semantic_verification" in ComposedSemanticChangeResult.model_fields
+    assert ComposedSemanticChangeResult(ok=False).semantic_verification is None
+
+
+def test_change_region_has_low_margin_advisory_fields():
+    from app.services.semantic_change_baseline import ChangeRegion
+
+    reg = ChangeRegion(region_id=1, area_px=100, bbox_pixel=(0, 0, 10, 10))
+    assert reg.low_margin is False and reg.tag_margin is None  # advisory defaults
+    reg.tag_ranking = [["a", 0.9], ["b", 0.88]]
+    # the field is populated by the service; here we just confirm the schema carries it
+    assert "tag_margin" in ChangeRegion.model_fields
+    assert "low_margin" in ChangeRegion.model_fields
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not _ENV, reason="changeformer/remoteclip/demo absent")
+def test_semantic_verification_runs_on_happy_path():
+    r = run_composed_semantic_change(_DEMO / "t1.tif", _DEMO / "t2.tif", checkpoint_dir=_CF,
+                                     max_regions=3)
+    assert r.ok is True
+    assert r.semantic_verification is not None
+    assert r.semantic_verification.status in (
+        "COHERENT", "INCOHERENT", "NOT_ENOUGH_EVIDENCE", "NOT_APPLICABLE")
+    # the composed baseline's own assembled description should be internally coherent
+    assert r.semantic_verification.status in ("COHERENT", "NOT_ENOUGH_EVIDENCE")
+    assert "verify_semantic" in r.provenance["stages"]
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not _ENV, reason="changeformer/remoteclip/demo absent")
+def test_crop_strategy_threads_into_provenance():
+    r = run_composed_semantic_change(_DEMO / "t1.tif", _DEMO / "t2.tif", checkpoint_dir=_CF,
+                                     crop_strategy="expanded", max_regions=2)
+    assert r.ok is True
+    assert r.provenance["crop_strategy"] == "expanded"
+    assert any("region_crop[expanded]" in s for s in r.provenance["stages"])
 
 
 @pytest.mark.slow
