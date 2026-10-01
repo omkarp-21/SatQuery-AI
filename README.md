@@ -18,20 +18,30 @@ Natural-language querying of satellite imagery, with every answer backed by insp
 
 ```mermaid
 flowchart LR
-    subgraph Client
-        UI["Single-file UI<br/>(GET /)"]
-    end
-    UI -->|upload + query| API["FastAPI<br/>(/analyze, /investigate,<br/>/scene, /change)"]
-    API --> ING["ingestion + metadata"]
-    ING --> GEO1{"geospatial gate<br/>(validate + co-register?)"}
-    GEO1 -->|fail| BLOCKED["BLOCKED + reason"]
-    GEO1 -->|pass| ROUTE["deterministic router / planner"]
-    ROUTE --> POL["policy layer<br/>(12 checks)"]
-    POL --> EXEC["bounded executor<br/>(≤8 specialist calls)"]
-    EXEC -->|subprocess per model| MODELS["TinyRS · RemoteSAM<br/>ChangeFormer · RemoteCLIP<br/>CROMA · DOFA"]
-    MODELS --> VER["verification"]
-    VER --> EV["evidence + confidence<br/>+ provenance"]
-    EV --> OUT["NormalizedResponse<br/>JSON / HTML report / GeoJSON"]
+    UI["Single-file UI"]
+    API["FastAPI: analyze, investigate, scene, change"]
+    ING["ingestion + metadata"]
+    GEO["geospatial gate: validate + co-register"]
+    BLOCKED["BLOCKED + reason"]
+    ROUTE["deterministic router and planner"]
+    POL["policy layer: 12 checks"]
+    EXEC["bounded executor: max 8 specialist calls"]
+    MODELS["TinyRS, RemoteSAM, ChangeFormer, RemoteCLIP, CROMA, DOFA"]
+    VER["verification"]
+    EV["evidence + confidence + provenance"]
+    OUT["NormalizedResponse: JSON, HTML report, GeoJSON"]
+
+    UI --> API
+    API --> ING
+    ING --> GEO
+    GEO --> BLOCKED
+    GEO --> ROUTE
+    ROUTE --> POL
+    POL --> EXEC
+    EXEC --> MODELS
+    MODELS --> VER
+    VER --> EV
+    EV --> OUT
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the module-by-module walkthrough.
