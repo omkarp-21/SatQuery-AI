@@ -1,248 +1,199 @@
-# SATQUERY
+# SatQuery
 
-Natural-language querying of satellite imagery with agentic routing, multi-model
-fusion, geospatial reasoning, and verifiable evidence.
+Natural-language querying of satellite imagery, with every answer backed by inspectable evidence and an execution trace.
 
-> Built for SIH. See [`docs/00_PROJECT_VISION.md`](docs/00_PROJECT_VISION.md) for the north star
-> and [`docs/16_SIH_JUDGING_STRATEGY.md`](docs/16_SIH_JUDGING_STRATEGY.md) for scoring focus.
+**Why this exists:** satellite analysis today means an expert driving desktop GIS software through optical, SAR, and multi-temporal imagery by hand. SatQuery lets someone ask *"What changed between these two observations?"* or *"Where is the largest ship?"* and get back not just an answer, but the change mask, bounding boxes, verification checks, confidence reasoning, and provenance needed to trust it.
 
-## What it does
+## Key features
 
-Ask questions like _"What changed along this coastline between 2019 and 2024?"_ or
-_"Find informal settlements within 2 km of this river."_ SATQUERY plans the query,
-routes it to the right specialist vision-language models, fuses their outputs,
-verifies the result, and returns an answer backed by an inspectable evidence trail
-and an execution trace.
+- **Unified query endpoint** (`POST /analyze`): routes a text query + images to the right specialist (VQA, grounding, temporal change, optical+SAR representation, scene ranking) and returns one normalized response schema.
+- **Agentic investigator** (`POST /investigate`): decomposes a mission into a typed plan, checks it against a deterministic policy layer, and executes it with bounded observe-and-replan steps (early stop, structured replans, no fabricated outputs).
+- **Specialist models, CPU-only:** visual QA (TinyRS-2B), referring grounding + masks (RemoteSAM), bi-temporal change masks (ChangeFormer), optical+SAR joint representations (CROMA, DOFA fallback), zero-shot scene ranking (RemoteCLIP).
+- **Evidence engine:** typed evidence items, deterministic verification (`SUPPORTED / CONTRADICTED / INSUFFICIENT_EVIDENCE / NOT_APPLICABLE`), evidence-derived confidence categories (never a number), and full provenance per result.
+- **Geospatial safety:** GeoTIFF validation plus a co-registration gate — misregistered pairs are refused with a structured reason, never silently resampled. SAR is never treated as RGB.
+- **Report export:** investigation results export to HTML (`POST /investigate/report`) and GeoJSON (EPSG:4326); the investigator also burns a PNG overlay preview (post-event optical + change tint + grounding box).
+- **Zero-build local UI:** `GET /` serves a single self-contained page (no npm build, no CDN) with ASK and INVESTIGATE workspaces, a spatial viewer, and evidence panels.
 
-## Architecture at a glance
+## Architecture overview
 
-| Layer | Path | Docs |
-|-------|------|------|
-| API | [`apps/backend/app/`](apps/backend/app/) | [`docs/09_API_CONTRACTS.md`](docs/09_API_CONTRACTS.md) |
-| Pipeline spine | [`packages/core/`](packages/core/) | [`docs/03_SYSTEM_ARCHITECTURE.md`](docs/03_SYSTEM_ARCHITECTURE.md) |
-| Agents & routing | [`packages/agents/`](packages/agents/) | [`docs/06_AGENT_ARCHITECTURE.md`](docs/06_AGENT_ARCHITECTURE.md) |
-| Model adapters | [`packages/model_adapters/`](packages/model_adapters/) | [`docs/05_MODEL_ARCHITECTURE.md`](docs/05_MODEL_ARCHITECTURE.md) |
-| Evidence engine | [`packages/evidence/`](packages/evidence/) | [`docs/07_EVIDENCE_ENGINE.md`](docs/07_EVIDENCE_ENGINE.md) |
-| Geospatial engine | [`packages/geospatial/`](packages/geospatial/) | [`docs/08_GEOSPATIAL_ENGINE.md`](docs/08_GEOSPATIAL_ENGINE.md) |
-| Frontend | [`apps/frontend/`](apps/frontend/) | [`docs/10_FRONTEND_SPEC.md`](docs/10_FRONTEND_SPEC.md) |
-| Evaluation | [`evaluation/`](evaluation/) | [`docs/11_EVALUATION_PLAN.md`](docs/11_EVALUATION_PLAN.md) |
-| Research refs | [`external/research/`](external/research/) | [`docs/research/`](docs/research/) |
+```mermaid
+flowchart LR
+    subgraph Client
+        UI["Single-file UI<br/>(GET /)"]
+    end
+    UI -->|upload + query| API["FastAPI<br/>(/analyze, /investigate,<br/>/scene, /change)"]
+    API --> ING["ingestion + metadata"]
+    ING --> GEO1{"geospatial gate<br/>(validate + co-register?)"}
+    GEO1 -->|fail| BLOCKED["BLOCKED + reason"]
+    GEO1 -->|pass| ROUTE["deterministic router / planner"]
+    ROUTE --> POL["policy layer<br/>(12 checks)"]
+    POL --> EXEC["bounded executor<br/>(≤8 specialist calls)"]
+    EXEC -->|subprocess per model| MODELS["TinyRS · RemoteSAM<br/>ChangeFormer · RemoteCLIP<br/>CROMA · DOFA"]
+    MODELS --> VER["verification"]
+    VER --> EV["evidence + confidence<br/>+ provenance"]
+    EV --> OUT["NormalizedResponse<br/>JSON / HTML report / GeoJSON"]
+```
 
-## Quickstart
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the module-by-module walkthrough.
 
-**Shortest path: [`QUICKSTART.md`](QUICKSTART.md) — clone → install → launch → demo in ~5 min.**
+## Tech stack
+
+Only what the code actually uses:
+
+| Layer | Technology |
+|---|---|
+| API | Python 3.11, FastAPI, Uvicorn, Pydantic v2, structlog |
+| Geospatial | Rasterio/GDAL, Shapely, pyproj, NumPy, SciPy, Pillow |
+| Models | PyTorch (CPU), Transformers, open-clip-torch — each in its own isolated venv, called via subprocess |
+| Web UI | Single-file HTML/JS served by the backend (no framework, no CDN) |
+| React app | `apps/frontend` is a dependency manifest only (see Limitations) |
+| Supporting services | PostGIS, Redis, MinIO via Docker Compose (declared, not yet connected — see Limitations) |
+| Tests/lint | pytest (markers: `slow`, `gpu`, `integration`), ruff + black |
+
+No LangChain/LangGraph/agent framework: orchestration is hand-written deterministic code (`RuleBasedPlanner` → policy checks → bounded executor). An LLM appears only in two opt-in paths (a local planner and a hybrid intent extractor), always behind repair, cross-checks, and deterministic fallback.
+
+## Getting started
+
+### Prerequisites
+
+- Python 3.11+, `git`, ~12 GB free disk for model checkpoints, 8 GB+ RAM. CPU-only is supported; no GPU required.
+- Model checkpoint files placed under `models/cache/` (see `scripts/download_models/`; that directory is gitignored).
+- Docker (optional, for supporting services only).
+
+### Install
 
 ```bash
-cp .env.example .env          # fill in secrets
-make setup                    # install packages + backend + frontend deps
-make clone-research           # clone reference repos into external/research/ (read-only)
-make download-models          # pull model checkpoints
-make dev-backend              # uvicorn -> http://127.0.0.1:8000/  (self-contained UI, no build)
+cp .env.example .env
+make setup                    # editable-installs packages + backend + frontend deps (not run here)
 ```
 
-See the [`Makefile`](Makefile) for all targets.
-
----
-
-## Release candidate (G18) — the 10-point run experience
-
-| # | | |
-|--:|---|---|
-| 1 | **Prerequisites** | Python **3.11+**, `git`, ~12 GB disk, 8 GB+ RAM. No internet at run time. CPU-only is fully supported. |
-| 2 | **Install** | `make setup`; place checkpoints under `models/cache/` (`scripts/download_models/`, ids + hashes in [`docs/G18_RELEASE_MANIFEST.md`](docs/G18_RELEASE_MANIFEST.md)). |
-| 3 | **Launch** | `make dev-backend` → `http://127.0.0.1:8000/`. `make dev-frontend` for the React dashboard (optional). |
-| 4 | **Demo** | Secondary (~15–60 s): *"Where is the largest ship?"* on `data/demo/grounding/scene.jpg`. Flagship (INVESTIGATE tab, ~90 s cold): the 4 tiles in `data/demo/investigation/` + the mission in `QUICKSTART.md`. Headless: `python scripts/demo/run_final_demo.py`. |
-| 5 | **Test** | `make test`, or `pytest packages apps/backend/tests -q -m "not slow and not gpu and not integration"` (**434 fast tests**). |
-| 6 | **CPU fallback** | every specialist + the agent run CPU-only; verified on the dev host. One model resident at a time (subprocess per specialist). |
-| 7 | **GPU caveat** | **GPU FIT = UNVERIFIED** — `torch.cuda.is_available() == False` on the dev host; no numerical VRAM claim is made. |
-| 8 | **Model caveats** | frozen stack (ADR-021). Deterministic planner is the **production default**; pure local LLM planner **rejected** (G16); hybrid LLM-intent planner **optional** (`SATQUERY_PLANNER=hybrid`, G17). Semantic-change *language* is an **experimental** composed baseline. |
-| 9 | **Licence caveat** | **RemoteSAM checkpoint licence NOT STATED** (upstream repo, HF card and paper are silent) → RemoteSAM is packaged as an **optional** component; the rest of the product works without it. |
-| 10 | **Known limitations** | see the box below and [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md). |
-
-### Known limitations (nothing hidden)
-
-- Evaluation is **sanity-scale** (n = tens–hundreds), not a full benchmark; every number carries its N and a significance caveat.
-- **DFC2020: adding SAR did not improve the downstream task** — the G12 +0.067 delta was within noise and **reversed** on the larger independent split (G18 Part 2). No statistical significance was established for any comparison.
-- **4 GB GPU fit UNVERIFIED**; **RemoteSAM licence NOT STATED**.
-- Confidence is an **evidence-derived category** (`HIGH/MEDIUM/LOW/INSUFFICIENT_EVIDENCE`), **never a probability or a number**.
-- The pure local LLM planner is **rejected for production**; the hybrid intent planner is **optional** and does not beat the deterministic planner on this hardware.
-
-Release audit + gate + final decision: [`docs/G18_RELEASE_REPORT.md`](docs/G18_RELEASE_REPORT.md) ·
-[`docs/G18_RELEASE_AUDIT.md`](docs/G18_RELEASE_AUDIT.md) · claim wording: [`docs/sih/CLAIM_MATRIX.md`](docs/sih/CLAIM_MATRIX.md).
-
-### SIH package (G19 — `FINAL_TECH_FREEZE = TRUE`)
-
-The single reference for every slide, script and judge answer is
-[`docs/G19_SIH_SOURCE_OF_TRUTH.md`](docs/G19_SIH_SOURCE_OF_TRUTH.md) (what we can /
-cannot claim, exact metrics with N, exact limitation wording, frozen flagship
-facts). Presentation set under [`docs/sih/`](docs/sih/): core story · pitch +
-30-second explanation · architecture diagram · demo storyboard · 3-minute script ·
-backup demo · results-slide data · novelty argument · competitor comparison ·
-top-30 judge Q&A · negative-results defense · demo runbook · final checklist ·
-product roadmap. After G19: bug fixes, demo reliability, docs and presentation
-assets only — no new features / models / architecture.
-
-**G20 — competition-grade UI (UI/UX only).** The local UI at
-`http://127.0.0.1:8000/` was rebuilt into a geospatial-intelligence workstation:
-top nav (ASK / INVESTIGATE / ABOUT / system status), a hero landing, and for
-INVESTIGATE a 3-column workspace — MISSION + PLAN + ADAPTIVE EXECUTION on the
-left, a spatial map/geometry viewer in the centre, FINDINGS + CONFIDENCE +
-VERIFICATION + EVIDENCE + WARNINGS on the right, report export at the bottom.
-Every value still comes straight from the backend response; no fabricated data,
-progress, reasoning, or confidence. Same single file
-(`apps/backend/app/static/index.html`), no build step, no CDN. See
-[`docs/G20_UI_RELEASE_REPORT.md`](docs/G20_UI_RELEASE_REPORT.md),
-[`docs/G20_UI_AUDIT.md`](docs/G20_UI_AUDIT.md),
-[`docs/G20_UI_QA.md`](docs/G20_UI_QA.md); screenshots in
-[`docs/sih/evidence/ui/`](docs/sih/evidence/ui/).
-
-**G20.1 — error-handling semantics.** A live test surfaced a mislabelled failure:
-a not-co-registered temporal pair correctly refused change detection, but the UI
-showed *"2 step(s) failed. Verification: SUPPORTED."*. Fixed with a new derived
-top-level **`investigation_status`** (`SUCCESS` / `PARTIAL` / `BLOCKED` /
-`FAILED`), distinct from verification and confidence — `res.ok` follows it, a
-BLOCKED run reports `verification: NOT_APPLICABLE`, the conclusion is
-human-readable, and the UI leads with a status banner, shows *"Spatial comparison
-unavailable"* instead of the input raster, and a *"What happened / How to fix
-this"* panel. The geospatial-safety refusal of misregistered pairs is **kept** —
-no silent resample. `docs/G20_1_{ERROR_AUDIT,UI_RELEASE_REPORT,VISUAL_QA}.md`.
-
-## Run the SatQuery MVP locally  *(G13)*
-
-The frozen model stack (G12) runs **CPU-only** — no CUDA required. Each specialist
-runs in its own `.venvs/<model>` and is loaded lazily per request (subprocess,
-nothing stays resident). First call to a model is a cold start; later calls are warm.
+Per-package alternative (verified working on this machine):
 
 ```bash
-# 1. one-time: per-model venvs + checkpoints (see docs/G13_PRODUCTIZATION_REPORT.md)
-#    .venvs/{satquery,tinyrs,remotesam,changeformer,remoteclip,croma,dofa}
-#    models/cache/{tinyrs,remotesam,changeformer,remoteclip,croma,dofa}
-
-# 2. launch the API + UI (Windows PowerShell / Git Bash)
-cd apps/backend
-../../.venvs/satquery/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-
-# 3. open the UI
-#    http://127.0.0.1:8000/          -> upload 1-2 images, type a query, Analyze
-#    http://127.0.0.1:8000/docs      -> OpenAPI (POST /analyze/upload, /analyze, /change, /scene)
+python -m pip install -e packages/core -e packages/geospatial -e packages/agents \
+  -e packages/evidence -e packages/model_adapters -e apps/backend
 ```
 
-**Run the 5 demo scenarios (real outputs, nothing faked):**
+### Configure
+
+Environment variables are listed in [`.env.example`](.env.example) — data directory, per-model checkpoint overrides, and planner selection (`SATQUERY_PLANNER=rule` by default; `llm` and `hybrid` are opt-in).
+
+### Run
 
 ```bash
-.venvs/satquery/Scripts/python.exe scripts/demo/run_demos.py            # all 5
-.venvs/satquery/Scripts/python.exe scripts/demo/run_demos.py --demo 2   # just grounding
-# captures written to docs/sih/evidence/demos/g13_demo*.json
+make dev-backend              # uvicorn -> http://127.0.0.1:8000/ (declared in Makefile, not run here)
 ```
 
-### Agentic investigator  *(G14)*
-
-In the UI, toggle **INVESTIGATE** (or `POST /investigate`). A natural-language
-**mission** is decomposed by a text-only planner into a typed plan, checked by a
-12-rule deterministic policy layer, then run by a bounded executor (≤ 8 specialist
-calls) that observes each result and decides the next action. The deterministic
-router is not replaced — it is the execution guard; if the planner is unavailable
-the request falls back to `/analyze`.
+Direct equivalent (verified: app imports, `/health` returns 200):
 
 ```bash
-# flagship mission (planner-produced, not a hard-coded workflow)
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --only mi-01
-
-# full agent evaluation — 50 frozen missions, 13 quality metrics (each with its N)
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py            # plan phase, all 50
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_agent_eval.py --exec 2   # + real-model exec sample
-# reports -> evaluation/agent/reports/G15_AGENT_EVALUATION.{md,json}
-# see docs/G15_AGENT_IMPLEMENTATION.md + docs/G15_AGENT_EVALUATION.md
-
-# optional local LLM planner (Qwen2-VL-2B text-only; schema-repair + always falls back to the rule planner)
-SATQUERY_PLANNER=llm .venvs/satquery/Scripts/python.exe -m uvicorn app.main:app --port 8000
+cd apps/backend && uvicorn app.main:app --host 127.0.0.1 --port 8000
+# UI:      http://127.0.0.1:8000/
+# OpenAPI: http://127.0.0.1:8000/docs
 ```
 
-**G16 — real LLM planner validation** (two planning arms, same 50 missions):
+Full stack via Docker (not run here): `docker compose up --build` (API :8000, frontend :5173, PostGIS :5432, Redis :6379, MinIO :9000/9001).
+
+### Test
 
 ```bash
-# 1. cache the local-LLM raw plans (slow: CPU-only 2B, ~5 min/mission -> a subset is used)
-SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe evaluation/agent/run_g16_eval.py --llm-cache --only ss-01,tm-01,os-01,mi-01,ad-01
-# 2. score ARM A (RuleBasedPlanner) vs ARM B (LLM) + write the report (fast)
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_g16_eval.py --plan
-# 3. real-model execution: baseline (/analyze) vs LLM agent
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_g16_eval.py --exec 8
-# reports -> evaluation/agent/reports/G16_REAL_LLM_EVALUATION.{md,json}
-# see docs/G16_REAL_LLM_EVALUATION.md, docs/G16_AGENT_VALUE_ANALYSIS.md, docs/G16_ADVERSARIAL_TESTS.md
-
-# flagship with the ACTUAL local LLM, two environments (change vs no-change) to show adaptivity
-SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe scripts/demo/run_g16_flagship.py
+.venvs/satquery/Scripts/python.exe -m pytest packages apps/backend/tests -q -m "not slow and not gpu and not integration"
+# verified: 437 passed, 38 deselected (slow/gpu/integration) in ~90s
 ```
 
-**G16 finding (short):** the local 2 B LLM planner echoes its prompt example and
-does not plan (semantic plan validity 0.25 vs the rule planner's 1.00, N=15).
-Its plans are *structurally* valid, so a G16 **plan-intent cross-check**
-(`_plan_intent_mismatch`) routes mission-wrong LLM plans to the visible
-deterministic fallback. `RuleBasedPlanner` stays the default; the LLM is opt-in.
-See `docs/G16_REAL_LLM_EVALUATION.md`.
+`make test-frontend` and `make lint` were not run here (frontend has no installed deps; ruff/black not installed in the venv).
 
-**G17 — hybrid architecture** (`SATQUERY_PLANNER=hybrid`): the LLM produces a
-small typed **`Intent`** only; a deterministic `PlanSynthesizer` builds the plan
-from it. The LLM never picks a tool. Plus an **evidence-derived confidence
-category** (`HIGH / MEDIUM / LOW / INSUFFICIENT_EVIDENCE` — not a probability;
-`docs/G17_TRUST_LAYER.md`).
+## Usage examples
+
+Health check (verified live):
 
 ```bash
-# cache the LLM intent JSON for all 100 frozen missions (persistent server; ~35 s/mission on CPU)
-SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe evaluation/agent/run_g17_eval.py --intent-cache
-# score ARM A (rule) vs ARM B (pure LLM, carried from G16) vs ARM C (hybrid)
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_g17_eval.py --plan
-# real-model execution: hybrid agent vs the deterministic baseline
-.venvs/satquery/Scripts/python.exe evaluation/agent/run_g17_eval.py --exec 12
-# flagship with the hybrid architecture, change vs no-change
-SATQUERY_PLANNER_PERSISTENT=1 .venvs/satquery/Scripts/python.exe scripts/demo/run_g17_flagship.py
-# see docs/G17_HYBRID_AGENT_REPORT.md · docs/G17_ARCHITECTURE_DECISION.md · docs/G17_TRUST_LAYER.md
+curl http://127.0.0.1:8000/health
+# {"status":"ok"}
 ```
 
-| Demo | Query | Task → model |
-|------|-------|--------------|
-| 1 | "What objects are visible in this satellite image?" | VQA → TinyRS-2B |
-| 2 | "Where is the largest building?" | Grounding → RemoteSAM |
-| 3 | "What changed between these two images?" | Temporal → ChangeFormer |
-| 4 | "Compare the optical and SAR information for this area." | Optical+SAR → CROMA |
-| 5 | "Describe what changed and where, with supporting evidence." | Composed semantic baseline (ChangeFormer + RemoteCLIP) |
-
-**Tests:**
+The following follow the API contract in code (not live-run with model checkpoints here):
 
 ```bash
-.venvs/satquery/Scripts/python.exe -m pytest packages apps/backend -q -m "not slow"   # fast, ~3 min, 179 tests
-.venvs/satquery/Scripts/python.exe -m pytest apps/backend/tests/test_g13_integration.py apps/backend/tests/test_g14_agent.py -q -m slow   # real models, slow
+# Zero-shot scene ranking over candidate labels
+curl -X POST http://127.0.0.1:8000/scene \
+  -H 'Content-Type: application/json' \
+  -d '{"image_path": "data/demo/scene/airport.jpg",
+       "prompts": ["airport", "forest", "harbor"]}'
+
+# Bi-temporal change mask (T1/T2 must be co-registered; otherwise refused)
+curl -X POST http://127.0.0.1:8000/change \
+  -H 'Content-Type: application/json' \
+  -d '{"t1_path": "data/demo/investigation/t1_optical.tif",
+       "t2_path": "data/demo/investigation/t2_optical.tif"}'
+
+# Unified natural-language query
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H 'Content-Type: application/json' \
+  -d '{"query": "What objects are visible in this satellite image?",
+       "image_paths": ["data/demo/vqa/scene.jpg"]}'
+
+# Agentic multi-step investigation (+ HTML report at /investigate/report)
+curl -X POST http://127.0.0.1:8000/investigate \
+  -H 'Content-Type: application/json' \
+  -d '{"mission": "Identify significant changes between the two observations
+        and locate the affected structures.",
+       "image_paths": ["data/demo/investigation/t1_optical.tif",
+                       "data/demo/investigation/t2_optical.tif",
+                       "data/demo/investigation/s2_dfc_optical.tif",
+                       "data/demo/investigation/s1_dfc_sar.tif"]}'
 ```
 
-**Known limitations (G13 — not hidden):** evaluation samples are sanity-scale;
-the CROMA optical+SAR delta and the LoRA adaptation gain are **not
-significance-tested**; **4 GB VRAM is unverified** (CPU-only host, no VRAM figure);
-**RemoteSAM licence is NOT STATED**; no confidence value is produced (by design);
-no learned temporal semantic VLM; the LoRA adapter is not yet persisted into
-production. See [`docs/G13_PRODUCTIZATION_REPORT.md`](docs/G13_PRODUCTIZATION_REPORT.md).
+In the UI: open `http://127.0.0.1:8000/`, upload one image for ASK or the four investigation tiles for INVESTIGATE, type a query, and inspect the plan, spatial viewer, findings, confidence, verification, and evidence panels.
 
-## Repository layout
+<!-- TODO: add screenshot of ASK result with evidence panel -->
+<!-- TODO: add screenshot of INVESTIGATE workspace (plan + map + findings) -->
+<!-- TODO: add GIF of upload → analyze → evidence flow (~60s) -->
+
+## Project structure
 
 ```
-apps/
-  backend/     FastAPI app — wires the packages into query endpoints
-  frontend/    React app (maps, evidence, execution-trace views)
-packages/
-  core/          pipeline spine + typed contracts (satquery_core)
-  geospatial/    raster/vector engine (satquery_geospatial)
-  agents/        deterministic orchestration + specialists (satquery_agents)
-  evidence/      evidence, verification, provenance (satquery_evidence)
-  model_adapters/ specialist adapters + model_registry.yaml
-external/research/  vendored upstream repos — READ-ONLY, gitignored
-models/      checkpoints/ + cache/ (gitignored)
-data/        raw / processed / demo
-evaluation/  datasets, scripts, metrics, cases, reports
-infrastructure/  docker + nginx
-scripts/     setup / download / benchmark / demo helpers
-docs/        numbered design docs + decision log + research/ inventory
+apps/backend/app/      FastAPI app: api/ (endpoints), services/ (slices per task), static/index.html (UI)
+apps/frontend/         React manifest only — no source yet (see Limitations)
+packages/core/         Pipeline spine + contracts: routing, planning, registry, fusion, confidence, reports
+packages/geospatial/   Raster/vector I/O, validation, co-registration gate
+packages/agents/       Deterministic orchestration: typed plans, policy layer, planners, repair
+packages/evidence/     Evidence items, deterministic verifier, provenance, semantic checks
+packages/model_adapters/ Specialist adapters + model_registry.yaml (routing reads only this file)
+external/research/     Vendored reference repos — read-only, gitignored, never imported
+models/cache|checkpoints/  Weights (gitignored)       data/demo/  Small tracked demo tiles
+evaluation/            Datasets, frozen missions, eval scripts, reports
+scripts/               Setup, model/data downloaders, demo runners
+docs/                  Numbered design docs, decision log (DECISIONS.md), live status (PROJECT_STATUS.md)
 ```
+
+## Design decisions and tradeoffs
+
+1. **Deterministic orchestration by default, LLM strictly opt-in.** The rule-based planner + policy layer is the production path because the measured local-LLM planner echoed its prompt example instead of planning. This trades open-ended flexibility for auditability: every plan step comes from a closed task/tool ontology. Cost: novel mission phrasings only get keyword-level understanding.
+2. **One subprocess per specialist call.** Each model lives in its own conflicting venv (torch versions, mmcv, transformers all disagree) and is loaded lazily per request, so nothing stays resident and environments can't clash. Cost: cold-start latency (seconds to over a minute on CPU).
+3. **Rule-over-registry routing.** `model_registry.yaml` holds measured facts (latency, params, license, evidence level) and routing reads only that file — no hardcoded model names, no paper-claim capabilities. Cost: adding a model means writing an adapter plus registry entry, not a one-liner.
+4. **Refuse instead of resample.** Misregistered image pairs return a structured BLOCKED result rather than being silently warped into alignment, because a fabricated alignment would corrupt every downstream measurement (area, centroid, change fraction). Cost: users must supply co-registered inputs.
+5. **Confidence as a category, never a number.** `HIGH / MEDIUM / LOW / INSUFFICIENT_EVIDENCE` derived from evidence rules (multi-specialist agreement, verification status, failure presence). Raw model scores are surfaced with an explicit "relative, not calibrated" meaning. Cost: no probabilistic ranking or thresholding downstream.
+
+## Limitations and known issues
+
+- Evaluation is sanity-scale (tens to hundreds of samples per experiment); no statistical significance established for any model comparison.
+- The React frontend (`apps/frontend`) has no source files and no Vite config — only `package.json`. `npm run dev/build/test` cannot work; the working UI is the backend-served single file.
+- PostGIS/Redis/MinIO appear in Docker Compose and the example env file, but the app never connects to them (`lifespan` in `main.py` carries TODOs for DB pool, object storage, and model warm-up).
+- The optical+SAR task benefit did not survive a larger data split (sign flipped), so no "SAR improves results" claim is made; the joint representation remains integrated.
+- The pure local-LLM planner is rejected for production use; the hybrid intent planner is opt-in and does not beat the deterministic planner on CPU hardware.
+- GPU fit is unverified (CPU-only host); no VRAM figure is claimed.
+- One checkpoint license is not stated upstream, so that grounding component ships as optional — the rest works without it.
+- Semantic-change descriptions are an experimental composed baseline (mask regions + zero-shot tags), not a learned temporal vision-language model; tags are noisy on small crops.
+- No CI configuration exists in the repo.
+
+## Roadmap
+
+Only items grounded in code TODOs:
+
+- Wire the application lifespan (`apps/backend/app/main.py` TODOs): warm the model registry at startup, open the database pool, connect object storage, and add graceful shutdown.
+- TODO: confirm — whether the React frontend should be implemented, removed, or kept as a manifest for a future client.
 
 ## Contributing
 
-Read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) before making changes.
-Record notable decisions in [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) before changing code. Record notable choices in [`docs/DECISIONS.md`](docs/DECISIONS.md). License: MIT (see `LICENSE`; vendored research code keeps its upstream licenses).
