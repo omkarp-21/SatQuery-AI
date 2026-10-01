@@ -94,7 +94,38 @@ async def investigate(
         except OSError:
             mask_src = None
     mask_url = f"/artifact?req={req_id}&name=mask.png" if (req_dir / "mask.png").exists() else None
-    result.provenance["input_files"] = [f"/artifact?req={req_id}&name={Path(s).name}" for s in saved]
+    # Overlay preview: T2 imagery + change-mask tint + grounding box, burned by
+    # the backend from executed specialist outputs. The viewer only accepts a
+    # PNG/JPEG background — GeoTIFF inputs never qualify — so without this the
+    # spatial view falls back to bare SVG polygons. Best-effort: the result
+    # stands without it.
+    overlay_url = None
+    try:
+        from app.services.overlay import build_investigation_overlay as _overlay  # noqa: E402
+
+        ordered = list(result.inputs or saved)
+        t2_base = ordered[1] if len(ordered) >= 2 else ordered[0]
+        gbox, gdims = None, None
+        for e in result.evidence or []:
+            d = e.model_dump() if hasattr(e, "model_dump") else dict(e)
+            if d.get("evidence_type") == "grounding":
+                sr, pay = d.get("spatial_region") or {}, d.get("payload") or {}
+                gbox = sr.get("bbox_xyxy")
+                if gbox is None and sr.get("bbox_pixel"):
+                    rmin, cmin, rmax, cmax = sr["bbox_pixel"]  # row-major -> xyxy
+                    gbox = [cmin, rmin, cmax, rmax]
+                gdims = pay.get("image_dims")
+                break
+        mask_png = req_dir / "mask.png"
+        if mask_png.exists() or gbox:
+            ov = _overlay(t2_base, str(mask_png) if mask_png.exists() else None,
+                          gbox, gdims, req_dir / "overlay.png")
+            if ov:
+                overlay_url = f"/artifact?req={req_id}&name=overlay.png"
+    except Exception:  # noqa: BLE001
+        overlay_url = None
+    input_urls = [f"/artifact?req={req_id}&name={Path(s).name}" for s in saved]
+    result.provenance["input_files"] = ([overlay_url] + input_urls) if overlay_url else input_urls
     if mask_url:
         result.provenance["mask_url"] = mask_url
     result.timings.setdefault("endpoint_s", round(time.time() - started, 2))

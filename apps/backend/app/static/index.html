@@ -624,7 +624,7 @@ function renderAsk(b) {
     h += `<div class="panel fade-in"><h2>Zero-shot ranking</h2><table class="trace">` +
       b.labels.map(([l, s]) => `<tr><td>${esc(l)}</td><td class="ts">${num(s)}</td></tr>`).join("") + `</table></div>`;
   }
-  h += verificationPanel(b.verification);
+  h += verificationLine(b);
   h += evidencePanel(b.evidence);
   h += warningsPanel(b.warnings, b.failures);
   out.innerHTML = h;

@@ -120,6 +120,57 @@ def _band_count(p: str) -> int:
         return 0
 
 
+def _raster_shape(p: str) -> tuple[int, int] | None:
+    """(height, width) or None when the file is not a readable raster."""
+    try:
+        with rasterio.open(p) as d:
+            return (d.height, d.width)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def order_investigation_inputs(paths: list[str]) -> list[str]:
+    """Canonical, content-based input order — never upload order.
+
+    Browsers return multi-file selections alphabetically (s1, s2, t1, t2),
+    but the planner contract is positional: T1=img0, T2=img1, S2-optical=img2,
+    S1-SAR=img3. This restores that contract deterministically:
+
+    - 2-band rasters (Sentinel-1 SAR) go last, sorted by filename;
+    - the largest group sharing shape AND band count (the co-registered T1/T2
+      pair) goes first, sorted by filename (t1_* < t2_*; a T1/T2 swap is
+      harmless — change detection is symmetric in changed fraction);
+    - anything else (S2 optical, single images, unreadable files) sits in the
+      middle, sorted by filename.
+
+    Single inputs and already-canonical orders are returned unchanged.
+    """
+    if len(paths) <= 1:
+        return list(paths)
+    info = [(p, _band_count(p), _raster_shape(p)) for p in paths]
+    sar = sorted([p for p, bc, _ in info if bc == 2], key=lambda p: Path(p).name)
+    rest = [(p, bc, sh) for p, bc, sh in info if bc != 2]
+    # group by (bands, shape): S2 (13-band) must never join a 3-band T1/T2 pair
+    # even when every tile shares the same HxW grid.
+    groups: dict[tuple[int, tuple[int, int] | None], list[str]] = {}
+    for p, bc, sh in rest:
+        groups.setdefault((bc, sh), []).append(p)
+    pair_key = None
+    for key, group in groups.items():
+        bc, sh = key
+        if bc > 0 and sh is not None and len(group) >= 2 and (
+            pair_key is None or len(group) > len(groups[pair_key])
+        ):
+            pair_key = key
+    ordered: list[str] = []
+    if pair_key is not None:
+        ordered += sorted(groups.pop(pair_key), key=lambda p: Path(p).name)
+    for key in sorted(groups, key=lambda k: (k[0] == 0, k[0], k[1] is None, k[1] or (0, 0))):
+        ordered += sorted(groups[key], key=lambda p: Path(p).name)
+    ordered += sar
+    return ordered
+
+
 # --------------------------------------------------------------------------- #
 # tool implementations — each returns (payload dict, evidence list, verification, resolution, model)
 # --------------------------------------------------------------------------- #
@@ -426,11 +477,16 @@ def run_investigation(
 ) -> AgentInvestigationResult:
     ctx = context or {}
     started = time.time()
-    paths = [str(p) for p in image_paths]
+    paths = order_investigation_inputs([str(p) for p in image_paths])
     mods = _modalities(paths)
     res = AgentInvestigationResult(mission=mission, inputs=paths, max_steps=max_steps)
     tl = res.execution_trace
     tl.append(TimelineEntry(ts=_now(), event="Mission received"))
+    if paths != [str(p) for p in image_paths]:
+        tl.append(TimelineEntry(ts=_now(),
+                                event="Inputs ordered by content "
+                                      f"({', '.join(Path(p).name for p in paths)}) — "
+                                      "upload order is not trusted"))
 
     # pre-plan facts the policy layer needs: CRS validity + pair co-registration
     has_crs, coreg = _preflight_geo(paths)
