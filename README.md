@@ -17,7 +17,7 @@ Natural-language querying of satellite imagery, with every answer backed by insp
 ## Architecture overview
 
 ```mermaid
-flowchart LR
+flowchart TD
     UI["Single-file UI"]
     API["FastAPI: analyze, investigate, scene, change"]
     ING["ingestion + metadata"]
