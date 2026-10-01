@@ -70,3 +70,9 @@ logs/
 # G14 agent eval — keep only latest.json in git
 evaluation/agent/reports/*.json
 !evaluation/agent/reports/latest.json
+
+# --- Internal / competition materials — kept locally, never published ---
+chatgpt.context.md
+AGENT_PROMPT.md
+SatQuery_SIH_Final_Deck.pptx
+docs/sih/
